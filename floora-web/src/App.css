@@ -107,7 +107,7 @@ html, body, #root {
   cursor: pointer;
 }
 
-/* ========== SMALL DEVICE FIX ========== */
+/* ========== SMALL DEVICE  ========== */
 @media (max-width: 500px) {
   .logo {
     font-size: 44px;
@@ -121,7 +121,7 @@ html, body, #root {
 }
 
 /* =========================================================
-   CREATE ACCOUNT — Figma exact alignment / colors
+   CREATE ACCOUNT 
    ========================================================= */
 
 .create-card {
@@ -131,7 +131,7 @@ html, body, #root {
   padding-top: 8px;
 }
 
-/* 313px fixed column for all content so everything lines up */
+/* 313px fixed column for all content  */
 .ca-col {
   width: 313px;
   margin-left: auto;
@@ -141,7 +141,7 @@ html, body, #root {
 /* White circular back button with subtle shadow */
 .back-circle {
   position: absolute;
-  top: -4px;   /* moved up for clean alignment */
+  top: -4px;   /* moved up  */
   left: 8px;
   width: 36px;
   height: 36px;

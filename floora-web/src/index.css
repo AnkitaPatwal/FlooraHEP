@@ -15,5 +15,5 @@ html, body, #root {
 }
 
 /* Remove all the Vite demo defaults that can fight your styles */
-a, h1, button { all: unset; } /* optional: clears demo styles */
+a, h1, button { all: unset; } /*  clears demo styles */
 
