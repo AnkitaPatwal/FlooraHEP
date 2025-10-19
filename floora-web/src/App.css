@@ -131,14 +131,14 @@ html, body, #root {
   padding-top: 8px;
 }
 
-/* 313px fixed column for all content  */
+/* 313px  column for all content  */
 .ca-col {
   width: 313px;
   margin-left: auto;
   margin-right: auto;
 }
 
-/* White circular back button with subtle shadow */
+/* White circular back button  */
 .back-circle {
   position: absolute;
   top: -4px;   /* moved up  */
@@ -160,7 +160,7 @@ html, body, #root {
 
 
 
-/* Title + helper (white, left aligned) */
+/* Title + helper  */
 .create-title {
   color: #ffffff;
   font-weight: 700;
@@ -208,7 +208,7 @@ html, body, #root {
   box-shadow: 0 0 0 2px rgba(46, 107, 109, 0.75);
 }
 
-/* Button matches width and style */
+/* Button  */
 .create-btn {
   width: 100%; /* 313px via .ca-col */
   display: block;
@@ -228,7 +228,7 @@ html, body, #root {
   background-color: #133d3d;
 }
 
-/* small screen tweak */
+/* small screen  */
 @media (max-width: 380px) {
   .create-card { width: 100%; }
   .create-title { font-size: 24px; }
