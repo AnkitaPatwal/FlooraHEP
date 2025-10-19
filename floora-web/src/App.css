@@ -1,0 +1,236 @@
+@import url('https://fonts.googleapis.com/css2?family=Lobster&family=Poppins:wght@400;600&display=swap');
+
+/* ========== GLOBAL LAYOUT ========== */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #437C7D; /* teal background */
+  font-family: 'Poppins', sans-serif;
+}
+
+/* ========== LOGIN CARD CONTAINER ========== */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.login-card {
+  width: 360px;
+  max-width: 92vw;
+  text-align: center;
+  background: transparent;
+}
+
+/* ========== TITLE STYLING ========== */
+.logo {
+  font-family: 'Lobster Two', cursive;
+  font-weight: 700;
+  color: #F2E2D2;
+  font-size: 72px;
+  margin-bottom: 6px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  color: #F2E2D2;
+  font-family: 'Poppins', sans-serif;
+  font-size: 17px;
+  font-weight: 400;
+  margin-top: -8px;
+}
+
+/* ========== INPUT FIELDS ========== */
+.input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: none;
+  border-radius: 6px;
+  background-color: #EAE4DA; /* light cream input background */
+  color: #2B2B2B;
+  font-size: 15px;
+  outline: none;
+  box-shadow: none;
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #2E6B6D; /* subtle teal focus ring */
+}
+
+/* ========== BUTTON ========== */
+.signin {
+  width: 100%;
+  background-color: #0D2C2C; /* dark teal */
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: background 0.3s ease;
+}
+
+.signin:hover {
+  background-color: #133d3d;
+}
+
+/* ========== LINKS ========== */
+.forgot,
+.create-account,
+.create-account a {
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.create-account {
+  margin-top: 12px;
+}
+
+.create-account a {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ========== SMALL DEVICE FIX ========== */
+@media (max-width: 500px) {
+  .logo {
+    font-size: 44px;
+  }
+  .subtitle {
+    font-size: 15px;
+  }
+  .login-card {
+    width: 300px;
+  }
+}
+
+/* =========================================================
+   CREATE ACCOUNT — Figma exact alignment / colors
+   ========================================================= */
+
+.create-card {
+  position: relative;
+  width: 360px;
+  max-width: 92vw;
+  padding-top: 8px;
+}
+
+/* 313px fixed column for all content so everything lines up */
+.ca-col {
+  width: 313px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* White circular back button with subtle shadow */
+.back-circle {
+  position: absolute;
+  top: -4px;   /* moved up for clean alignment */
+  left: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: none;
+  color: #1f3a3a;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+  cursor: pointer;
+}
+
+
+
+/* Title + helper (white, left aligned) */
+.create-title {
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 26px;
+  margin: 26px 0 6px 0;
+  text-align: left;
+}
+
+.create-helper {
+  color: #ffffff;
+  opacity: 0.9;
+  font-size: 12px;
+  margin: 0 0 14px 0;
+  text-align: left;
+}
+
+/* Labels (white, left) */
+.field { margin-bottom: 12px; }
+
+.field-label {
+  display: block;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 8px 0 6px 2px;
+  text-align: left;
+}
+
+/* Inputs: pure white, no border, rounded, 313px width */
+.ca-input {
+  width: 100%;
+  margin: 0;
+  background: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #2b2b2b;
+  font-size: 15px;
+  outline: none;
+  box-shadow: none;
+}
+
+/* Subtle teal focus */
+.ca-input:focus {
+  box-shadow: 0 0 0 2px rgba(46, 107, 109, 0.75);
+}
+
+/* Button matches width and style */
+.create-btn {
+  width: 100%; /* 313px via .ca-col */
+  display: block;
+  margin-top: 12px;
+  background-color: #0D2C2C;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.create-btn:hover {
+  background-color: #133d3d;
+}
+
+/* small screen tweak */
+@media (max-width: 380px) {
+  .create-card { width: 100%; }
+  .create-title { font-size: 24px; }
+  .ca-col { width: 92vw; }
+}
