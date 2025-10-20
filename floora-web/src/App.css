@@ -234,3 +234,41 @@ html, body, #root {
   .create-title { font-size: 24px; }
   .ca-col { width: 92vw; }
 }
+
+
+/* =======================================
+Admin Login Page
+==============================================*/
+.admin-subtitle {
+  color: #F2E2D2;            /* brand blue 700 */
+  font-family: 'Poppins', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  margin-top: -8px;
+}
+
+/* Admin-only locked-session banner */
+.error-banner {
+  margin-top: 10px;
+  background: #CFE4F2;       /* blue 200 */
+  color: #06426A;            /* blue 900 */
+  border-left: 4px solid #3A90C9; /* blue 700 */
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+/* Admin-only unlock button */
+.unlock-btn {
+  margin-left: 10px;
+  background: #0B70B4;       /* blue 800 */
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.unlock-btn:hover { background: #63A7D4; /* blue 600 */ }
+
