@@ -1,0 +1,18 @@
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+
+#root {
+  display: flex;
+  align-items: center;     /* vertical center */
+  justify-content: center; /* horizontal center */
+  background-color: #437C7D; /* your teal */
+  font-family: 'Poppins', sans-serif;
+}
+
+/* styles */
+a, h1, button { all: unset; } 
