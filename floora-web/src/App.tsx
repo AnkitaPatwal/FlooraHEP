@@ -7,6 +7,7 @@ import "./App.css";
 import ExerciseDashboard from "./pages/ExerciseDashboard";
 import Dashboard from "./pages/Dashboard";
 import EditUserApprove from "./pages/EditUserApprove";
+import ForgotPassword from "./pages/ForgotPassword";
 
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
         <Route path="/edit-user-approve" element={<EditUserApprove />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
     </Router>
   );

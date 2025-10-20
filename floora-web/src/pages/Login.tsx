@@ -11,7 +11,9 @@ export default function Login() {
         <input type="email" placeholder="Email" className="input" />
         <input type="password" placeholder="Password" className="input" />
 
-        <a href="#" className="forgot">Forgot Password?</a>
+        <p style={{ textAlign: "center", marginTop: 12 }}>
+          <Link to="/forgot-password">Forgot Password?</Link>
+        </p>
 
         <button className="signin">Sign In</button>
 
