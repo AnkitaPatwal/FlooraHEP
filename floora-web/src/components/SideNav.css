@@ -1,0 +1,113 @@
+
+.sidenav {
+    width: 250px;
+    height: 100vh;
+    background-color: #5a8e93;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 25px 20px;
+    box-sizing: border-box;
+    font-family: "Poppins", sans-serif;
+    position: fixed;      
+    top: 0;
+    left: 0;
+  }
+  
+  .logo-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 5px;       
+    margin-bottom: 4px;    
+  }
+  
+  .logo-img {
+    width: 120px;
+    height: auto;
+  }
+
+  
+  .divider-top {
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    margin: 12px auto 12px;    
+  }
+  
+  .divider-bottom {
+    width: 100%;
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+    margin: auto 2px 15px;    
+  }
+  
+  
+  .nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+  }
+  
+  .nav-item:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  
+  .nav-item.active {
+    background-color: white;
+    color: #4b6a6e;
+    font-weight: 600;
+  }
+  
+  .icon {
+    font-size: 16px;
+  }
+  
+  .user-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .user-icon {
+    font-size: 26px;
+    color: white;
+  }
+  
+  .username {
+    font-size: 13px;
+  }
+  
+  .menu-dots {
+    font-size: 18px;
+    cursor: pointer;
+    color: white;
+  }
+  
+  .logo-img {
+    width: 206px;
+  }
+  
