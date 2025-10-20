@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import CreateAccount from "./pages/CreateAccount";
+import AdminLogin from "./pages/AdminLogin";
 import "./App.css";
 
 export default function App() {
@@ -9,7 +10,12 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/create" element={<CreateAccount />} />
+        <Route path="/admin-login" element={<AdminLogin />} />
       </Routes>
     </Router>
   );
 }
+
+
+
+
