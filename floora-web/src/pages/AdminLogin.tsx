@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../App.css";
 
 export default function AdminLogin() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [locked, setLocked] = useState(false);
@@ -15,9 +16,11 @@ export default function AdminLogin() {
 
     // DEMO: fail unless exact admin creds
     await new Promise(r => setTimeout(r, 250));
-    const ok = email === "admin@floora.com" && password === "admin123";
+
+    //const ok = email === "admin@floora.com" && password === "admin123";
+    const ok = true; //hardcoding for testing purposes
     if (ok) {
-      window.location.href = "/admin-dashboard"; // or your next page
+      navigate("/dashboard", { replace: true }); // GO TO DASHBOARD
     } else {
       setLocked(true); // <-- admin-only locked banner appears
     }
@@ -50,7 +53,7 @@ export default function AdminLogin() {
         />
 
         {/* admin-only locked-session banner */}
-        {locked && (
+        {locked && false && ( //temporarily disable banner
           <div className="error-banner" role="alert" aria-live="assertive">
             Session locked — unlock this session to continue.
             <button type="button" className="unlock-btn" onClick={unlock}>
@@ -61,7 +64,7 @@ export default function AdminLogin() {
 
         <a href="#" className="forgot">Forgot Password?</a>
 
-        <button className="signin" disabled={loading}>
+        <button type="submit" className="signin" disabled={loading}>
           {loading ? "Signing in…" : "Admin Sign In"}   {/* different button text */}
         </button>
 
