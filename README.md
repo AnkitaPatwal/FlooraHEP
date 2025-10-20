@@ -6,3 +6,5 @@
 # FlooraHEP- Sadaf Mohammad (smoke test)
 
 - [ATH-8] Login functionality setup (test commit)
+- Indira Debbad (smoke test)
+- Kayla Garibay (smoke test)

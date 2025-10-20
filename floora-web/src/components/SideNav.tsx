@@ -1,3 +1,4 @@
+import { NavLink } from "react-router-dom";
 import "./SideNav.css";
 import logo from "../assets/flooraLogo.png"; 
 import {
@@ -21,20 +22,34 @@ const SideNav = () => {
 
       {/* Navigation */}
       <ul className="nav-list">
-        <li className="nav-item">
-          <FaTachometerAlt className="icon" /> Dashboard
+        <li>
+          <NavLink
+            to="/dashboard"
+            end
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
+            <FaTachometerAlt className="icon" /> Dashboard
+          </NavLink>
         </li>
-        <li className="nav-item">
-          <FaUsers className="icon" /> Users
+        <li>
+          <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+            <FaUsers className="icon" /> Users
+          </NavLink>
         </li>
-        <li className="nav-item">
-          <FaClipboardList className="icon" /> Plans
+        <li>
+          <NavLink to="/plans" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+            <FaClipboardList className="icon" /> Plans
+          </NavLink>
         </li>
-        <li className="nav-item">
-          <FaCalendarAlt className="icon" /> Sessions
+        <li>
+          <NavLink to="/sessions" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+            <FaCalendarAlt className="icon" /> Sessions
+          </NavLink>
         </li>
-        <li className="nav-item active">
-          <FaDumbbell className="icon" /> Exercises
+        <li>
+          <NavLink to="/exercise-dashboard" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+            <FaDumbbell className="icon" /> Exercises
+          </NavLink>
         </li>
       </ul>
 
