@@ -1,5 +1,5 @@
 import "./AppLayout.css";
-import "../main/Exercise.css"; // <-- adjust this relative path so it resolves here
+import "../main/Exercise.css"; 
 import SideNav from "./SideNav";
 import type { PropsWithChildren } from "react";
 

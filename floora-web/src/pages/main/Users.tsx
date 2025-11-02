@@ -1,47 +1,32 @@
-// src/pages/main/Users.tsx
-import AppLayout from "../../components/layouts/AppLayout";
-
-export default function Users() {
-  return (
-    <AppLayout>
-      <h1 className="user-title">Users!</h1>
-      <h2 className="user-subtitle">204 active users</h2>
-    </AppLayout>
-  );
-}
-
-
-
-
-
-
-/*
 import { useMemo, useState } from "react";
 import AppLayout from "../../components/layouts/AppLayout";
+import "../../components/main/Users.css";
 
 type User = {
   id: string;
   name: string;
   status: "pending" | "active";
-  plan?: string;        // e.g. "Leakage" or "No Plan"
-  session?: string;     // e.g. "Session 2" or "No Session"
-  avatarUrl?: string;   // optional; we’ll fall back to initials
+  plan?: string;       // e.g. "Leakage" or "No Plan"
+  session?: string;    // e.g. "Session 2" or "No Session"
+  avatarUrl?: string;  // optional; we’ll fall back to initials
 };
 
+// --- seed data (replace with API later) ---
 const SEED_USERS: User[] = [
   // Pending
   { id: "p1", name: "Loretta Barry", status: "pending", plan: "No Plan", session: "No Session" },
   { id: "p2", name: "Loretta Barry", status: "pending", plan: "No Plan", session: "No Session" },
   // Active
-  { id: "a1", name: "Catherine Becks", status: "active", plan: "Leakage", session: "Session 2" },
-  { id: "a2", name: "Cindy Barlow", status: "active", plan: "Leakage", session: "Session 2" },
-  { id: "a3", name: "Donna Paulsen", status: "active", plan: "Leakage", session: "Session 2" },
+  { id: "a1", name: "Catherine Becks", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=47" },
+  { id: "a2", name: "Cindy Barlow", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=12" },
+  { id: "a3", name: "Donna Paulsen", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=32" },
   { id: "a4", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
   { id: "a5", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
   { id: "a6", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
   { id: "a7", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
 ];
 
+// --- tiny avatar helper ---
 function Avatar({ name, url }: { name: string; url?: string }) {
   const initials = useMemo(
     () =>
@@ -54,10 +39,12 @@ function Avatar({ name, url }: { name: string; url?: string }) {
     [name]
   );
 
-  return url ? (
-    <img src={url} alt={name} style={styles.avatarImg} />
-  ) : (
-    <div aria-hidden style={styles.avatarFallback}>
+  if (url) {
+    return <img className="user-avatar-img" src={url} alt={name} />;
+  }
+
+  return (
+    <div className="user-avatar-fallback" aria-hidden>
       {initials}
     </div>
   );
@@ -65,18 +52,19 @@ function Avatar({ name, url }: { name: string; url?: string }) {
 
 function UserCard({ user }: { user: User }) {
   return (
-    <div style={styles.card}>
-      <div style={styles.cardInner}>
-        <div style={styles.avatarWrap}>
+    <article className="user-card" role="button" tabIndex={0}>
+      <div className="user-card-inner">
+        <div className="user-avatar-wrap">
           <Avatar name={user.name} url={user.avatarUrl} />
         </div>
-        <div style={styles.cardTextBlock}>
-          <div style={styles.cardName}>{user.name}</div>
-          <div style={styles.mutedLine}>{user.plan ?? "No Plan"}</div>
-          <div style={styles.mutedLine}>{user.session ?? "No Session"}</div>
+
+        <div className="user-card-text">
+          <h3 className="user-card-name">{user.name}</h3>
+          <p className="user-card-muted">{user.plan ?? "No Plan"}</p>
+          <p className="user-card-muted">{user.session ?? "No Session"}</p>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -104,196 +92,68 @@ export default function Users() {
   );
 
   return (
-    <div style={styles.appShell}>
-      <AppLayout />
-      <main style={styles.main}>
-        <header style={styles.header}>
-          <div>
-            <h1 style={styles.h1}>Users</h1>
-            <div style={styles.subtitle}>{active.length} Active Users</div>
+    <AppLayout>
+      <div className="user-page">
+        {/* ===== Header (matches Exercise header style) ===== */}
+        <header className="user-header">
+          <div className="user-header-left">
+            <h1 className="user-title">Users</h1>
+            <p className="user-count">{active.length} Active Users</p>
           </div>
-          <button type="button" style={styles.newUserBtn}>
-            + New User
-          </button>
+
+          <button type="button" className="new-user-btn">+ New User</button>
         </header>
 
-        //pending
-        <section aria-labelledby="pending-title" style={styles.section}>
-          <h2 id="pending-title" style={styles.sectionTitle}>
-            Pending Users
-          </h2>
-          <div style={styles.grid}>
-            {pending.map((u) => (
-              <UserCard key={u.id} user={u} />
-            ))}
-            {pending.length === 0 && (
-              <div style={styles.emptyState}>No pending users</div>
+        <hr className="user-divider" />
+
+        {/* ===== Pending Users ===== */}
+        <section className="user-section" aria-labelledby="pending-users-title">
+          <h2 id="pending-users-title" className="user-section-title">Pending Users</h2>
+
+          <div className="user-grid">
+            {pending.length ? (
+              pending.map((u) => <UserCard key={u.id} user={u} />)
+            ) : (
+              <div className="user-empty">No pending users</div>
             )}
           </div>
         </section>
 
-        // Search 
-        <div style={styles.searchRow}>
-          <div style={styles.searchWrap}>
-            <span aria-hidden style={styles.searchIcon}>🔎</span>
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search"
-              style={styles.searchInput}
-            />
-          </div>
-        </div>
 
-        Active
-        <section aria-labelledby="active-title" style={styles.sectionLast}>
-          <h2 id="active-title" style={styles.sectionTitle}>
-            Active Users
-          </h2>
-          <div style={styles.grid}>
-            {active.map((u) => (
-              <UserCard key={u.id} user={u} />
-            ))}
-            {active.length === 0 && (
-              <div style={styles.emptyState}>No active users</div>
-            )}
-          </div>
-        </section>
-      </main>
+        {/* ===== Active Users ===== */}
+<section className="user-section" aria-labelledby="active-users-title">
+  <div className="user-section-header">
+    <h2 id="active-users-title" className="user-section-title">Active Users</h2>
+
+    {/* Search sits to the right of the header now */}
+    <div className="user-search-wrap">
+      <span className="user-search-icon" aria-hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" strokeWidth="2"
+             className="user-search-svg">
+          <path strokeLinecap="round" strokeLinejoin="round"
+            d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"/>
+        </svg>
+      </span>
+      <input
+        className="user-search-input"
+        placeholder="Search"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+      />
     </div>
+  </div>
+
+  <div className="user-grid">
+    {active.length ? (
+      active.map((u) => <UserCard key={u.id} user={u} />)
+    ) : (
+      <div className="user-empty">No active users</div>
+    )}
+  </div>
+</section>
+
+      </div>
+    </AppLayout>
   );
 }
-
-const palette = {
-  bg: "#f7eee8",
-  panel: "#ffffff",
-  text: "#2a2a2a",
-  subtext: "#7c7c7c",
-  line: "rgba(0,0,0,0.06)",
-  btn: "#2c8b80",
-  btnText: "#ffffff",
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  appShell: {
-    display: "grid",
-    gridTemplateColumns: "260px 1fr",
-    minHeight: "100vh",
-    background: palette.bg,
-  },
-  main: {
-    padding: "28px 28px 60px",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-    marginBottom: 24,
-  },
-  h1: { margin: 0, fontSize: 28, lineHeight: 1.1, color: palette.text },
-  subtitle: { marginTop: 6, color: palette.subtext, fontSize: 14 },
-  newUserBtn: {
-    background: palette.btn,
-    color: palette.btnText,
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: 8,
-    fontWeight: 600,
-    cursor: "pointer",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
-  },
-  section: { marginTop: 6, marginBottom: 22 },
-  sectionLast: { marginTop: 6 },
-  sectionTitle: {
-    fontSize: 16,
-    color: palette.text,
-    margin: "12px 0",
-    fontWeight: 700,
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-    gap: 18,
-  },
-  card: {
-    background: palette.panel,
-    borderRadius: 14,
-    border: `1px solid ${palette.line}`,
-    boxShadow: "0 3px 16px rgba(0,0,0,0.06)",
-    height: 190,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    transition: "transform .08s ease, box-shadow .12s ease",
-  },
-  cardInner: {
-    display: "grid",
-    justifyItems: "center",
-    gap: 10,
-  },
-  avatarWrap: { display: "grid", placeItems: "center" },
-  avatarImg: {
-    width: 72,
-    height: 72,
-    borderRadius: "50%",
-    objectFit: "cover",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.12)",
-  },
-  avatarFallback: {
-    width: 72,
-    height: 72,
-    borderRadius: "50%",
-    display: "grid",
-    placeItems: "center",
-    background: "#e9f2f1",
-    color: "#3b756e",
-    fontWeight: 700,
-    fontSize: 22,
-    border: "1px solid rgba(0,0,0,0.05)",
-  },
-  cardTextBlock: {
-    textAlign: "center",
-  },
-  cardName: {
-    fontWeight: 700,
-    color: palette.text,
-    marginBottom: 4,
-  },
-  mutedLine: {
-    fontSize: 12,
-    color: palette.subtext,
-    lineHeight: 1.2,
-  },
-  searchRow: {
-    display: "flex",
-    justifyContent: "flex-start",
-    margin: "10px 0 18px",
-  },
-  searchWrap: {
-    display: "flex",
-    alignItems: "center",
-    gap: 8,
-    background: palette.panel,
-    borderRadius: 10,
-    padding: "8px 10px",
-    border: `1px solid ${palette.line}`,
-    minWidth: 260,
-    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-  },
-  searchIcon: { opacity: 0.6 },
-  searchInput: {
-    border: "none",
-    outline: "none",
-    background: "transparent",
-    fontSize: 14,
-    width: 220,
-  },
-  emptyState: {
-    gridColumn: "1 / -1",
-    opacity: 0.6,
-    padding: "14px 0",
-    textAlign: "center",
-  },
-};
-*/

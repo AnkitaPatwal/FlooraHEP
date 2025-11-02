@@ -1,6 +1,5 @@
 // src/pages/main/Dashboard.tsx
 import AppLayout from "../../components/layouts/AppLayout";
-//import "../../components/main/Dashboard.css";
 
 export default function Dashboard() {
   return (

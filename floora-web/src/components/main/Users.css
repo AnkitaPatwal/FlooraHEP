@@ -1,0 +1,224 @@
+/* === Users Page (align with Exercise page look) === */
+.user-page {
+    padding-bottom: 48px;
+    box-sizing: border-box;
+    color: #1f2937;
+    min-height: 100vh;
+  }
+  
+  /* === Header (same proportions as exercise-header) === */
+  .user-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 28px;
+    margin-top: 20px;
+  }
+  
+  .user-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .user-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0;
+  }
+  
+  .user-count {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+  }
+  
+  /* === New User button (matches Exercise button) === */
+  .new-user-btn {
+    background-color: #5a8e93;
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    width: fit-content;
+    transition: background-color 0.2s ease;
+  }
+  .new-user-btn:hover { background-color: #4f7d81; }
+  
+  /* === Divider === */
+  .user-divider {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 0 0 24px 0;
+  }
+  
+  /* === Sections === */
+  .user-section { margin-bottom: 44px; }
+  
+  .user-section-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 16px;
+  }
+  
+  /* --- Active section header with search on the right (desktop only) --- */
+  .user-section-header {
+    display: grid;
+    grid-template-columns: 1fr auto; /* title grows, search stays tight */
+    align-items: end;
+    column-gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: nowrap;
+  }
+  .user-section-title {
+    margin: 0;                /* avoid extra height that could push wrapping */
+    white-space: nowrap;      /* desktop-only: keep on one line */
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Only increase space under the Pending Users header */
+#pending-users-title.user-section-title {
+    margin-bottom: 24px;
+  }
+  
+  .user-section-header .user-search-wrap {
+    position: relative;
+    width: 340px;             /* fixed desktop width */
+    min-width: 340px;
+  }
+  .user-section-header .user-search-input {
+    width: 100%;
+  }
+  .user-section-header > * { min-width: 0; }
+  
+  /* === Grid (matches exercise-grid sizing) === */
+  .user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 28px;
+  }
+  
+  /* === User Card (parallels exercise-card) === */
+  .user-card {
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 190px;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .user-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+  
+  .user-card-inner {
+    display: grid;
+    justify-items: center;
+    gap: 12px;
+  }
+  
+  .user-avatar-wrap { display: grid; place-items: center; }
+  
+  .user-avatar-img {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+  }
+  
+  /* fallback initials avatar */
+  .user-avatar-fallback {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #e9f2f1;
+    color: #3b756e;
+    font-weight: 700;
+    font-size: 22px;
+    border: 1px solid rgba(0,0,0,0.05);
+  }
+  
+  .user-card-text { text-align: center; }
+  
+  .user-card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+  }
+  
+  .user-card-muted {
+    font-size: 12px;
+    color: #999;
+    margin: 0;
+    line-height: 1.2;
+  }
+  
+  /* === Search styles (same look/feel as exercise search) === */
+  .user-search-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .user-search-icon {
+    position: absolute;
+    left: 14px;
+    color: #9ca3af;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .user-search-svg {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .user-search-input {
+    border: 1px solid #d1d5db;
+    border-radius: 25px;
+    padding: 10px 14px 10px 44px;
+    width: 340px; /* default width if used elsewhere */
+    font-size: 15px;
+    color: #4b5563;
+    background-color: #ffffff;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 1px 2px rgba(255,255,255,0.3);
+    transition: all 0.2s ease;
+  }
+  .user-search-input::placeholder { color: #9ca3af; }
+  .user-search-input:focus {
+    outline: none;
+    border-color: #bcd1d1;
+    box-shadow: 0 0 0 2px rgba(90,142,147,0.2);
+  }
+  
+  /* === Empty state === */
+  .user-empty {
+    grid-column: 1 / -1;
+    opacity: 0.6;
+    padding: 14px 0;
+    text-align: center;
+    font-size: 14px;
+  }
+  
+  /* (Optional legacy) standalone search row — safe to remove if unused */
+  .user-search-row {
+    display: none;
+  }
+  
