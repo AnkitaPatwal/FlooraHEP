@@ -32,7 +32,7 @@ export default function Profile() {
             editable={false}
             style={styles.input}
           />
-          <Link href="../update-name" asChild>
+          <Link href="../screens/UpdateName" asChild>
             <TouchableOpacity style={styles.iconContainer}>
               <Feather name="edit-3" size={18} color="#5A8E93" />
             </TouchableOpacity>
