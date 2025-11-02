@@ -1,0 +1,24 @@
+.dashboard-page {
+  display: flex;
+}
+
+.dashboard-content {
+  margin-left: var(--sidenav-width);
+  padding: 20px;
+}
+
+
+.dashboard-title {
+  color: #346854;       
+  margin: 0 0 6px 0;
+  font-size: 2rem;
+  line-height: 1.2;
+}
+
+.dashboard-subtitle {
+  color: #346854;       
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  opacity: 0.95;
+}

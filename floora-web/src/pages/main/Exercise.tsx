@@ -1,7 +1,7 @@
-import SideNav from "../components/SideNav";
-import "./ExerciseDashboard.css";
+import AppLayout from "../../components/layouts/AppLayout";
+import "../../components/main/Exercise.css";
 import { useState } from "react";
-import exerciseImg from "../assets/exercise.jpg"; 
+import exerciseImg from "../../assets/exercise.jpg"; 
 
 interface Exercise {
   id: number;
@@ -12,16 +12,30 @@ interface Exercise {
 }
 
 function ExerciseDashboard() {
- 
   const [exercises] = useState<Exercise[]>([
-    { id: 1, category: "Abductors", title: "Exercise Title", type: "12 Active Users", image: exerciseImg },
-    { id: 2, category: "Abductors", title: "Exercise Title", type: "12 Active Users", image: exerciseImg },
-    { id: 3, category: "Abductors", title: "Exercise Title", type: "12 Active Users", image: exerciseImg },
-    { id: 4, category: "Abductors", title: "Exercise Title", type: "12 Active Users", image: exerciseImg },
-    { id: 5, category: "Back Pain", title: "Exercise Title", type: "8 Active Users", image: exerciseImg },
-    { id: 6, category: "Back Pain", title: "Exercise Title", type: "8 Active Users", image: exerciseImg },
-    { id: 7, category: "Back Pain", title: "Exercise Title", type: "8 Active Users", image: exerciseImg },
-    { id: 8, category: "Back Pain", title: "Exercise Title", type: "8 Active Users", image: exerciseImg },
+    // Abductors - 4 exercises
+    { id: 1, category: "Abductors", title: "Hip Abduction", type: "12 Active Users", image: exerciseImg },
+    { id: 2, category: "Abductors", title: "Side Leg Raises", type: "8 Active Users", image: exerciseImg },
+    { id: 3, category: "Abductors", title: "Clamshells", type: "15 Active Users", image: exerciseImg },
+    { id: 4, category: "Abductors", title: "Lateral Band Walks", type: "6 Active Users", image: exerciseImg },
+    
+    // Back Pain - 4 exercises
+    { id: 5, category: "Back Pain", title: "Cat-Cow Stretch", type: "18 Active Users", image: exerciseImg },
+    { id: 6, category: "Back Pain", title: "Child's Pose", type: "14 Active Users", image: exerciseImg },
+    { id: 7, category: "Back Pain", title: "Bridge Pose", type: "9 Active Users", image: exerciseImg },
+    { id: 8, category: "Back Pain", title: "Knee-to-Chest", type: "11 Active Users", image: exerciseImg },
+    
+    // Core Strength - 4 exercises
+    { id: 9, category: "Core Strength", title: "Plank Hold", type: "22 Active Users", image: exerciseImg },
+    { id: 10, category: "Core Strength", title: "Russian Twists", type: "16 Active Users", image: exerciseImg },
+    { id: 11, category: "Core Strength", title: "Leg Raises", type: "13 Active Users", image: exerciseImg },
+    { id: 12, category: "Core Strength", title: "Bicycle Crunches", type: "19 Active Users", image: exerciseImg },
+    
+    // Lower Body - 4 exercises
+    { id: 13, category: "Lower Body", title: "Bodyweight Squats", type: "25 Active Users", image: exerciseImg },
+    { id: 14, category: "Lower Body", title: "Lunges", type: "17 Active Users", image: exerciseImg },
+    { id: 15, category: "Lower Body", title: "Glute Bridges", type: "20 Active Users", image: exerciseImg },
+    { id: 16, category: "Lower Body", title: "Calf Raises", type: "10 Active Users", image: exerciseImg },
   ]);
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
@@ -31,14 +45,13 @@ function ExerciseDashboard() {
   }, {} as Record<string, Exercise[]>);
 
   return (
-    <div className="dashboard-container">
-      <SideNav />
-      <main className="exercise-page">
+    <AppLayout>
+      <div className="exercise-page">
         {/* ==== HEADER ==== */}
         <header className="exercise-header">
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
-            <p className="exercise-count">64 Exercises</p>
+            <p className="exercise-count">{exercises.length} Exercises</p>
             <button className="new-exercise-btn">+ New Exercise</button>
           </div>
 
@@ -97,8 +110,8 @@ function ExerciseDashboard() {
             </div>
           </section>
         ))}
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
 

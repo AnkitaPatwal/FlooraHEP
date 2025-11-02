@@ -1,21 +1,36 @@
-
+/* SideNav.css */
 .sidenav {
-    z-index: 10;
+  position: sticky;          /* or remove for static */
+  top: 0;
+  height: 100vh;             /* scrolls within the column if tall */
+  width: 100%;               /* fill the grid column */
+  background-color: #5a8e93;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 25px 20px;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+  
+ 
+/* .sidenav {
     width: 250px;
-    height: 100vh;
+    min-height: 100vh;
     background-color: #5a8e93;
     color: white;
+    flex-shrink: 0;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: 25px 20px;
-    box-sizing: border-box;
-    font-family: "Poppins", sans-serif;
-    position: fixed;      
+    position: fixed;
     top: 0;
     left: 0;
-  }
-  
+    z-index: 1000;
+  }*/
+
   .logo-container {
     width: 100%;
     display: flex;
