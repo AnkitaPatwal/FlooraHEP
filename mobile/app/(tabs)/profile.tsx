@@ -49,7 +49,7 @@ export default function Profile() {
             editable={false}
             style={styles.input}
           />
-          <Link href="../update-email" asChild>
+          <Link href="../screens/UpdateEmail" asChild>
             <TouchableOpacity style={styles.iconContainer}>
               <Feather name="edit-3" size={18} color="#5A8E93" />
             </TouchableOpacity>
