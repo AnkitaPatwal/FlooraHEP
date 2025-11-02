@@ -207,13 +207,6 @@ marimo/_lsp/
 __marimo__/
 
 
-# Ignore env files anywhere in the repo
-.env
-.env.*
-!.env.example
-
-# Supabase temp anywhere
-**/supabase/.temp/
 # Ignore env files anywhere (keep the template)
 .env
 .env.*
