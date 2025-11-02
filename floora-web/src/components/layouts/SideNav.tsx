@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
-import "./SideNav.css";
-import logo from "../assets/flooraLogo.png"; 
+import "../layouts/SideNav.css";
+import logo from "../../assets/flooraLogo.png"; 
 import {
   FaTachometerAlt,
   FaUsers,
@@ -37,7 +37,7 @@ const SideNav = () => {
           </NavLink>
         </li>
         <li>
-          <NavLink to="/plans" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink to="/plan-dashboard" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
             <FaClipboardList className="icon" /> Plans
           </NavLink>
         </li>

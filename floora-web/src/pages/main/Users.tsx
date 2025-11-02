@@ -1,6 +1,23 @@
-// src/pages/Users.tsx
+// src/pages/main/Users.tsx
+import AppLayout from "../../components/layouts/AppLayout";
+
+export default function Users() {
+  return (
+    <AppLayout>
+      <h1 className="user-title">Users!</h1>
+      <h2 className="user-subtitle">204 active users</h2>
+    </AppLayout>
+  );
+}
+
+
+
+
+
+
+/*
 import { useMemo, useState } from "react";
-import SideNav from "../components/SideNav";
+import AppLayout from "../../components/layouts/AppLayout";
 
 type User = {
   id: string;
@@ -88,7 +105,7 @@ export default function Users() {
 
   return (
     <div style={styles.appShell}>
-      <SideNav />
+      <AppLayout />
       <main style={styles.main}>
         <header style={styles.header}>
           <div>
@@ -100,7 +117,7 @@ export default function Users() {
           </button>
         </header>
 
-        {/* Pending */}
+        //pending
         <section aria-labelledby="pending-title" style={styles.section}>
           <h2 id="pending-title" style={styles.sectionTitle}>
             Pending Users
@@ -115,7 +132,7 @@ export default function Users() {
           </div>
         </section>
 
-        {/* Search */}
+        // Search 
         <div style={styles.searchRow}>
           <div style={styles.searchWrap}>
             <span aria-hidden style={styles.searchIcon}>🔎</span>
@@ -128,7 +145,7 @@ export default function Users() {
           </div>
         </div>
 
-        {/* Active */}
+        Active
         <section aria-labelledby="active-title" style={styles.sectionLast}>
           <h2 id="active-title" style={styles.sectionTitle}>
             Active Users
@@ -147,7 +164,6 @@ export default function Users() {
   );
 }
 
-/** ————— Styles (inline to keep this file self-contained) ————— */
 const palette = {
   bg: "#f7eee8",
   panel: "#ffffff",
@@ -280,3 +296,4 @@ const styles: Record<string, React.CSSProperties> = {
     textAlign: "center",
   },
 };
+*/

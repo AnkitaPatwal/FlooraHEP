@@ -1,24 +1,22 @@
-:root {
-    --sidenav-width: 220px; 
-  }
+
   
-  .dashboard-page {
+  .plan-dashboard-page {
     display: flex;
   }
   
-  .dashboard-content {
+  .plan-dashboard-content {
     margin-left: var(--sidenav-width);
     padding: 20px;
   }
   
-  .dashboard-title {
+  .plan-dashboard-title {
     color: #fff;
     margin: 0 0 6px 0;
     font-size: 2rem;
     line-height: 1.2;
   }
   
-  .dashboard-subtitle {
+  .plan-dashboard-subtitle {
     color: #fff;
     margin: 0;
     font-size: 1.25rem;
