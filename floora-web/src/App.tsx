@@ -6,7 +6,7 @@ import AdminLogin from "./pages/AdminLogin";
 import Users from "./pages/main/Users";
 import ExerciseDashboard from "./pages/main/Exercise";
 import Dashboard from "./pages/main/Dashboard";
-import EditUserApprove from "./pages/EditUserApprove";
+import UserApproval from "./pages/UserApproval";
 import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
@@ -24,7 +24,7 @@ export default function App() {
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
         <Route path="/sessions" element={<SessionDashboard />} />
         <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
-        <Route path="/edit-user-approve" element={<EditUserApprove />} />
+        <Route path="/user-approval" element={<UserApproval />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
     </Router>

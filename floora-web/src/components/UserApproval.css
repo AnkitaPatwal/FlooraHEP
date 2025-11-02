@@ -1,0 +1,157 @@
+/* Page scaffold */
+.ua-page {
+    padding-bottom: 48px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    color: #1f2937;
+  }
+  
+  /* White rounded panel to match the wireframe card */
+  .ua-panel {
+    background: transparent;
+    border-radius: 16px;
+    padding: 28px 32px 36px;
+  }
+  
+  /* Header */
+  .ua-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  
+  .ua-title {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1f2937;
+  }
+  
+  .ua-subtitle {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #6b7280;
+  }
+  
+  /* Back button (top-right) */
+  .ua-back-btn {
+    background: #5a8e93;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color .2s ease;
+  }
+  .ua-back-btn:hover { background: #4f7d81; }
+  
+/* Body: two columns */
+.ua-body {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 48px;
+    align-items: center;        /* was: start → vertically center left rail vs. form */
+    margin-top: 8px;
+  }
+  
+  /* Left rail */
+  .ua-left {
+    display: grid;
+    gap: 20px;
+    justify-items: center;      /* center content horizontally in the 320px column */
+    align-self: center;         /* keep the whole block centered vertically */
+  }
+  
+  /* Center the buttons under the avatar */
+  .ua-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;    /* was left → center buttons */
+    width: 100%;
+  }
+  
+  
+  .ua-avatar-wrap { display: grid; place-items: center; }
+  
+  .ua-avatar {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 3px 14px rgba(0,0,0,0.12);
+    border: 2px solid #ffffff;
+    background: #f3f4f6;
+  }
+  
+  /* Fallback initials */
+  .ua-avatar-fallback {
+    display: grid;
+    place-items: center;
+    color: #3b756e;
+    font-weight: 700;
+    font-size: 36px;
+  }
+
+  
+  .ua-approve {
+    background: #5a8e93;
+    color: #fff;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s ease;
+  }
+  .ua-approve:hover { background: #4f7d81; }
+  
+  .ua-deny {
+    background: #ffffff;
+    color: #5a8e93;
+    border: 1px solid #b7c9c9;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+  }
+  .ua-deny:hover {
+    background: #f5f9f9;
+    border-color: #8fb0b0;
+  }
+  
+  /* Right column form */
+  .ua-form {
+    width: 100%;
+    max-width: 520px;
+  }
+  
+  .ua-field { display: grid; gap: 8px; margin-bottom: 14px; }
+  
+  .ua-label {
+    font-size: 13px;
+    color: #4b5563;
+    font-weight: 600;
+  }
+  
+  .ua-input {
+    border: 1px solid #e5e7eb;
+    background: #f3f4f6;
+    color: #6b7280;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    width: 100%;
+  }
+  
+  /* Ensure disabled inputs don't show default "not-allowed" look on hover */
+  .ua-input:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+  
