@@ -27,7 +27,6 @@ html, body, #root {
   justify-content: space-between;
 }
 
-/* AppLayout.css - FIXED VERSION */
 .app-content {
   grid-column: 2;
   min-width: 0;

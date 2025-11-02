@@ -1,4 +1,3 @@
-// src/pages/main/Dashboard.tsx
 import AppLayout from "../../components/layouts/AppLayout";
 
 export default function Plan() {

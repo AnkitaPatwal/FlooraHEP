@@ -1,9 +1,9 @@
 /* SideNav.css */
 .sidenav {
-  position: sticky;          /* or remove for static */
+  position: sticky;         
   top: 0;
-  height: 100vh;             /* scrolls within the column if tall */
-  width: 100%;               /* fill the grid column */
+  height: 100vh;          
+  width: 100%;               
   background-color: #5a8e93;
   color: white;
   display: flex;
@@ -13,23 +13,6 @@
   box-sizing: border-box;
   font-family: "Poppins", sans-serif;
 }
-
-  
- 
-/* .sidenav {
-    width: 250px;
-    min-height: 100vh;
-    background-color: #5a8e93;
-    color: white;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 1000;
-  }*/
 
   .logo-container {
     width: 100%;
@@ -45,7 +28,6 @@
     height: auto;
   }
 
-  
   .divider-top {
     width: 100%;
     border: none;
@@ -59,7 +41,6 @@
     border-top: 1px solid rgba(255, 255, 255, 0.25);
     margin: auto 2px 15px;    
   }
-  
   
   .nav-list {
     list-style: none;
