@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import "../layouts/SideNav.css";
 import logo from "../../assets/flooraLogo.png"; 
 import {
@@ -12,6 +12,10 @@ import {
 } from "react-icons/fa";
 
 const SideNav = () => {
+  const location = useLocation();
+  const usersActive =
+    location.pathname === "/users" || location.pathname === "/user-approval";
+
   return (
     <div className="sidenav">
       {/* Logo */}
@@ -32,7 +36,12 @@ const SideNav = () => {
           </NavLink>
         </li>
         <li>
-          <NavLink to="/users" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/users"
+            className={({ isActive }) =>
+              `nav-item ${isActive || usersActive ? "active" : ""}`
+            }
+          >
             <FaUsers className="icon" /> Users
           </NavLink>
         </li>
