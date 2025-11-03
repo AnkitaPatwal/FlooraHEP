@@ -1,85 +1,164 @@
-import React, { useState } from "react";
-import "./NewExercise.css";
+.create-exercise-container {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 10px;
+  flex: 1;
+  height: 100%;
+  overflow-y: auto;
+}
 
-const NewExercise: React.FC = () => {
-  const [exercise, setExercise] = useState({
-    title: "",
-    category: "",
-    setCount: "",
-    repCount: "",
-    exerciseCopy: "",
-    video: null as File | null,
-    thumbnail: null as File | null,
-  });
+/* ===== Header ===== */
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setExercise({ ...exercise, [name]: value });
-  };
+.header-section h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+}
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, files } = e.target;
-    if (files && files[0]) {
-      setExercise({ ...exercise, [name]: files[0] });
-    }
-  };
+.header-buttons {
+  display: flex;
+  gap: 1rem;
+}
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Exercise data:", exercise);
-    // Later: send this data to backend via API
-  };
+.back-btn,
+.save-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.4rem;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
 
-  return (
-    <div className="new-exercise-container">
-      <div className="header-section">
-        <h2>Add New Exercise</h2>
-        <div className="buttons">
-          <button className="back-btn">Back</button>
-          <button className="save-btn" onClick={handleSubmit}>Save</button>
-        </div>
-      </div>
+.back-btn {
+  background-color: #ffffff;
+  color: #2a6661;
+  border: 1px solid #2a6661;
+  transition: all 0.2s ease;
+}
 
-      <form className="exercise-form" onSubmit={handleSubmit}>
-        <div className="upload-section">
-          <div className="upload-box">
-            <label htmlFor="video">Video</label>
-            <input type="file" id="video" name="video" onChange={handleFileChange} />
-          </div>
-          <div className="upload-box">
-            <label htmlFor="thumbnail">Thumbnail</label>
-            <input type="file" id="thumbnail" name="thumbnail" onChange={handleFileChange} />
-          </div>
-        </div>
+.back-btn:hover {
+  background-color: #f0f6f5;
+}
 
-        <div className="input-group">
-          <label>Title of Exercise</label>
-          <input type="text" name="title" value={exercise.title} onChange={handleChange} />
-        </div>
+.save-btn {
+  background-color: #2a6661;
+  color: #ffffff;
+  transition: background-color 0.2s ease;
+}
 
-        <div className="input-group">
-          <label>Category</label>
-          <input type="text" name="category" value={exercise.category} onChange={handleChange} />
-        </div>
+.save-btn:hover {
+  background-color: #245550;
+}
 
-        <div className="input-row">
-          <div className="input-group">
-            <label>Set Count</label>
-            <input type="number" name="setCount" value={exercise.setCount} onChange={handleChange} />
-          </div>
-          <div className="input-group">
-            <label>Rep Count</label>
-            <input type="number" name="repCount" value={exercise.repCount} onChange={handleChange} />
-          </div>
-        </div>
+/* ===== Form Layout ===== */
+.exercise-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
 
-        <div className="input-group">
-          <label>Exercise Copy</label>
-          <textarea name="exerciseCopy" value={exercise.exerciseCopy} onChange={handleChange} />
-        </div>
-      </form>
-    </div>
-  );
-};
+/* ===== Upload Section ===== */
+.upload-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+}
 
-export default NewExercise;
+.upload-box {
+  flex: 1;
+  border: 2px dashed #cfd8dc;
+  border-radius: 10px;
+  padding: 1rem;
+  text-align: center;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: #fafafa;
+  transition: all 0.2s ease;
+}
+
+.upload-box:hover {
+  border-color: #2a6661;
+  background-color: #f5fafa;
+}
+
+.upload-box label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.upload-box input {
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
+/* ===== Input Groups ===== */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.input-group label {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.input-group input,
+.input-group textarea {
+  border: 1px solid #cfd8dc;
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.95rem;
+  color: #333;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  border-color: #2a6661;
+}
+
+.input-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* ===== Two-column inputs ===== */
+.input-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.input-row .half {
+  flex: 1;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .upload-section {
+    flex-direction: column;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .header-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
