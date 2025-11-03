@@ -6,155 +6,156 @@
   min-height: 100vh;
 }
 
-.create-exercise-container {
-  background-color: #ffffff;
-  padding: 2rem;
-  border-radius: 10px;
-  flex: 1;
-  height: 100%;
-  overflow-y: auto;
-}
-
-/* ===== Header ===== */
-.header-section {
+/* === Header === */
+.create-exercise-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  align-items: flex-end;
+  margin-bottom: 28px;
+  margin-top: 20px;
 }
 
-.header-section h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.header-buttons {
+.create-exercise-header-left {
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-exercise-header-left h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* === Buttons (Back & Save) === */
+.create-exercise-header-right {
+  display: flex;
+  gap: 12px;
 }
 
 .back-btn,
 .save-btn {
   border: none;
   border-radius: 6px;
-  padding: 0.6rem 1.4rem;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 14px;
   cursor: pointer;
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.back-btn {
-  background-color: #ffffff;
-  color: #2a6661;
-  border: 1px solid #2a6661;
   transition: all 0.2s ease;
 }
 
+/* Back button */
+.back-btn {
+  background-color: #ffffff;
+  color: #5a8e93;
+  border: 1px solid #5a8e93;
+}
 .back-btn:hover {
-  background-color: #f0f6f5;
+  background-color: #f0f6f6;
 }
 
+/* Save button */
 .save-btn {
-  background-color: #2a6661;
-  color: #ffffff;
-  transition: background-color 0.2s ease;
+  background-color: #5a8e93;
+  color: #fff;
 }
-
 .save-btn:hover {
-  background-color: #245550;
+  background-color: #4f7d81;
 }
 
-/* ===== Form Layout ===== */
+/* === Form Layout === */
 .exercise-form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 24px;
 }
 
-/* ===== Upload Section ===== */
+/* === Upload Section === */
 .upload-section {
   display: flex;
   align-items: flex-start;
-  gap: 2rem;
+  gap: 24px;
 }
 
 .upload-box {
   flex: 1;
-  border: 2px dashed #cfd8dc;
+  background-color: #ffffff;
+  border: 1px dashed #d1d5db;
   border-radius: 10px;
-  padding: 1rem;
+  padding: 24px;
   text-align: center;
-  min-height: 160px;
+  min-height: 180px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  background-color: #fafafa;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .upload-box:hover {
-  border-color: #2a6661;
-  background-color: #f5fafa;
+  border-color: #5a8e93;
+  background-color: #f9fdfd;
 }
 
 .upload-box label {
-  font-size: 0.95rem;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 0.5rem;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
 }
 
 .upload-box input {
-  margin-top: 0.5rem;
+  margin-top: 8px;
   cursor: pointer;
 }
 
-/* ===== Input Groups ===== */
+/* === Input Fields === */
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
 }
 
 .input-group label {
-  font-weight: 500;
-  font-size: 0.9rem;
-  color: #333;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
 }
 
 .input-group input,
 .input-group textarea {
-  border: 1px solid #cfd8dc;
+  border: 1px solid #d1d5db;
   border-radius: 6px;
-  padding: 0.6rem 0.8rem;
-  font-size: 0.95rem;
-  color: #333;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #1f2937;
   outline: none;
-  transition: border-color 0.2s ease;
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input-group input:focus,
 .input-group textarea:focus {
-  border-color: #2a6661;
+  border-color: #bcd1d1;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.15);
 }
 
 .input-group textarea {
   resize: vertical;
-  min-height: 100px;
+  min-height: 120px;
 }
 
-/* ===== Two-column inputs ===== */
+/* === Two-column fields === */
 .input-row {
   display: flex;
-  gap: 1rem;
+  gap: 20px;
 }
 
 .input-row .half {
   flex: 1;
 }
 
-/* ===== Responsive ===== */
+/* === Responsive === */
 @media (max-width: 768px) {
   .upload-section {
     flex-direction: column;
@@ -164,9 +165,9 @@
     flex-direction: column;
   }
 
-  .header-section {
+  .create-exercise-header {
     flex-direction: column;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 16px;
   }
 }
