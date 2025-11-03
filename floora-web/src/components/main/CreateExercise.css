@@ -1,0 +1,85 @@
+import React, { useState } from "react";
+import "./NewExercise.css";
+
+const NewExercise: React.FC = () => {
+  const [exercise, setExercise] = useState({
+    title: "",
+    category: "",
+    setCount: "",
+    repCount: "",
+    exerciseCopy: "",
+    video: null as File | null,
+    thumbnail: null as File | null,
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setExercise({ ...exercise, [name]: value });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, files } = e.target;
+    if (files && files[0]) {
+      setExercise({ ...exercise, [name]: files[0] });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Exercise data:", exercise);
+    // Later: send this data to backend via API
+  };
+
+  return (
+    <div className="new-exercise-container">
+      <div className="header-section">
+        <h2>Add New Exercise</h2>
+        <div className="buttons">
+          <button className="back-btn">Back</button>
+          <button className="save-btn" onClick={handleSubmit}>Save</button>
+        </div>
+      </div>
+
+      <form className="exercise-form" onSubmit={handleSubmit}>
+        <div className="upload-section">
+          <div className="upload-box">
+            <label htmlFor="video">Video</label>
+            <input type="file" id="video" name="video" onChange={handleFileChange} />
+          </div>
+          <div className="upload-box">
+            <label htmlFor="thumbnail">Thumbnail</label>
+            <input type="file" id="thumbnail" name="thumbnail" onChange={handleFileChange} />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label>Title of Exercise</label>
+          <input type="text" name="title" value={exercise.title} onChange={handleChange} />
+        </div>
+
+        <div className="input-group">
+          <label>Category</label>
+          <input type="text" name="category" value={exercise.category} onChange={handleChange} />
+        </div>
+
+        <div className="input-row">
+          <div className="input-group">
+            <label>Set Count</label>
+            <input type="number" name="setCount" value={exercise.setCount} onChange={handleChange} />
+          </div>
+          <div className="input-group">
+            <label>Rep Count</label>
+            <input type="number" name="repCount" value={exercise.repCount} onChange={handleChange} />
+          </div>
+        </div>
+
+        <div className="input-group">
+          <label>Exercise Copy</label>
+          <textarea name="exerciseCopy" value={exercise.exerciseCopy} onChange={handleChange} />
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default NewExercise;
