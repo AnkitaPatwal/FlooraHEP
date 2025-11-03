@@ -11,7 +11,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
 import CreateExercise from "./components/main/CreateExercise";
-
+ 
 export default function App() {
   return (
     <Router>
