@@ -2,6 +2,7 @@ import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Exercise.css";
 import { useState } from "react";
 import exerciseImg from "../../assets/exercise.jpg"; 
+import { Link } from "react-router-dom";
 
 interface Exercise {
   id: number;
@@ -52,7 +53,9 @@ function ExerciseDashboard() {
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
             <p className="exercise-count">{exercises.length} Exercises</p>
-            <button className="new-exercise-btn">+ New Exercise</button>
+            <Link to="/exercises/create">
+              <button className="new-exercise-btn">+ New Exercise</button>
+            </Link>
           </div>
 
           {/* SEARCH BAR SECTION */}
