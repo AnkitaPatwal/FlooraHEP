@@ -47,10 +47,14 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       {/* Footer */}
-      <View style={styles.footerContainer}>
-        <Text style={styles.footerText}>Don’t have an account?</Text>
+      
+    <View style={styles.footerContainer}>
+      <Text style={styles.footerText}>Don’t have an account?</Text>
+      <TouchableOpacity onPress={() => router.push("/screens/CreateAccount")}>
         <Text style={styles.footerLink}>Request Account</Text>
-      </View>
+      </TouchableOpacity>
+    </View>
+
     </ScrollView>
   );
 }
