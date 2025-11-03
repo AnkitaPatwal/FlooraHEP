@@ -1,13 +1,23 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons"; 
 
-export default function UpdateEmail() {
+export default function ResetPassword() {
   const router = useRouter();
-  const [email, setEmail] = useState("loretta@floora-pt.com");
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [showOld, setShowOld] = useState(false);
+  const [showNew, setShowNew] = useState(false);
 
   const handleSubmit = () => {
-    console.log("Updated email:", email);
+    console.log("Password updated");
     router.push("/profile");
   };
 
@@ -18,25 +28,55 @@ export default function UpdateEmail() {
         <TouchableOpacity hitSlop={10} onPress={() => router.push("/profile")}>
           <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Email</Text>
+        <Text style={styles.headerTitle}>Password</Text>
         <View style={{ width: 18 }} />
       </View>
 
       {/* Body */}
       <View style={styles.body}>
-        <Text style={styles.title}>Update Email</Text>
+        <Text style={styles.title}>Reset Password</Text>
 
-        <Text style={styles.label}>New Email</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="loretta@floora-pt.com"
-          placeholderTextColor="#999"
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
+        {/* Old Password */}
+        <Text style={styles.label}>Old Password</Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            secureTextEntry={!showOld}
+            value={oldPassword}
+            onChangeText={setOldPassword}
+            placeholder="Enter old password"
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity onPress={() => setShowOld(!showOld)}>
+            <Ionicons
+              name={showOld ? "eye-outline" : "eye-off-outline" }
+              size={20}
+              color="#475569"
+            />
+          </TouchableOpacity>
+        </View>
 
+        {/* New Password */}
+        <Text style={styles.label}>New Password</Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            secureTextEntry={!showNew}
+            value={newPassword}
+            onChangeText={setNewPassword}
+            placeholder="Enter new password"
+            placeholderTextColor="#999"
+          />
+          <TouchableOpacity onPress={() => setShowNew(!showNew)}>
+            <Ionicons
+              name={showNew ? "eye-outline" : "eye-off-outline"}
+              size={20}
+              color="#475569"
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Button */}
         <TouchableOpacity style={styles.button} onPress={handleSubmit}>
           <Text style={styles.buttonText}>Submit</Text>
         </TouchableOpacity>
@@ -90,14 +130,19 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 8,
   },
-  input: {
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#F5F5F5",
     borderRadius: 8,
-    paddingVertical: 12,
+    marginBottom: 24,
     paddingHorizontal: 14,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 12,
     fontSize: 15,
     color: "#333",
-    marginBottom: 24,
   },
   button: {
     backgroundColor: "#5A8E93",
