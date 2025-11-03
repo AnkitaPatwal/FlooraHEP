@@ -1,10 +1,10 @@
 import AppLayout from "../../components/layouts/AppLayout";
-import "../../components/main/Sessions.css";
+import "../../components/main/Session.css"; // matches your folder structure
 import { useState } from "react";
-import sessionImg from "../../assets/exercise.jpg"; 
+import sessionImg from "../../assets/exercise.jpg";
 import { Link } from "react-router-dom";
 
-interface Session {
+interface SessionItem {
   id: number;
   category: string;
   title: string;
@@ -12,30 +12,20 @@ interface Session {
   image: string;
 }
 
-function SessionsDashboard() {
-  const [sessions] = useState<Session[]>([
-    // Back Pain - 7 sessions
+function Session() {
+  const [sessions] = useState<SessionItem[]>([
     { id: 1, category: "Back Pain", title: "Lower Back Mobility", type: "12 Active Users", image: sessionImg },
     { id: 2, category: "Back Pain", title: "Gentle Stretch", type: "8 Active Users", image: sessionImg },
     { id: 3, category: "Back Pain", title: "Relax & Release", type: "15 Active Users", image: sessionImg },
-    { id: 4, category: "Back Pain", title: "Lumbar Strength", type: "6 Active Users", image: sessionImg },
-    { id: 5, category: "Back Pain", title: "Bridge Flow", type: "10 Active Users", image: sessionImg },
-    { id: 6, category: "Back Pain", title: "Standing Twist", type: "14 Active Users", image: sessionImg },
-    { id: 7, category: "Back Pain", title: "Deep Stretch Routine", type: "9 Active Users", image: sessionImg },
-
-    // DRA - 5 sessions
-    { id: 8, category: "DRA", title: "Core Alignment", type: "22 Active Users", image: sessionImg },
-    { id: 9, category: "DRA", title: "Pelvic Stability", type: "16 Active Users", image: sessionImg },
-    { id: 10, category: "DRA", title: "Ab Rehab", type: "13 Active Users", image: sessionImg },
-    { id: 11, category: "DRA", title: "Gentle Core Series", type: "19 Active Users", image: sessionImg },
-    { id: 12, category: "DRA", title: "Mat Recovery Flow", type: "17 Active Users", image: sessionImg },
+    { id: 4, category: "DRA", title: "Core Alignment", type: "22 Active Users", image: sessionImg },
+    { id: 5, category: "DRA", title: "Pelvic Stability", type: "16 Active Users", image: sessionImg },
   ]);
 
   const groupedSessions = sessions.reduce((acc, session) => {
     if (!acc[session.category]) acc[session.category] = [];
     acc[session.category].push(session);
     return acc;
-  }, {} as Record<string, Session[]>);
+  }, {} as Record<string, SessionItem[]>);
 
   return (
     <AppLayout>
@@ -69,11 +59,7 @@ function SessionsDashboard() {
                   />
                 </svg>
               </span>
-              <input
-                type="text"
-                className="search-bar"
-                placeholder="Search"
-              />
+              <input type="text" className="search-bar" placeholder="Search" />
             </div>
           </div>
         </header>
@@ -110,4 +96,4 @@ function SessionsDashboard() {
   );
 }
 
-export default SessionsDashboard;
+export default Session;
