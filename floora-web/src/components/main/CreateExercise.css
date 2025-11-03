@@ -1,3 +1,11 @@
+/* === Create Exercise Page === */
+.create-exercise-page {
+  padding-bottom: 48px;
+  box-sizing: border-box;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
 .create-exercise-container {
   background-color: #ffffff;
   padding: 2rem;
