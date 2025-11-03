@@ -46,7 +46,6 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <div className="forgot-container">
-        
         {/*
         <button className="back-btn" onClick={() => navigate(-1)}>
             ←

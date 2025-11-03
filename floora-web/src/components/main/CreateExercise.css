@@ -1,0 +1,173 @@
+/* === Create Exercise Page === */
+.create-exercise-page {
+  padding-bottom: 48px;
+  box-sizing: border-box;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+/* === Header === */
+.create-exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 28px;
+  margin-top: 20px;
+}
+
+.create-exercise-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-exercise-header-left h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+/* === Buttons (Back & Save) === */
+.create-exercise-header-right {
+  display: flex;
+  gap: 12px;
+}
+
+.back-btn,
+.save-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Back button */
+.back-btn {
+  background-color: #ffffff;
+  color: #5a8e93;
+  border: 1px solid #5a8e93;
+}
+.back-btn:hover {
+  background-color: #f0f6f6;
+}
+
+/* Save button */
+.save-btn {
+  background-color: #5a8e93;
+  color: #fff;
+}
+.save-btn:hover {
+  background-color: #4f7d81;
+}
+
+/* === Form Layout === */
+.exercise-form {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* === Upload Section === */
+.upload-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.upload-box {
+  flex: 1;
+  background-color: #ffffff;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  padding: 24px;
+  text-align: center;
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.upload-box:hover {
+  border-color: #5a8e93;
+  background-color: #f9fdfd;
+}
+
+.upload-box label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.upload-box input {
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+/* === Input Fields === */
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.input-group input,
+.input-group textarea {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #1f2937;
+  outline: none;
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-group input:focus,
+.input-group textarea:focus {
+  border-color: #bcd1d1;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.15);
+}
+
+.input-group textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+/* === Two-column fields === */
+.input-row {
+  display: flex;
+  gap: 20px;
+}
+
+.input-row .half {
+  flex: 1;
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .upload-section {
+    flex-direction: column;
+  }
+
+  .input-row {
+    flex-direction: column;
+  }
+
+  .create-exercise-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+}
