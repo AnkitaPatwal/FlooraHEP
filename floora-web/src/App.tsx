@@ -10,7 +10,7 @@ import UserApproval from "./pages/UserApproval";
 import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
-
+import CreateExercise from "./components/main/CreateExercise";
 
 export default function App() {
   return (
@@ -24,6 +24,7 @@ export default function App() {
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
         <Route path="/sessions" element={<SessionDashboard />} />
         <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
+        <Route path="/exercises/create" element={<CreateExercise />} />
         <Route path="/user-approval" element={<UserApproval />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
       </Routes>
