@@ -14,3 +14,7 @@
 
 <!-- Floora Color Pallette -->
 <img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
+
+<!-- Floora App Demo -->
+![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
+
