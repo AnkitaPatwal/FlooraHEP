@@ -18,7 +18,6 @@
 <!-- Floora App Demo -->
 ![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
 
-# FlooraHEP
 ![MIT](https://img.shields.io/badge/License-MIT-b9d7ec.svg?style=flat)
 ## 📄 License
 This project is licensed under the **MIT License**.
