@@ -1,62 +1,153 @@
 import React from "react";
-import { SafeAreaView, View, Text, StyleSheet, ScrollView } from "react-native";
-import SessionCard from "../../components/SessionCard";   
-import colors from "../../constants/colors";              
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+} from "react-native";
+import { useRouter } from "expo-router";
 
-export default function HomeScreen() {
+const HomeScreen = () => {
+  const router = useRouter();
+
+  // ✅ accepts BOTH id and sessionName
+  const goToSession = (id: string, sessionName: string) => {
+    router.push({
+      pathname: "/screens/ExerciseDetail",
+      params: { id, sessionName },
+    });
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 32 }}
-        showsVerticalScrollIndicator={false}
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+    >
+      {/* Top header */}
+      <View style={styles.headerRow}>
+        <Text style={styles.greeting}>Hi Loretta!</Text>
+        <Text style={styles.brand}>Floora</Text>
+      </View>
+
+      {/* Current Session */}
+      <Text style={styles.sectionTitle}>Your Current Session</Text>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.card}
+        // ✅ only ONE onPress, passes correct label
+        onPress={() => goToSession("2", "Session 2")}
       >
-        {/* Top bar */}
-        <View style={styles.topBar}>
-          <Text style={styles.hi}>Hi Loretta!</Text>
-
-          <Text style={styles.wordmark}>Floora</Text>
+        <Image
+          source={require("../../assets/images/current-session.jpg")}
+          style={styles.cardImage}
+        />
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardTitle}>Session 2</Text>
+          <Text style={styles.cardSubtitle}>3 Exercises</Text>
         </View>
+      </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Your Current Session</Text>
-        <SessionCard
-          title="Session 2"
-          subtitle="3 Exercises"
-          image={require("../../assets/images/current-session.jpg")}  
+      <View style={styles.accentLine} />
+
+      {/* Previous Sessions */}
+      <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+        Previous Sessions
+      </Text>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.card}
+        // ✅ goes to Session 1 with its own label
+        onPress={() => goToSession("1", "Session 1")}
+      >
+        <Image
+          source={require("../../assets/images/prev-1.jpg")}
+          style={styles.cardImage}
         />
-
-        <View style={styles.accentLine} />
-
-        <Text style={styles.sectionTitle}>Previous Sessions</Text>
-        <SessionCard
-          title="Session 1"
-          subtitle="3 Exercises"
-          image={require("../../assets/images/prev-1.jpg")}
-        />
-      </ScrollView>
-    </SafeAreaView>
+        <View style={styles.cardFooter}>
+          <Text style={styles.cardTitle}>Session 1</Text>
+          <Text style={styles.cardSubtitle}>3 Exercises</Text>
+        </View>
+      </TouchableOpacity>
+    </ScrollView>
   );
-}
+};
+
+export default HomeScreen;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: 16, backgroundColor: colors.bg },
-  topBar: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between", 
-  paddingTop: 4,
-  paddingBottom: 12,
-},
-hi: {
-  fontSize: 26,
-  fontWeight: "800",
-  color: "#0F172A",
-},
-wordmark: {
-  fontSize: 24,
-  fontWeight: "800",
-  color: colors.brand,
-},
-  sectionTitle: { fontSize: 22, fontWeight: "800", color: "#111827", marginTop: 16, marginBottom: 10 },
-  accentLine: { width: 120, height: 4, borderRadius: 2, backgroundColor: colors.accent, marginVertical: 18 },
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  container: {
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 24,
+  },
+  greeting: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#0F172A",
+  },
+  brand: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#0F9AA8",
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: 12,
+  },
+  card: {
+    borderRadius: 18,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+    marginBottom: 12,
+  },
+  cardImage: {
+    width: "100%",
+    height: 220,
+    resizeMode: "cover",
+  },
+  cardFooter: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#111827",
+    marginRight: 4,
+  },
+  cardSubtitle: {
+    fontSize: 16,
+    color: "#6B7280",
+  },
+  accentLine: {
+    width: 120,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: "#A8CFC9",
+    marginTop: 4,
+  },
 });
