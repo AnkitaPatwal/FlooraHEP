@@ -1,54 +1,64 @@
+// app/(tabs)/_layout.tsx
+
 import React from "react";
 import { Tabs } from "expo-router";
-import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import colors from "../../constants/colors"; // your brand colors
+import { Ionicons } from "@expo/vector-icons";
 
-export default function TabLayout() {
+export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarShowLabel: false,                 // ← icons-only bar
-        tabBarActiveTintColor: colors.brand,    // teal active
-        tabBarInactiveTintColor: "#94A3B8",     // soft gray
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: "#007AFF", // iOS blue
+        tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
-          height: 68,
-          paddingTop: 6,
-          paddingBottom: 10,
-          backgroundColor: "#FFF",
-          borderTopWidth: 0.5,
           borderTopColor: "#E5E7EB",
+          borderTopWidth: 1,
+          backgroundColor: "#FFFFFF",
         },
       }}
     >
-      {/* Home */}
+      {/* 1. HOME */}
       <Tabs.Screen
         name="index"
         options={{
+          title: "Home",
           tabBarIcon: ({ color, size }) => (
-            <IconSymbol name="house.fill" color={color} size={26} />
+            <Ionicons name="home-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* Plan / Roadmap */}
+      {/* 2. ROADMAP */}
       <Tabs.Screen
         name="plan"
         options={{
+          title: "Roadmap",
           tabBarIcon: ({ color, size }) => (
-            <IconSymbol name="calendar" color={color} size={26} />
+            <Ionicons name="calendar-outline" size={size} color={color} />
           ),
         }}
       />
 
-      {/* Profile */}
+      {/* 3. EXPLORE */}
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: "Explore",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="search-outline" size={size} color={color} />
+          ),
+        }}
+      />
+
+      {/* 4. PROFILE */}
       <Tabs.Screen
         name="profile"
         options={{
+          title: "Profile",
           tabBarIcon: ({ color, size }) => (
-            <IconSymbol name="person.circle" color={color} size={26} />
+            <Ionicons name="person-outline" size={size} color={color} />
           ),
         }}
       />
