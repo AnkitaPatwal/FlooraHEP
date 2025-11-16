@@ -1,6 +1,10 @@
+import dotenv from 'dotenv';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+
+// Manually load .env from backend folder
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 // Create a reusable transporter object using SMTP
 const transporter = nodemailer.createTransport({

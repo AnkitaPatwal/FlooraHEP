@@ -166,6 +166,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+backend/.env
 
 # Spyder project settings
 .spyderproject
@@ -234,6 +235,11 @@ __marimo__/
 .env
 .env.*
 !.env.example
+backend/.env
 
 # Ignore Supabase temp anywhere
 **/supabase/.temp/
+supabase/
+
+# Ignore testEmail.ts
+backend/testEmail.ts
