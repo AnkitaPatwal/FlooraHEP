@@ -13,8 +13,8 @@ function resolveBucketPath(obj: ObjLike) {
   const path =
     obj.path ??
     obj.object_path ??
-    obj.object_key ??     // <- video.object_key
-    obj.video_path ??     // <- view.exercise_with_video
+    obj.object_key ??
+    obj.video_path ??
     null;
 
   if (!bucket || !path) return null;

@@ -1,4 +1,3 @@
-// routes/exercises.ts
 import express from 'express';
 import { supabaseServer } from '../lib/supabaseServer';
 import { createSignedUrl } from '../lib/signedUrl';
@@ -10,8 +9,6 @@ function intParam(v: unknown, fallback: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
-// GET /api/exercises
-// ?page=1&pageSize=20&search=pla&body_part=core&equipment=mat&level=beginner&tag=core&sort=created_at&order=desc
 router.get('/', async (req, res) => {
   try {
     const page = intParam(req.query.page, 1);
@@ -22,36 +19,61 @@ router.get('/', async (req, res) => {
     const bodyPart = (req.query.body_part as string | undefined)?.trim();
     const equipment = (req.query.equipment as string | undefined)?.trim();
     const level = (req.query.level as string | undefined)?.trim();
-    const tag = (req.query.tag as string | undefined)?.trim();
+
+    // tags is a text[] — allow comma-separated list: ?tags=core,abs
+    const tagsParam = (req.query.tags as string | undefined)?.trim();
+    const tags = tagsParam
+      ? tagsParam.split(',').map(t => t.trim()).filter(Boolean)
+      : undefined;
 
     const sort = (req.query.sort as string) || 'created_at';
-    const order = ((req.query.order as string) || 'desc').toLowerCase() === 'asc'
-      ? { ascending: true } : { ascending: false };
+    const order =
+      ((req.query.order as string) || 'desc').toLowerCase() === 'asc'
+        ? { ascending: true }
+        : { ascending: false };
 
-    // Use the view so we have video info available
-    let query = supabaseServer
-      .from('exercise_with_video')
-      .select('*', { count: 'exact' });
+    const select = `
+      exercise_id,
+      name,
+      body_part,
+      equipment,
+      level,
+      tags,
+      created_at,
+      video:video_id(
+        bucket,
+        object_key,
+        original_filename,
+        mime_type,
+        byte_size,
+        duration_seconds,
+        width,
+        height
+      )
+    `;
+
+    let query = supabaseServer.from('exercise').select(select, { count: 'exact' });
 
     if (search) {
-      // name ILIKE '%search%'
-      query = query.ilike('name', `%${search}%`);
+      const encoded = search.replace(/,/g, '');
+      query = query.or(
+        `name.ilike.%${encoded}%,body_part.ilike.%${encoded}%,equipment.ilike.%${encoded}%`
+      );
     }
+
     if (bodyPart) query = query.eq('body_part', bodyPart);
     if (equipment) query = query.eq('equipment', equipment);
     if (level) query = query.eq('level', level);
-    if (tag) {
-      // tags is text[]; use contains with a single-item array
-      query = query.contains('tags', [tag]);
+
+    if (tags && tags.length) {
+      query = query.contains('tags', tags);
     }
 
-    const sortColumn = ['created_at', 'name', 'body_part', 'equipment', 'level'].includes(sort)
-      ? sort : 'created_at';
-    query = query.order(sortColumn as any, order);
-
-    query = query.range(offset, offset + pageSize - 1);
+    const sortColumn = ['created_at', 'name', 'level'].includes(sort) ? sort : 'created_at';
+    query = query.order(sortColumn as any, order).range(offset, offset + pageSize - 1);
 
     const { data, error, count } = await query;
+
     if (error) {
       console.error('GET /api/exercises error:', error);
       return res.status(500).json({ message: 'Failed to fetch exercises' });
@@ -59,34 +81,56 @@ router.get('/', async (req, res) => {
 
     const withSigned = await Promise.all(
       (data ?? []).map(async (row: any) => {
-        const video_url = await createSignedUrl({ bucket: row.bucket, video_path: row.video_path });
-        // Return a clean payload without storage internals if you like
-        const {
-          bucket, video_path, object_key, ...rest
-        } = row;
-        return { ...rest, video_url };
+        const video_url = await createSignedUrl(row.video);
+        return {
+          ...row,
+          video_url,
+        };
       })
     );
 
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-    res.json({ data: withSigned, meta: { page, pageSize, total, totalPages } });
+
+    res.json({
+      data: withSigned,
+      meta: { page, pageSize, total, totalPages },
+    });
   } catch (err) {
     console.error('GET /api/exercises unexpected error:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
-// GET /api/exercises/:id  (UUID)
 router.get('/:id', async (req, res) => {
   try {
-    const id = String(req.params.id).trim();
-    // very light UUID sanity check; skip hard validation to avoid false negatives
-    if (!id) return res.status(400).json({ message: 'Invalid exercise id' });
+    const id = (req.params.id || '').trim();
+
+    if (!/^[0-9a-fA-F-]{10,}$/.test(id)) {
+      return res.status(400).json({ message: 'Invalid exercise id' });
+    }
 
     const { data, error } = await supabaseServer
-      .from('exercise_with_video')
-      .select('*')
+      .from('exercise')
+      .select(`
+        exercise_id,
+        name,
+        body_part,
+        equipment,
+        level,
+        tags,
+        created_at,
+        video:video_id(
+          bucket,
+          object_key,
+          original_filename,
+          mime_type,
+          byte_size,
+          duration_seconds,
+          width,
+          height
+        )
+      `)
       .eq('exercise_id', id)
       .single();
 
@@ -96,14 +140,14 @@ router.get('/:id', async (req, res) => {
     }
     if (!data) return res.status(404).json({ message: 'Exercise not found' });
 
-    const video_url = await createSignedUrl({ bucket: data.bucket, video_path: data.video_path });
+    const video_url = await createSignedUrl(data.video);
 
-    const {
-      bucket, video_path, object_key, // strip internal fields
-      ...rest
-    } = data;
+    const result = {
+      ...data,
+      video_url,
+    };
 
-    res.json({ ...rest, video_url });
+    res.json(result);
   } catch (err) {
     console.error('GET /api/exercises/:id unexpected error:', err);
     res.status(500).json({ message: 'Internal server error' });
