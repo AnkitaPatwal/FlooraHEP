@@ -1,6 +1,16 @@
 <!-- Floora Logo -->
 <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
 
+# 🩺 Project Overview
+Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
+
+To enhance the quality and consistency of client care, this project is developing the Floora HEP digital platform, which includes a client mobile application (iOS and Android) and an admin dashboard website. The platform provides an integrated system for managing exercises, tracking progress, and improving communication between clients and practitioners, reflecting Floora’s premium standard of care.
+
+## ⚙️ Problem Statement
+Floora currently relies on handwritten exercise instructions, leading to inefficiency, fragmented communication, and limited scalability. This manual approach does not reflect the practice’s modern, high-quality service model. A secure and user-friendly digital solution is being developed to streamline exercise management, centralize client data, and enhance the overall client experience. The dedicated web and mobile platform aims to modernize operations, improve accessibility, and support Floora’s mission to deliver professional, seamless pelvic health care.
+
+---
+
 <!-- Website Demo -->
 <p align="center">
   <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" alt="web-demo" />
@@ -13,7 +23,7 @@
 <img width="2978" height="4028" alt="ERD_floora" src="https://github.com/user-attachments/assets/7cec1497-cf7f-4ed8-81d9-3125c0f6dfcc" />
 
 <!-- Floora Color Pallette -->
-<img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
+<img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
 
 <!-- Floora App Demo -->
 ![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
@@ -87,5 +97,4 @@
 
 ## 📄 License
 This project is licensed under the **MIT License**.
-
-The full license text is available in the [`LICENSE`](./LICENSE) file located in the root of this repository.
+See the full text in the [`LICENSE`](./LICENSE) file.
