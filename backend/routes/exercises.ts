@@ -1,3 +1,4 @@
+// routes/exercises.ts
 import express from 'express';
 import { supabaseServer } from '../lib/supabaseServer';
 import { createSignedUrl } from '../lib/signedUrl';
@@ -9,6 +10,8 @@ function intParam(v: unknown, fallback: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+// GET /api/exercises
+// ?page=1&pageSize=20&search=pla&body_part=core&equipment=mat&level=beginner&tag=core&sort=created_at&order=desc
 router.get('/', async (req, res) => {
   try {
     const page = intParam(req.query.page, 1);
@@ -16,74 +19,39 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const search = (req.query.search as string | undefined)?.trim();
-    const tagId = req.query.tagId ? Number(req.query.tagId) : undefined;
-    const muscleGroupId = req.query.muscle_group_id ? Number(req.query.muscle_group_id) : undefined;
-    const muscleId = req.query.muscle_id ? Number(req.query.muscle_id) : undefined;
-    const createdByAdminId = req.query.created_by_admin_id ? Number(req.query.created_by_admin_id) : undefined;
-    const hasVideoStr = (req.query.has_video as string | undefined)?.toLowerCase();
-    const hasVideo = hasVideoStr === 'true' ? true : hasVideoStr === 'false' ? false : undefined;
+    const bodyPart = (req.query.body_part as string | undefined)?.trim();
+    const equipment = (req.query.equipment as string | undefined)?.trim();
+    const level = (req.query.level as string | undefined)?.trim();
+    const tag = (req.query.tag as string | undefined)?.trim();
 
     const sort = (req.query.sort as string) || 'created_at';
-    const order = ((req.query.order as string) || 'desc').toLowerCase() === 'asc' ? { ascending: true } : { ascending: false };
+    const order = ((req.query.order as string) || 'desc').toLowerCase() === 'asc'
+      ? { ascending: true } : { ascending: false };
 
-    const baseSelect = [
-      'exercise_id',
-      'title',
-      'description',
-      'default_sets',
-      'default_reps',
-      'created_by_admin_id',
-      'created_at',
-      'updated_at',
-      'video:video_id(*)',
-      'thumbnail:thumbnail_photo_id(*)',
-    ];
-
-    const joinBits: string[] = [];
-    if (tagId) joinBits.push('exercise_tag!inner(tag_id)');
-    if (muscleGroupId || muscleId) {
-      joinBits.push('exercise_muscles!inner(role, muscle:muscles(id, name, muscle_group:muscle_groups(id, name)))');
-    }
-
-    const select = [baseSelect.join(','), ...joinBits].join(',');
-
+    // Use the view so we have video info available
     let query = supabaseServer
-      .from('exercise')
-      .select(select, { count: 'exact' });
+      .from('exercise_with_video')
+      .select('*', { count: 'exact' });
 
     if (search) {
-      query = query.or(
-        `title.ilike.%${search}%,description.ilike.%${search}%`
-      );
+      // name ILIKE '%search%'
+      query = query.ilike('name', `%${search}%`);
+    }
+    if (bodyPart) query = query.eq('body_part', bodyPart);
+    if (equipment) query = query.eq('equipment', equipment);
+    if (level) query = query.eq('level', level);
+    if (tag) {
+      // tags is text[]; use contains with a single-item array
+      query = query.contains('tags', [tag]);
     }
 
-    if (typeof createdByAdminId === 'number' && !Number.isNaN(createdByAdminId)) {
-      query = query.eq('created_by_admin_id', createdByAdminId);
-    }
-
-    if (typeof hasVideo === 'boolean') {
-      if (hasVideo) query = query.not('video_id', 'is', null);
-      else query = query.is('video_id', null);
-    }
-
-    if (tagId) {
-      query = query.eq('exercise_tag.tag_id', tagId);
-    }
-
-    if (muscleId) {
-      query = query.eq('exercise_muscles.muscle_id', muscleId);
-    }
-    if (muscleGroupId) {
-      query = query.eq('exercise_muscles.muscle.muscle_group.id', muscleGroupId);
-    }
-
-    const sortColumn = ['created_at', 'updated_at', 'title'].includes(sort) ? sort : 'created_at';
+    const sortColumn = ['created_at', 'name', 'body_part', 'equipment', 'level'].includes(sort)
+      ? sort : 'created_at';
     query = query.order(sortColumn as any, order);
 
     query = query.range(offset, offset + pageSize - 1);
 
     const { data, error, count } = await query;
-
     if (error) {
       console.error('GET /api/exercises error:', error);
       return res.status(500).json({ message: 'Failed to fetch exercises' });
@@ -91,58 +59,34 @@ router.get('/', async (req, res) => {
 
     const withSigned = await Promise.all(
       (data ?? []).map(async (row: any) => {
-        const thumbnail_url = await createSignedUrl(row.thumbnail);
-        return {
-          ...row,
-          thumbnail_url,
-          thumbnail: undefined,
-          video: undefined,
-        };
+        const video_url = await createSignedUrl({ bucket: row.bucket, video_path: row.video_path });
+        // Return a clean payload without storage internals if you like
+        const {
+          bucket, video_path, object_key, ...rest
+        } = row;
+        return { ...rest, video_url };
       })
     );
 
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-    res.json({
-      data: withSigned,
-      meta: { page, pageSize, total, totalPages },
-    });
+    res.json({ data: withSigned, meta: { page, pageSize, total, totalPages } });
   } catch (err) {
     console.error('GET /api/exercises unexpected error:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
 
+// GET /api/exercises/:id  (UUID)
 router.get('/:id', async (req, res) => {
   try {
-    const id = Number(req.params.id);
-    if (!Number.isFinite(id) || id <= 0) {
-      return res.status(400).json({ message: 'Invalid exercise id' });
-    }
+    const id = String(req.params.id).trim();
+    // very light UUID sanity check; skip hard validation to avoid false negatives
+    if (!id) return res.status(400).json({ message: 'Invalid exercise id' });
 
     const { data, error } = await supabaseServer
-      .from('exercise')
-      .select(`
-        exercise_id,
-        title,
-        description,
-        default_sets,
-        default_reps,
-        created_by_admin_id,
-        created_at,
-        updated_at,
-        video:video_id(*),
-        thumbnail:thumbnail_photo_id(*),
-        tags:exercise_tag(tag_id),
-        muscles:exercise_muscles(
-          role,
-          muscle:muscles(
-            id, name,
-            muscle_group:muscle_groups(id, name)
-          )
-        )
-      `)
+      .from('exercise_with_video')
+      .select('*')
       .eq('exercise_id', id)
       .single();
 
@@ -152,20 +96,14 @@ router.get('/:id', async (req, res) => {
     }
     if (!data) return res.status(404).json({ message: 'Exercise not found' });
 
-    const [video_url, thumbnail_url] = await Promise.all([
-      createSignedUrl(data.video),
-      createSignedUrl(data.thumbnail),
-    ]);
+    const video_url = await createSignedUrl({ bucket: data.bucket, video_path: data.video_path });
 
-    const result = {
-      ...data,
-      video_url,
-      thumbnail_url,
-      video: undefined,
-      thumbnail: undefined,
-    };
+    const {
+      bucket, video_path, object_key, // strip internal fields
+      ...rest
+    } = data;
 
-    res.json(result);
+    res.json({ ...rest, video_url });
   } catch (err) {
     console.error('GET /api/exercises/:id unexpected error:', err);
     res.status(500).json({ message: 'Internal server error' });

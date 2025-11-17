@@ -4,6 +4,7 @@ type ObjLike = Record<string, any> | null | undefined;
 
 function resolveBucketPath(obj: ObjLike) {
   if (!obj) return null;
+
   const bucket =
     obj.bucket ??
     obj.storage_bucket ??
@@ -12,6 +13,8 @@ function resolveBucketPath(obj: ObjLike) {
   const path =
     obj.path ??
     obj.object_path ??
+    obj.object_key ??     // <- video.object_key
+    obj.video_path ??     // <- view.exercise_with_video
     null;
 
   if (!bucket || !path) return null;
