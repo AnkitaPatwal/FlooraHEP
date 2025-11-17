@@ -18,6 +18,34 @@
 <!-- Floora App Demo -->
 ![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
 
+## Project Milestones & Timeline
+
+**Milestone 1 — Project Setup (Week 1–2)**
+- Set up GitHub repositories for web and mobile  
+- Set up Jira board, sprints, and epics  
+
+**Milestone 2 — Design Phase (Week 2–3)**
+- Created mockups and wireframes for web and mobile  
+- Designed main screens and user flow  
+- Finalized layout structure before development  
+
+**Milestone 3 — Frontend Development (Weeks 3–6)**
+- Built core web frontend pages and components  
+- Built main mobile app screens  
+- Added navigation, layout, and UI structure  
+
+**Milestone 4 — Supabase Integration (Weeks 4–7)**
+- Connected frontend to Supabase  
+- Created ERD and database schema  
+- Added tables needed for users, programs, and exercises  
+
+**Milestone 5 — Backend Development (Current Sprint)**
+- Started implementing backend logic  
+- Added signup endpoint  
+- Added admin approval endpoint  
+- Began building additional backend functions and routes  
+
+
 ## 📄 License
 This project is licensed under the **MIT License**.
 
