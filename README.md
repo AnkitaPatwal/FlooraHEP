@@ -9,6 +9,27 @@ To enhance the quality and consistency of client care, this project is developin
 ## ⚙️ Problem Statement
 Floora currently relies on handwritten exercise instructions, leading to inefficiency, fragmented communication, and limited scalability. This manual approach does not reflect the practice’s modern, high-quality service model. A secure and user-friendly digital solution is being developed to streamline exercise management, centralize client data, and enhance the overall client experience. The dedicated web and mobile platform aims to modernize operations, improve accessibility, and support Floora’s mission to deliver professional, seamless pelvic health care.
 
+## Tech Stack  
+
+### Frontend  
+![React](https://img.shields.io/badge/React-61DAFB?style=flat&logo=react&logoColor=white)
+![React Native](https://img.shields.io/badge/React_Native-61DAFB?style=flat&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-38BDF8?style=flat&logo=tailwindcss&logoColor=white)
+![Expo](https://img.shields.io/badge/Expo-000020?style=flat&logo=expo&logoColor=white)
+
+### Backend & Database  
+![Node.js](https://img.shields.io/badge/Node.js-68A063?style=flat&logo=node.js&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?style=flat&logo=supabase&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=flat&logo=postgresql&logoColor=white)
+![PLpgSQL](https://img.shields.io/badge/PLpgSQL-0064a5?style=flat&logo=postgresql&logoColor=white)
+
+### Architecture & Hosting  
+![Serverless](https://img.shields.io/badge/Serverless-FF4F00?style=flat&logo=serverless&logoColor=white)
+![API Driven](https://img.shields.io/badge/API_Driven-6B7280?style=flat)
+![AWS](https://img.shields.io/badge/AWS-FF9900?style=flat&logo=amazonaws&logoColor=black)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white)
+
 ---
 
 <!-- Website Demo -->
