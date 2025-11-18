@@ -43,8 +43,13 @@ The implementation of the Floora HEP digital platform will streamline operations
 
 <!-- Website Demo -->
 <p align="center">
-  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" alt="web-demo" />
+  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" 
+       alt="web-demo" 
+       style="width: 70%; max-width: 900px;" />
 </p>
+
+<!-- Floora App Demo -->
+![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
 
 <!-- Figma Wireframe -->
 <img width="1252" height="625" alt="wireframe_floora" src="https://github.com/user-attachments/assets/ea9731de-6abf-4186-ad2e-cb5b0acb87b8" />
@@ -54,9 +59,6 @@ The implementation of the Floora HEP digital platform will streamline operations
 
 <!-- Floora Color Pallette -->
 <img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
-
-<!-- Floora App Demo -->
-![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
 
 ## Project Milestones & Timeline
 
