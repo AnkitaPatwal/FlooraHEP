@@ -9,6 +9,15 @@ To enhance the quality and consistency of client care, this project is developin
 ## ⚙️ Problem Statement
 Floora currently relies on handwritten exercise instructions, leading to inefficiency, fragmented communication, and limited scalability. This manual approach does not reflect the practice’s modern, high-quality service model. A secure and user-friendly digital solution is being developed to streamline exercise management, centralize client data, and enhance the overall client experience. The dedicated web and mobile platform aims to modernize operations, improve accessibility, and support Floora’s mission to deliver professional, seamless pelvic health care.
 
+# Objective
+The objective of this project is to modernize Floora’s exercise management system by replacing the current manual, handwritten process with a digital, scalable solution. The system aims to improve efficiency, consistency, and personalization in delivering home exercise programs (HEP) to clients. It will enhance the client experience by providing easy access to exercises, progress tracking, and communication through a branded mobile app. Additionally, it will support Floora’s staff with tools to efficiently manage clients, update content, and monitor outcomes in real time.
+
+# Proposed Solution
+The proposed solution is a custom-built digital platform consisting of a mobile application for clients and a web-based admin dashboard for staff. The client-facing app will provide secure access to personalized exercise programs, instructional media, and progress tracking, reinforcing Floora’s premium care experience. The admin dashboard will enable staff to manage user accounts, curate and assign exercises, and ensure program accuracy and compliance. Together, these tools will create an integrated, efficient system that supports Floora’s mission of empowering women with accessible pelvic health care.
+
+# Outcome
+The implementation of the Floora HEP digital platform will streamline operations, reduce administrative workload, and eliminate inefficiencies associated with manual exercise management. Clients will experience a seamless, modern interface that enhances engagement, adherence, and satisfaction with their personalized programs. Staff will benefit from centralized tools that improve accuracy, oversight, and scalability, enabling Floora to serve more clients without compromising quality. Overall, the solution will strengthen Floora’s brand in their evidence-based pelvic health care.
+
 ## Tech Stack  
 
 ### Frontend  
