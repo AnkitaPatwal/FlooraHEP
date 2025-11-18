@@ -2,7 +2,7 @@
 <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
 
 ## 🩺 Project Overview  
-Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through **evidence-based physical therapy**.
+Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
 
 To enhance the quality and consistency of client care, this project is developing the Floora HEP digital platform, which includes a client mobile application (iOS & Android) and an admin dashboard website. The platform provides an integrated system for managing exercises, tracking progress, and improving communication between clients and practitioners — reflecting Floora’s premium standard of care.
 
