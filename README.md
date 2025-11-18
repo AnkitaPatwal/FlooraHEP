@@ -40,25 +40,20 @@ The implementation of the Floora HEP digital platform will streamline operations
 ![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white)
 
 ---
-
-<!-- Website Demo -->
+<!-- Demos side-by-side (App left, Website right) -->
 <p align="center">
-  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" 
-       alt="web-demo" 
-       style="width: 70%; max-width: 900px;" />
+  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif" alt="Appdemo" width="200" />
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" alt="web-demo" width="500" />
 </p>
-
-<!-- Floora App Demo -->
-![Appdemo](https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif)
 
 <!-- Figma Wireframe -->
 <img width="1252" height="625" alt="wireframe_floora" src="https://github.com/user-attachments/assets/ea9731de-6abf-4186-ad2e-cb5b0acb87b8" />
 
 <!-- ERD -->
-<img width="991" height="1341" alt="ERD" src="https://github.com/user-attachments/assets/f6117ca5-6385-46b5-a4a2-dd2993496e4c" />
-
-<!-- Floora Color Pallette -->
-<img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
+<p align="center">
+  <img alt="ERD" src="https://github.com/user-attachments/assets/f6117ca5-6385-46b5-a4a2-dd2993496e4c" style="width:50%; height:auto;" />
+</p>
 
 ## Project Milestones & Timeline
 
@@ -126,6 +121,9 @@ The implementation of the Floora HEP digital platform will streamline operations
 - Added popups for successful or failed exercise removal  
 - Added view for admins to see all plans assigned to each client  
 - Added confirmation message when a plan is successfully assigned  
+
+<!-- Floora Color Pallette -->
+<img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
 
 ## 📄 License
 This project is licensed under the **MIT License**.
