@@ -160,8 +160,10 @@ Developer setup documentation will be expanded during CSC 191.
 
 ---
 
+https://img.shields.io/badge/License-MIT-b9d7ec.svg?style=flat
+
 ## 📄 License  
-This project is licensed under the **MIT License**.  
+This project is licensed under the **MIT License**.
 See the full text in the [`LICENSE`](./LICENSE) file.
 <img width="1216" height="188" alt="Screenshot 2025-11-14 at 11 57 27 AM" src="https://github.com/user-attachments/assets/57ce1a1c-8c91-49ca-a80c-b5c6a4a73878" />
 
