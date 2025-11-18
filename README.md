@@ -145,6 +145,21 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 
 ---
 
+## 🧪 Testing (To Be Completed in CSC 191)
+Testing procedures and unit test coverage will be developed in CSC 191.  
+
+---
+
+## 🚀 Deployment (To Be Completed in CSC 191)
+Deployment instructions and environment configurations will be completed in CSC 191.  
+
+---
+
+## 👩‍💻 Developer Instructions (To Be Completed in CSC 191)
+Developer setup documentation will be expanded during CSC 191.  
+
+---
+
 ## 📄 License  
 This project is licensed under the **MIT License**.  
 See the full text in the [`LICENSE`](./LICENSE) file.
