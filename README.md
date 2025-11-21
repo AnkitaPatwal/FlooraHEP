@@ -31,7 +31,7 @@ The proposed solution is a custom-built digital platform consisting of:
 - Mobile App for clients: secure access to personalized programs, videos, and progress tracking  
 - Admin Dashboardfor staff: manage accounts, curate and assign exercises, and track outcomes  
 
-Together, these tools create an integrated, efficient ecosystem** that supports Floora’s mission of empowering women with accessible, high-quality pelvic health care.
+Together, these tools create an integrated, efficient ecosystem that supports Floora’s mission of empowering women with accessible, high-quality pelvic health care.
 
 ---
 
