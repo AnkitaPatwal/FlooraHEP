@@ -21,6 +21,9 @@ expo-debug.log*
 # macOS
 .DS_Store
 
+# Project docs (optional)
+AGENTS.md
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -239,7 +242,7 @@ backend/.env
 
 # Ignore Supabase temp anywhere
 **/supabase/.temp/
-supabase/
+
 
 # Ignore testEmail.ts
 backend/testEmail.ts
