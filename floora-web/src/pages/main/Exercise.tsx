@@ -61,7 +61,11 @@ function ExerciseDashboard() {
   // ✅ ATH-308: ref to stop playback on close
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
+  // ✅ ATH-309: error state
+  const [videoError, setVideoError] = useState<string | null>(null);
+
   function handlePlay(ex: Exercise) {
+    setVideoError(null); // ✅ ATH-309: clear error on open
     setSelectedExercise(ex);
     setIsPreviewOpen(true);
   }
@@ -73,6 +77,7 @@ function ExerciseDashboard() {
       v.pause();
       v.currentTime = 0;
     }
+    setVideoError(null); // ✅ ATH-309: clear error on close
     setIsPreviewOpen(false);
     setSelectedExercise(null);
   }
@@ -100,19 +105,8 @@ function ExerciseDashboard() {
           <div className="exercise-header-right">
             <div className="search-wrapper">
               <span className="search-icon">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  className="icon"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
-                  />
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="icon">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
                 </svg>
               </span>
               <input type="text" className="search-bar" placeholder="Search" />
@@ -151,7 +145,7 @@ function ExerciseDashboard() {
           </section>
         ))}
 
-        {/* ✅ ATH-305/308: Video preview modal */}
+        {/* ✅ ATH-305/308/309: Video preview modal */}
         {isPreviewOpen && selectedExercise?.videoUrl && (
           <div className="video-modal-overlay" onClick={closePreview}>
             <div className="video-modal" onClick={(e) => e.stopPropagation()}>
@@ -167,8 +161,17 @@ function ExerciseDashboard() {
                 src={selectedExercise.videoUrl}
                 controls
                 autoPlay
+                // ✅ ATH-309: handle video load failure gracefully
+                onError={() => setVideoError("Video failed to load. Please try again later.")}
                 style={{ width: "100%", borderRadius: "10px" }}
               />
+
+              {/* ✅ ATH-309: show user-friendly error (no crash) */}
+              {videoError && (
+                <p style={{ marginTop: "8px", color: "#b91c1c", fontSize: "14px" }}>
+                  {videoError}
+                </p>
+              )}
             </div>
           </div>
         )}
