@@ -77,11 +77,19 @@ export default function LoginScreen() {
         email: trimmedEmail.toLowerCase(),
         password,
       });
+      //Check if the error is invalid credentials
       if (error) {
-        Alert.alert("Sign In Failed", error.message ?? "Invalid email or password.");
+        const isInvalidCredentials =
+          error.message?.toLowerCase().includes("invalid login credentials") ||
+          error.message?.toLowerCase().includes("invalid email or password");
+        Alert.alert(
+          "Sign In Failed",
+          isInvalidCredentials ? "Invalid username or password." : error.message
+        );
         setLoading(false);
         return;
       }
+      //Replace the screen with the (tabs) screen
       router.replace("/(tabs)");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
