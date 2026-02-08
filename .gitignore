@@ -243,3 +243,6 @@ supabase/
 
 # Ignore testEmail.ts
 backend/testEmail.ts
+
+!backend/supabase/functions/
+!backend/supabase/functions/**/*
