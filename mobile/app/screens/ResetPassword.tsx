@@ -6,79 +6,115 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons"; 
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 export default function ResetPassword() {
+  const { token } = useLocalSearchParams<{ token?: string }>();
   const router = useRouter();
-  const [oldPassword, setOldPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [showOld, setShowOld] = useState(false);
-  const [showNew, setShowNew] = useState(false);
 
-  const handleSubmit = () => {
-    console.log("Password updated");
-    router.push("/profile");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+
+    if (!token) {
+      alert("Invalid or missing reset token.");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      alert("Password must be at least 8 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      alert("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/reset-password`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, password: newPassword }),
+        }
+      );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Reset failed");
+      }
+
+      alert("Password updated. You can now log in.");
+      router.replace("/screens/LoginScreen"); 
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity hitSlop={10} onPress={() => router.push("/profile")}>
-          <Text style={styles.backChevron}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Password</Text>
+        <View style={{ width: 18 }} />
+        <Text style={styles.headerTitle}>Reset Password</Text>
         <View style={{ width: 18 }} />
       </View>
 
       {/* Body */}
       <View style={styles.body}>
-        <Text style={styles.title}>Reset Password</Text>
-
-        {/* Old Password */}
-        <Text style={styles.label}>Old Password</Text>
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            secureTextEntry={!showOld}
-            value={oldPassword}
-            onChangeText={setOldPassword}
-            placeholder="Enter old password"
-            placeholderTextColor="#999"
-          />
-          <TouchableOpacity onPress={() => setShowOld(!showOld)}>
-            <Ionicons
-              name={showOld ? "eye-outline" : "eye-off-outline" }
-              size={20}
-              color="#475569"
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.title}>Set a new password</Text>
 
         {/* New Password */}
         <Text style={styles.label}>New Password</Text>
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            secureTextEntry={!showNew}
+            secureTextEntry={!showPassword}
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder="Enter new password"
             placeholderTextColor="#999"
           />
-          <TouchableOpacity onPress={() => setShowNew(!showNew)}>
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
-              name={showNew ? "eye-outline" : "eye-off-outline"}
+              name={showPassword ? "eye-outline" : "eye-off-outline"}
               size={20}
               color="#475569"
             />
           </TouchableOpacity>
         </View>
 
-        {/* Button */}
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Submit</Text>
+        {/* Confirm Password */}
+        <Text style={styles.label}>Confirm Password</Text>
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            secureTextEntry={!showPassword}
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            placeholder="Confirm new password"
+            placeholderTextColor="#999"
+          />
+        </View>
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? "Updating..." : "Update Password"}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -96,18 +132,11 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 12,
     backgroundColor: "#FFFFFF",
   },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
-  },
   headerTitle: {
-    flex: 1,
-    textAlign: "center",
     fontSize: 20,
     fontWeight: "800",
     color: "#333",
@@ -149,17 +178,12 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-    width: 150,
+    width: 180,
     alignSelf: "center",
   },
   buttonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });
