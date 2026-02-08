@@ -4,11 +4,14 @@ import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from "react-native";
 import styles from "./LoginScreen.styles";
 import { useRouter } from "expo-router";
+import { supabase } from "@/lib/supabase";
 
 //Email regex for validation  
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+//Create the LoginScreen
 export default function LoginScreen() {
+  //Get the router from the useRouter hook
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,16 +34,20 @@ export default function LoginScreen() {
     return { exists: !!data.exists, approved: data.approved };
   };
 
+  //Create the handleSignIn function
   const handleSignIn = async () => {
+    //Get the trimmed email from the email state
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
       Alert.alert("Missing Email", "Please enter your email.");
       return;
     }
+    //Check if the email is valid
     if (!EMAIL_REGEX.test(trimmedEmail)) {
       Alert.alert("Invalid Email", "Please enter a valid email address.");
       return;
     }
+    //Check if the password is empty
     if (!password) {
       Alert.alert("Missing Password", "Please enter your password.");
       return;
@@ -65,7 +72,16 @@ export default function LoginScreen() {
         setLoading(false);
         return;
       }
-      // Account exists and is approved — proceed to sign in 
+      // Account exists and is approved — sign in with Supabase
+      const { error } = await supabase.auth.signInWithPassword({
+        email: trimmedEmail.toLowerCase(),
+        password,
+      });
+      if (error) {
+        Alert.alert("Sign In Failed", error.message ?? "Invalid email or password.");
+        setLoading(false);
+        return;
+      }
       router.replace("/(tabs)");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";

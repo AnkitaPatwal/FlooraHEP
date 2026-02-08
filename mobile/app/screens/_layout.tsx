@@ -5,24 +5,23 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
+//Create the unstable_settings
 export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+//Create the RootLayout
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
+  //Return the ThemeProvider with the Stack
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack>
-        {/* Your existing config */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="modal"
           options={{ presentation: 'modal', title: 'Modal' }}
         />
-
-        {/* Added so /screens/ExerciseDetail works as a stack screen */}
         <Stack.Screen
           name="screens/ExerciseDetail"
           options={{ headerShown: false }}
