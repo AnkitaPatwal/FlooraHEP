@@ -6,3 +6,11 @@
 .env.keys
 .env.local
 .env.*.local
+
+backend/.env*
+!backend/.env.example
+
+# allow tracking supabase functions
+!backend/supabase/functions/
+!backend/supabase/functions/**/*
+

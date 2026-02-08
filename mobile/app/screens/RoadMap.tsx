@@ -45,16 +45,34 @@ export default function RoadMap() {
         <Text style={styles.sectionTitle}>Restore</Text>
         <Text style={styles.sectionSub}>Sessions 1-4</Text>
 
-        {/* Session card */}
-        <View style={styles.card}>
-          <Image source={session1Img} style={styles.cardImage} resizeMode="cover" />
-        </View>
-        <Text style={styles.caption}>
-          <Text style={styles.captionStrong}>Session 1</Text>
-          <Text> | 3 Exercises</Text>
-        </Text>
+        {/* Session 1 card -> opens ExerciseGrid */}
+        <Pressable
+          onPress={() =>
+            router.push({
+              pathname: "/screens/ExerciseGrid",
+              params: {
+                sessionId: "1",
+                sessionName: "Session 1",
+                planName: "Leakage",
+                subtitle: "Restore",
+              },
+            })
+          }
+        >
+          <View style={styles.card}>
+            <Image
+              source={session1Img}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+          </View>
+          <Text style={styles.caption}>
+            <Text style={styles.captionStrong}>Session 1</Text>
+            <Text> | 3 Exercises</Text>
+          </Text>
+        </Pressable>
 
-        {/* If you want more sessions, duplicate the block above */}
+        {/* Duplicate this Pressable for Session 2, 3, etc with different params */}
       </ScrollView>
     </SafeAreaView>
   );

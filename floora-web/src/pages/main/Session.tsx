@@ -1,5 +1,5 @@
 import AppLayout from "../../components/layouts/AppLayout";
-import "../../components/main/Session.css"; // matches your folder structure
+import "../../components/main/Session.css"; 
 import { useState } from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link } from "react-router-dom";
