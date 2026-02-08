@@ -89,6 +89,21 @@ serve(async (req) => {
       );
     }
 
+    // Create Supabase Auth user so they can sign in once approved
+    const { error: authError } = await supabase.auth.admin.createUser({
+      email: email.toLowerCase(),
+      password,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      await supabase.from("user").delete().eq("user_id", newUser.user_id);
+      return new Response(
+        JSON.stringify({ success: false, message: authError.message }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
