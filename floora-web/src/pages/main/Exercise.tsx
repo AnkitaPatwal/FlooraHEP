@@ -1,6 +1,6 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Exercise.css";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
 import { Link } from "react-router-dom";
 
@@ -34,8 +34,7 @@ function ExerciseDashboard() {
       title: "Plank Hold",
       type: "22 Active Users",
       image: exerciseImg,
-      videoUrl:
-        "https://hrvtfeupqubpyqyojtmc.supabase.co/storage/v1/object/public/exercise-videos/plank.mp4",
+      videoUrl: "https://hrvtfeupqubpyqyojtmc.supabase.co/storage/v1/object/public/exercise-videos/plank.mp4",
     },
     { id: 10, category: "Core Strength", title: "Russian Twists", type: "16 Active Users", image: exerciseImg },
     { id: 11, category: "Core Strength", title: "Leg Raises", type: "13 Active Users", image: exerciseImg },
@@ -45,8 +44,7 @@ function ExerciseDashboard() {
       title: "Bicycle Crunches",
       type: "19 Active Users",
       image: exerciseImg,
-      videoUrl:
-        "https://hrvtfeupqubpyqyojtmc.supabase.co/storage/v1/object/public/exercise-videos/crunches.mp4",
+      videoUrl: "https://hrvtfeupqubpyqyojtmc.supabase.co/storage/v1/object/public/exercise-videos/crunches.mp4",
     },
 
     // Lower Body - 4 exercises
@@ -56,13 +54,27 @@ function ExerciseDashboard() {
     { id: 16, category: "Lower Body", title: "Calf Raises", type: "10 Active Users", image: exerciseImg },
   ]);
 
-  // ✅ ATH-305: preview modal state
+  // ✅ ATH-305/308: preview modal state
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
+
+  // ✅ ATH-308: ref to stop playback on close
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   function handlePlay(ex: Exercise) {
     setSelectedExercise(ex);
     setIsPreviewOpen(true);
+  }
+
+  // ✅ ATH-308: close modal + stop video immediately
+  function closePreview() {
+    const v = videoRef.current;
+    if (v) {
+      v.pause();
+      v.currentTime = 0;
+    }
+    setIsPreviewOpen(false);
+    setSelectedExercise(null);
   }
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
@@ -88,8 +100,19 @@ function ExerciseDashboard() {
           <div className="exercise-header-right">
             <div className="search-wrapper">
               <span className="search-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="icon">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  className="icon"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                  />
                 </svg>
               </span>
               <input type="text" className="search-bar" placeholder="Search" />
@@ -128,18 +151,24 @@ function ExerciseDashboard() {
           </section>
         ))}
 
-        {/* ✅ ATH-305: Video preview modal */}
+        {/* ✅ ATH-305/308: Video preview modal */}
         {isPreviewOpen && selectedExercise?.videoUrl && (
-          <div className="video-modal-overlay" onClick={() => setIsPreviewOpen(false)}>
+          <div className="video-modal-overlay" onClick={closePreview}>
             <div className="video-modal" onClick={(e) => e.stopPropagation()}>
               <div className="video-modal-header">
                 <h3>{selectedExercise.title}</h3>
-                <button type="button" className="video-modal-close" onClick={() => setIsPreviewOpen(false)}>
+                <button type="button" className="video-modal-close" onClick={closePreview}>
                   ✕
                 </button>
               </div>
 
-              <video src={selectedExercise.videoUrl} controls autoPlay style={{ width: "100%", borderRadius: "10px" }} />
+              <video
+                ref={videoRef}
+                src={selectedExercise.videoUrl}
+                controls
+                autoPlay
+                style={{ width: "100%", borderRadius: "10px" }}
+              />
             </div>
           </div>
         )}
