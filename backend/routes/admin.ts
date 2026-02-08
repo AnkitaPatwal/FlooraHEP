@@ -1,8 +1,12 @@
 import express from 'express';
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
+import { requireAdmin } from '../lib/adminGuard';
 
 const router = express.Router();
+
+// Protect everything below
+router.use(requireAdmin);
 
 /**
  * Approve a client
