@@ -16,16 +16,6 @@ router.get('/', async (req, res) => {
     const offset = (page - 1) * pageSize;
 
     const search = (req.query.search as string | undefined)?.trim();
-    const bodyPart = (req.query.body_part as string | undefined)?.trim();
-    const equipment = (req.query.equipment as string | undefined)?.trim();
-    const level = (req.query.level as string | undefined)?.trim();
-
-    // tags is a text[] — allow comma-separated list: ?tags=core,abs
-    const tagsParam = (req.query.tags as string | undefined)?.trim();
-    const tags = tagsParam
-      ? tagsParam.split(',').map(t => t.trim()).filter(Boolean)
-      : undefined;
-
     const sort = (req.query.sort as string) || 'created_at';
     const order =
       ((req.query.order as string) || 'desc').toLowerCase() === 'asc'
@@ -34,12 +24,13 @@ router.get('/', async (req, res) => {
 
     const select = `
       exercise_id,
-      name,
-      body_part,
-      equipment,
-      level,
-      tags,
+      title,
+      description,
+      default_sets,
+      default_reps,
       created_at,
+      updated_at,
+      video_id,
       video:video_id(
         bucket,
         object_key,
@@ -56,20 +47,10 @@ router.get('/', async (req, res) => {
 
     if (search) {
       const encoded = search.replace(/,/g, '');
-      query = query.or(
-        `name.ilike.%${encoded}%,body_part.ilike.%${encoded}%,equipment.ilike.%${encoded}%`
-      );
+      query = query.or(`title.ilike.%${encoded}%,description.ilike.%${encoded}%`);
     }
 
-    if (bodyPart) query = query.eq('body_part', bodyPart);
-    if (equipment) query = query.eq('equipment', equipment);
-    if (level) query = query.eq('level', level);
-
-    if (tags && tags.length) {
-      query = query.contains('tags', tags);
-    }
-
-    const sortColumn = ['created_at', 'name', 'level'].includes(sort) ? sort : 'created_at';
+    const sortColumn = ['created_at', 'title', 'updated_at'].includes(sort) ? sort : 'created_at';
     query = query.order(sortColumn as any, order).range(offset, offset + pageSize - 1);
 
     const { data, error, count } = await query;
@@ -104,9 +85,8 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
-    const id = (req.params.id || '').trim();
-
-    if (!/^[0-9a-fA-F-]{10,}$/.test(id)) {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ message: 'Invalid exercise id' });
     }
 
@@ -114,12 +94,13 @@ router.get('/:id', async (req, res) => {
       .from('exercise')
       .select(`
         exercise_id,
-        name,
-        body_part,
-        equipment,
-        level,
-        tags,
+        title,
+        description,
+        default_sets,
+        default_reps,
         created_at,
+        updated_at,
+        video_id,
         video:video_id(
           bucket,
           object_key,
