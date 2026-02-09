@@ -33,3 +33,15 @@ WHERE u.email='bailey@example.com'
     SELECT 1 FROM public.patient p
     WHERE p.user_id = u.user_id
   );
+
+-- ATH-375: Exercise video references
+-- Videos metadata (files stored in Supabase Storage bucket: exercise-videos)
+INSERT INTO public.video (bucket, object_key, original_filename, mime_type, byte_size, duration_seconds, width, height, uploader_user_id) 
+SELECT 'exercise-videos', 'crunches.mp4', 'crunches.mp4', 'video/mp4', 1024000, 30, 1920, 1080, 
+  (SELECT user_id FROM public."user" WHERE email='admin@example.com' LIMIT 1)
+WHERE NOT EXISTS (SELECT 1 FROM public.video WHERE object_key='crunches.mp4');
+
+INSERT INTO public.video (bucket, object_key, original_filename, mime_type, byte_size, duration_seconds, width, height, uploader_user_id) 
+SELECT 'exercise-videos', 'plank.mp4', 'plank.mp4', 'video/mp4', 2048000, 45, 1920, 1080,
+  (SELECT user_id FROM public."user" WHERE email='admin@example.com' LIMIT 1)
+WHERE NOT EXISTS (SELECT 1 FROM public.video WHERE object_key='plank.mp4');
