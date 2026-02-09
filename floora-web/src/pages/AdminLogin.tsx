@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../App.css";
+import { supabase } from "../lib/supabase-client";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -8,15 +9,38 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [locked, setLocked] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLocked(false);
     setLoading(true);
+    setLoginError(null);
 
     // DEMO: fail unless exact admin creds
     await new Promise(r => setTimeout(r, 250));
 
+    try{
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        setLoginError(toFriendlyLoginMessage(error.message));
+        return;
+      }
+
+      // success — redirect is acceptable for now
+      // (admin role check comes later in ATH-372)
+      navigate("/dashboard", { replace: true });
+    } finally {
+      setLoading(false);
+    }
+
+    /*
     //const ok = email === "admin@floora.com" && password === "admin123";
     const ok = true; //hardcoding for testing purposes
     if (ok) {
@@ -24,7 +48,7 @@ export default function AdminLogin() {
     } else {
       setLocked(true); // <-- admin-only locked banner appears
     }
-    setLoading(false);
+    setLoading(false);*/
   }
 
   function unlock() {
@@ -36,6 +60,13 @@ export default function AdminLogin() {
       <form className="login-card" onSubmit={handleSubmit}>
         <h1 className="logo">Floora</h1>
         <p className="admin-subtitle">Admin Portal</p> {/* different subtitle */}
+
+        {/* NEW: show failed login error message */}
+        {loginError && (
+          <div className="error-banner" role="alert" aria-live="assertive">
+            {loginError}
+          </div>
+        )}
 
         <input
           type="email"
@@ -74,4 +105,22 @@ export default function AdminLogin() {
       </form>
     </div>
   );
+}
+
+function toFriendlyLoginMessage(msg: string) {
+  const lower = msg.toLowerCase();
+
+  if (lower.includes("invalid login credentials")) {
+    return "Incorrect email or password.";
+  }
+
+  if (lower.includes("email not confirmed")) {
+    return "Please confirm your email before logging in.";
+  }
+
+  if (lower.includes("rate limit")) {
+    return "Too many attempts. Please wait and try again.";
+  }
+
+  return "Login failed. Please try again.";
 }
