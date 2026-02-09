@@ -1,10 +1,28 @@
 // app/(tabs)/_layout.tsx
 
 import React from "react";
-import { Tabs } from "expo-router";
+import { View, ActivityIndicator } from "react-native";
+import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../providers/AuthProvider";
 
 export default function TabsLayout() {
+  const { session, loading } = useAuth();
+
+  // While checking auth, show loader (prevents blank screen)
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  // If not signed in, redirect (no useEffect loops)
+  if (!session) {
+    return <Redirect href="/screens/LoginScreen" />;
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -19,7 +37,6 @@ export default function TabsLayout() {
         },
       }}
     >
-      {/* 1. HOME */}
       <Tabs.Screen
         name="index"
         options={{
@@ -30,7 +47,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 2. ROADMAP */}
       <Tabs.Screen
         name="plan"
         options={{
@@ -41,7 +57,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 3. EXPLORE */}
       <Tabs.Screen
         name="explore"
         options={{
@@ -52,7 +67,6 @@ export default function TabsLayout() {
         }}
       />
 
-      {/* 4. PROFILE */}
       <Tabs.Screen
         name="profile"
         options={{
