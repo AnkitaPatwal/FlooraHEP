@@ -2,11 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import adminRoutes from './routes/admin';
 import exercisesRoutes from './routes/exercises';
+import adminAuthRoutes from './routes/adminAuth';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
+app.use('/api/admin', adminAuthRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/exercises', exercisesRoutes);
 

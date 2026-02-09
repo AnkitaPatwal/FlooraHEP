@@ -43,7 +43,7 @@
     "es-object-atoms": "^1.1.1",
     "escape-html": "^1.0.3",
     "etag": "^1.8.1",
-    "express": "^5.1.0",
+    "express": "^5.2.1",
     "fill-range": "^7.1.1",
     "finalhandler": "^2.1.0",
     "forwarded": "^0.2.0",
@@ -136,7 +136,7 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@types/express": "^5.0.5",
+    "@types/express": "^5.0.6",
     "@types/node": "^24.10.1",
     "@types/nodemailer": "^7.0.9",
     "ts-node": "^10.9.2",
