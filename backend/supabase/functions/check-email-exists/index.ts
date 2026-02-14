@@ -1,19 +1,18 @@
-//Verify user account exists before authentication 
+//Verify user account exists before authentication
 //Validate email against existing accounts.
-
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
-
 
 //CORS headers for the function
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, content-type",
+  // ✅ include apikey because the mobile app should send it
+  "Access-Control-Allow-Headers": "authorization, apikey, x-client-info, content-type",
 };
- 
- //Validate email format
+
+//Validate email format
 function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
@@ -86,12 +85,18 @@ serve(async (req) => {
       );
     }
 
+    // ✅ FIX: status might be boolean OR string (approved/pending/denied)
+    const statusValue: unknown = user.status;
+    const isApproved =
+      statusValue === true ||
+      (typeof statusValue === "string" && statusValue.toLowerCase() === "approved");
+
     //Return the response
     return new Response(
       JSON.stringify({
         success: true,
         exists: true,
-        approved: !!user.status,
+        approved: isApproved,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
