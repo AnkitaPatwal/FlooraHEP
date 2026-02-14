@@ -100,9 +100,12 @@ export default function LoginScreen() {
       });
 
       if (data?.session && !error) {
-        router.replace("/(tabs)");
-        return;
+      // Store logged-in email globally
+      (global as any).userEmail = normalizedEmail;
+      router.replace("/(tabs)");
+      return;
       }
+
 
       Alert.alert("Sign In Failed", "Invalid email or password.");
     } catch (err: unknown) {
