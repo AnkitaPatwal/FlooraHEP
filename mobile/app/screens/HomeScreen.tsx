@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,7 +12,22 @@ import { useRouter } from "expo-router";
 const HomeScreen = () => {
   const router = useRouter();
 
-  // ✅ accepts BOTH id and sessionName
+  //  dynamic name state
+  const [displayName, setDisplayName] = useState("");
+
+  //  extract name from logged-in email
+  useEffect(() => {
+    const email = (global as any)?.userEmail || "";
+
+    if (email) {
+      const name = email.split("@")[0];
+      setDisplayName(
+        name.charAt(0).toUpperCase() + name.slice(1)
+      );
+    }
+  }, []);
+
+  // accepts BOTH id and sessionName
   const goToSession = (id: string, sessionName: string) => {
     router.push({
       pathname: "/screens/ExerciseDetail",
@@ -28,7 +43,9 @@ const HomeScreen = () => {
     >
       {/* Top header */}
       <View style={styles.headerRow}>
-        <Text style={styles.greeting}>Hi Loretta!</Text>
+        <Text style={styles.greeting}>
+          Hi {displayName || "Loretta"}!
+        </Text>
         <Text style={styles.brand}>Floora</Text>
       </View>
 
@@ -38,7 +55,6 @@ const HomeScreen = () => {
       <TouchableOpacity
         activeOpacity={0.9}
         style={styles.card}
-        // ✅ only ONE onPress, passes correct label
         onPress={() => goToSession("2", "Session 2")}
       >
         <Image
@@ -61,7 +77,6 @@ const HomeScreen = () => {
       <TouchableOpacity
         activeOpacity={0.9}
         style={styles.card}
-        // ✅ goes to Session 1 with its own label
         onPress={() => goToSession("1", "Session 1")}
       >
         <Image
