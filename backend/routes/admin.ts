@@ -8,6 +8,30 @@ const router = express.Router();
 // Protect everything below
 router.use(requireAdmin);
 
+
+/**
+ * List clients (admin only)
+ */
+router.get("/clients", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("clients")
+      .select("id, name, status")
+      .order("name", { ascending: true });
+
+    if (error) {
+      console.error("Supabase error (list clients):", error);
+      return res.status(500).json({ message: "Error fetching clients" });
+    }
+
+    return res.status(200).json({ clients: data ?? [] });
+  } catch (err) {
+    console.error("Error fetching clients:", err);
+    return res.status(500).json({ message: "Error fetching clients" });
+  }
+});
+
+
 /**
  * Approve a client
  */
