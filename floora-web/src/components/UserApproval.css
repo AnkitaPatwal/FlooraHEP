@@ -33,6 +33,12 @@
     font-size: 13px;
     color: #6b7280;
   }
+
+  .ua-empty {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0;
+  }
   
   /* Back button (top-right) */
   .ua-back-btn {
@@ -70,7 +76,7 @@
     display: flex;
     gap: 12px;
     align-items: center;
-    justify-content: center;    /* was left → center buttons */
+    justify-content: center;
     width: 100%;
   }
   
@@ -97,14 +103,20 @@
   }
 
   
-  .ua-approve {
-    background: #5a8e93;
-    color: #fff;
-    border: none;
-    padding: 9px 16px;
+  .ua-approve,
+  .ua-deny {
+    min-width: 90px;
+    padding: 8px 16px;
     border-radius: 8px;
     font-weight: 600;
     cursor: pointer;
+    box-sizing: border-box;
+  }
+
+  .ua-approve {
+    background: #5a8e93;
+    color: #fff;
+    border: 1px solid transparent;
     transition: background-color .2s ease;
   }
   .ua-approve:hover { background: #4f7d81; }
@@ -113,10 +125,6 @@
     background: #ffffff;
     color: #5a8e93;
     border: 1px solid #b7c9c9;
-    padding: 8px 16px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
     transition: background-color .15s ease, border-color .15s ease;
   }
   .ua-deny:hover {

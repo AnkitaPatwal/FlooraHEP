@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
+import { fetchPendingClients, type PendingClient } from "../../lib/admin-api";
 import "../../components/main/Users.css";
 
 type User = {
@@ -10,11 +11,10 @@ type User = {
   plan?: string;
   session?: string;
   avatarUrl?: string;
+  email?: string;
 };
 
-const SEED_USERS: User[] = [
-  { id: "p1", name: "Loretta Barry", status: "pending", plan: "No Plan", session: "No Session" },
-  { id: "p2", name: "Loretta Barry", status: "pending", plan: "No Plan", session: "No Session" },
+const SEED_ACTIVE_USERS: User[] = [
   { id: "a1", name: "Catherine Becks", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=47" },
   { id: "a2", name: "Cindy Barlow", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=12" },
   { id: "a3", name: "Donna Paulsen", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=32" },
@@ -53,23 +53,68 @@ function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
   );
 }
 
+function PendingUserCard({
+  client,
+  onClick,
+}: {
+  client: PendingClient;
+  onClick?: () => void;
+}) {
+  const name = [client.fname, client.lname].filter(Boolean).join(" ") || "—";
+  return (
+    <article className="user-card" role="button" tabIndex={0} onClick={onClick}>
+      <div className="user-card-inner">
+        <div className="user-avatar-wrap">
+          <Avatar name={name} />
+        </div>
+        <div className="user-card-text">
+          <h3 className="user-card-name">{name}</h3>
+          <p className="user-card-email">{client.email}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export default function Users() {
   const [q, setQ] = useState("");
+  const [pendingClients, setPendingClients] = useState<PendingClient[]>([]);
+  const [pendingError, setPendingError] = useState<string | null>(null);
+  const [pendingLoading, setPendingLoading] = useState(true);
   const navigate = useNavigate();
 
-  const pending = useMemo(
-    () =>
-      SEED_USERS.filter(
-        (u) =>
-          u.status === "pending" &&
-          u.name.toLowerCase().includes(q.trim().toLowerCase())
-      ),
-    [q]
-  );
+  const loadPendingClients = useCallback(async () => {
+    setPendingLoading(true);
+    setPendingError(null);
+    try {
+      const list = await fetchPendingClients();
+      setPendingClients(list);
+    } catch (err) {
+      setPendingError(err instanceof Error ? err.message : "Failed to load pending clients");
+      setPendingClients([]);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPendingClients();
+  }, [loadPendingClients]);
+
+  const pendingFiltered = useMemo(() => {
+    const lower = q.trim().toLowerCase();
+    if (!lower) return pendingClients;
+    return pendingClients.filter(
+      (c) =>
+        [c.fname, c.lname, c.email].some((s) =>
+          (s ?? "").toLowerCase().includes(lower)
+        )
+    );
+  }, [pendingClients, q]);
 
   const active = useMemo(
     () =>
-      SEED_USERS.filter(
+      SEED_ACTIVE_USERS.filter(
         (u) =>
           u.status === "active" &&
           u.name.toLowerCase().includes(q.trim().toLowerCase())
@@ -79,6 +124,10 @@ export default function Users() {
 
   const handleCardClick = (u: User) => {
     if (u.id === "a1") navigate("/user-approval");
+  };
+
+  const handlePendingCardClick = (client: PendingClient) => {
+    navigate("/user-approval", { state: { user: client } });
   };
 
   return (
@@ -96,9 +145,33 @@ export default function Users() {
 
         <section className="user-section" aria-labelledby="pending-users-title">
           <h2 id="pending-users-title" className="user-section-title">Pending Users</h2>
+          {pendingError && (
+            <div className="user-error-wrap">
+              <p className="user-error" role="alert">{pendingError}</p>
+              <p className="user-error-hint">
+                Ensure .env has VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+                (same project where the function is deployed).
+              </p>
+              <button
+                type="button"
+                className="user-retry-btn"
+                onClick={loadPendingClients}
+              >
+                Retry
+              </button>
+            </div>
+          )}
           <div className="user-grid">
-            {pending.length ? (
-              pending.map((u) => <UserCard key={u.id} user={u} />)
+            {pendingLoading ? (
+              <div className="user-empty">Loading pending users…</div>
+            ) : pendingFiltered.length ? (
+              pendingFiltered.map((c) => (
+                <PendingUserCard
+                  key={c.user_id}
+                  client={c}
+                  onClick={() => handlePendingCardClick(c)}
+                />
+              ))
             ) : (
               <div className="user-empty">No pending users</div>
             )}

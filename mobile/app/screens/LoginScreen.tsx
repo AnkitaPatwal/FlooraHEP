@@ -27,13 +27,20 @@ export default function LoginScreen() {
     exists: boolean;
     approved?: boolean;
   }> => {
-    const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/check-email-exists`;
+    const baseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!baseUrl || !anonKey) {
+      throw new Error("Missing Supabase environment variables");
+    }
+
+    const url = `${baseUrl}/functions/v1/check-email-exists`;
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
+        Authorization: `Bearer ${anonKey}`,
       },
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
@@ -70,18 +77,7 @@ export default function LoginScreen() {
 
       const normalizedEmail = trimmedEmail.toLowerCase();
 
-      // ✅ Try Supabase Auth FIRST
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: normalizedEmail,
-        password,
-      });
-
-      if (data?.session && !error) {
-        router.replace("/(tabs)");
-        return;
-      }
-
-      // If auth fails, check if the account exists + approval status
+      // account existence and approval (ATH-94)
       const { exists, approved } = await validateEmailExists();
 
       if (!exists) {
@@ -92,17 +88,28 @@ export default function LoginScreen() {
         return;
       }
 
-      // Account exists but pending approval
       if (approved === false) {
         Alert.alert("Account Pending", "Your account is pending admin approval.");
         return;
       }
 
-      // Exists + approved, but auth failed => wrong password (or user not in Supabase Auth)
+      // Only approved users reach Supabase Auth login
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password,
+      });
+
+      if (data?.session && !error) {
+      // Store logged-in email globally
+      (global as any).userEmail = normalizedEmail;
+      router.replace("/(tabs)");
+      return;
+      }
+
+
       Alert.alert("Sign In Failed", "Invalid email or password.");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Something went wrong";
+      const message = err instanceof Error ? err.message : "Something went wrong";
       Alert.alert("Error", message);
     } finally {
       setLoading(false);
