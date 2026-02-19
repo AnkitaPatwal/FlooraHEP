@@ -18,7 +18,6 @@
 .session-header-left {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .session-header-left h1 {
@@ -32,10 +31,16 @@
   font-size: 13px;
   color: #6b7280;
   margin: 0;
+  margin-top: 0px;
+}
+
+.session-count {
+  font-size: 13px;
+  color: #6b7280;
 }
 
 /* === Button === */
-.new-session-btn {
+.session-new-session-btn {
   background-color: #5a8e93;
   color: #fff;
   border: none;
@@ -46,8 +51,10 @@
   cursor: pointer;
   width: fit-content;
   transition: background-color 0.2s ease;
+  margin-top: 20px;
 }
-.new-session-btn:hover {
+
+.session-new-session-btn:hover {
   background-color: #4f7d81;
 }
 
@@ -57,13 +64,13 @@
   align-items: flex-end;
 }
 
-.search-wrapper {
+.session-search-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
 
-.search-icon {
+.session-search-icon {
   position: absolute;
   left: 14px;
   color: #9ca3af;
@@ -72,12 +79,12 @@
   justify-content: center;
 }
 
-.search-icon .icon {
+.session-search-icon .icon {
   width: 18px;
   height: 18px;
 }
 
-.search-bar {
+.session-search-bar {
   border: 1px solid #d1d5db;
   border-radius: 25px;
   padding: 10px 14px 10px 44px;
@@ -89,37 +96,41 @@
     inset 0 1px 2px rgba(255, 255, 255, 0.3);
   transition: all 0.2s ease;
 }
-.search-bar::placeholder {
+
+.session-search-bar::placeholder {
   color: #9ca3af;
 }
-.search-bar:focus {
+
+.session-search-bar:focus {
   outline: none;
   border-color: #bcd1d1;
   box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.2);
 }
 
 /* === Divider === */
-.divider {
+.session-divider {
   border: none;
   border-top: 1px solid #e5e7eb;
   margin: 0 0 32px 0;
 }
 
 /* === Categories === */
-.category-section {
+.session-category-section {
   margin-bottom: 64px;
 }
 
-.category-title {
+.session-category-title {
   font-size: 20px;
   font-weight: 700;
   color: #1f2937;
   margin-bottom: 24px;
 }
-.category-title span {
+
+.session-category-title span {
   font-size: 13px;
   color: #999;
   font-weight: 400;
+  margin-left: 8px;
 }
 
 /* === Grid === */
@@ -140,6 +151,7 @@
   display: flex;
   flex-direction: column;
 }
+
 .session-card:hover {
   transform: translateY(-3px);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
@@ -174,11 +186,17 @@
 }
 
 .session-tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background-color: #d4e8e8;
   color: #5a8e93;
   font-size: 11px;
   font-weight: 500;
   padding: 4px 8px;
   border-radius: 6px;
+}
+
+.session-tag .material-symbols-outlined {
+  font-size: 14px;
 }
