@@ -12,7 +12,8 @@
 
 BEGIN;
 
-SELECT plan(64);
+SELECT plan(61);
+
 
 
 -- SECTION 1: Exercises — presence and correct data
@@ -136,6 +137,7 @@ SELECT is(
 );
 
 
+
 -- SECTION 2: Modules — presence and correct session numbers
 SELECT ok(
   EXISTS (SELECT 1 FROM public.module WHERE title = 'Core Foundations' AND session_number = 1),
@@ -171,6 +173,7 @@ SELECT is(
   5,
   'all 5 seeded modules are attributed to admin@floorahep.dev'
 );
+
 
 
 -- SECTION 3: module_exercise — correct linkage and ordering
@@ -256,6 +259,7 @@ SELECT is(
 );
 
 
+
 -- SECTION 4: Plans — presence and correct data
 SELECT ok(
   EXISTS (SELECT 1 FROM public.plan WHERE title = '4-Week Core Starter'),
@@ -291,6 +295,7 @@ SELECT is(
   5,
   'all 5 seeded plans are attributed to admin@floorahep.dev'
 );
+
 
 
 -- SECTION 5: plan_module — correct linkage and ordering
@@ -392,6 +397,7 @@ SELECT is(
   10,
   'exactly 10 plan_module rows exist across the 5 seeded plans'
 );
+
 
 
 -- SECTION 6: user_module — patient assignments
