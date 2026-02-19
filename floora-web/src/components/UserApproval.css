@@ -39,6 +39,12 @@
     font-size: 14px;
     margin: 0;
   }
+
+  .ua-error {
+    color: #b91c1c;
+    font-size: 14px;
+    margin: 12px 0 0;
+  }
   
   /* Back button (top-right) */
   .ua-back-btn {
