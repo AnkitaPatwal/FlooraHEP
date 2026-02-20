@@ -1,3 +1,27 @@
+// ─────────────────────────────────────────────────────────────
+// MUST be the very first lines in the file (no imports above)
+// ─────────────────────────────────────────────────────────────
+jest.mock("../../lib/adminGuard", () => {
+  // a single handler used for both default and named exports
+  const handler = (req: any, res: any, next: any) => {
+    // if handlers expect req.user, you can attach a fake user here:
+    // req.user = { id: "test", roles: ["admin"] };
+    next();
+  };
+
+  // Cover multiple export styles so the mock always supplies a function:
+  // - CommonJS: module.exports = handler
+  // - ES default: export default handler
+  // - Named export: export const requireAdmin = handler
+  return {
+    __esModule: true,
+    default: handler,
+    requireAdmin: handler,
+    // Also export the handler itself as module.exports in case of require()
+    // (Jest converts the return into the mocked module)
+  };
+});
+
 import request from "supertest";
 import app from "../../server";
 import * as moduleService from "../../services/moduleService";
