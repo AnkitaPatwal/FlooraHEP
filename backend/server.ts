@@ -1,6 +1,5 @@
 import 'dotenv/config';
 import express from 'express';
-import cors from 'cors';
 import adminRoutes from './routes/admin';
 import exercisesRoutes from './routes/exercises';
 import adminAuthRoutes from './routes/adminAuth';
