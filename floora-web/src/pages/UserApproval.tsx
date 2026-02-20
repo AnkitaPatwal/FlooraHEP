@@ -1,17 +1,50 @@
+import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
-import type { PendingClient } from "../lib/admin-api";
+import { approveClient, denyClient, type PendingClient } from "../lib/admin-api";
 import "../components/UserApproval.css";
+
+const DEFAULT_ADMIN_ID = 1;
 
 export default function UserApproval() {
   const navigate = useNavigate();
   const location = useLocation();
   const user = location.state?.user as PendingClient | undefined;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleBack = () => {
     navigate("/users");
   };
+  // Handles the approve action
+  const handleApprove = async () => {
+    if (!user) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await approveClient(DEFAULT_ADMIN_ID, user.user_id);
+      navigate("/users", { state: { refreshUsers: true } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to approve");
+      setBusy(false);
+    }
+  };
 
+  // Handles the deny action
+  const handleDeny = async () => {
+    if (!user) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await denyClient(DEFAULT_ADMIN_ID, user.user_id);
+      navigate("/users", { state: { refreshUsers: true } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to deny");
+      setBusy(false);
+    }
+  };
+
+  // If no user is selected, show a message to go back and click a pending user
   if (!user) {
     return (
       <AppLayout>
@@ -30,6 +63,7 @@ export default function UserApproval() {
     );
   }
 
+  // If a user is selected, show the user's name and email
   const name = [user.fname, user.lname].filter(Boolean).join(" ") || "—";
   const initials = name
     .split(" ")
@@ -59,13 +93,28 @@ export default function UserApproval() {
               </div>
 
               <div className="ua-actions">
-                <button className="ua-approve" type="button">
-                  Approve
+                <button
+                  className="ua-approve"
+                  type="button"
+                  disabled={busy}
+                  onClick={handleApprove}
+                >
+                  {busy ? "…" : "Approve"}
                 </button>
-                <button className="ua-deny" type="button">
+                <button
+                  className="ua-deny"
+                  type="button"
+                  disabled={busy}
+                  onClick={handleDeny}
+                >
                   Deny
                 </button>
               </div>
+              {error && (
+                <p className="ua-error" role="alert">
+                  {error}
+                </p>
+              )}
             </aside>
 
             <form className="ua-form" onSubmit={(e) => e.preventDefault()}>

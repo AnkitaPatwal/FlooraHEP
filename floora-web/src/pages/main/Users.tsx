@@ -1,28 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
-import { fetchPendingClients, type PendingClient } from "../../lib/admin-api";
+import {
+  fetchActiveClients,
+  fetchPendingClients,
+  type ActiveClient,
+  type PendingClient,
+} from "../../lib/admin-api";
 import "../../components/main/Users.css";
 
 type User = {
   id: string;
   name: string;
-  status: "pending" | "active";
+  status: "active";
   plan?: string;
   session?: string;
   avatarUrl?: string;
   email?: string;
 };
 
-const SEED_ACTIVE_USERS: User[] = [
-  { id: "a1", name: "Catherine Becks", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=47" },
-  { id: "a2", name: "Cindy Barlow", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=12" },
-  { id: "a3", name: "Donna Paulsen", status: "active", plan: "Leakage", session: "Session 2", avatarUrl: "https://i.pravatar.cc/100?img=32" },
-  { id: "a4", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
-  { id: "a5", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
-  { id: "a6", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
-  { id: "a7", name: "Loretta Barry", status: "active", plan: "Leakage", session: "Session 2" },
-];
+function toUser(c: ActiveClient): User {
+  const name = [c.fname, c.lname].filter(Boolean).join(" ") || "—";
+  return {
+    id: String(c.user_id),
+    name,
+    status: "active",
+    email: c.email,
+  };
+}
 
 function Avatar({ name, url }: { name: string; url?: string }) {
   const initials = useMemo(
@@ -81,6 +86,10 @@ export default function Users() {
   const [pendingClients, setPendingClients] = useState<PendingClient[]>([]);
   const [pendingError, setPendingError] = useState<string | null>(null);
   const [pendingLoading, setPendingLoading] = useState(true);
+  const [activeClients, setActiveClients] = useState<ActiveClient[]>([]);
+  const [activeError, setActiveError] = useState<string | null>(null);
+  const [activeLoading, setActiveLoading] = useState(true);
+  const location = useLocation();
   const navigate = useNavigate();
 
   const loadPendingClients = useCallback(async () => {
@@ -97,9 +106,33 @@ export default function Users() {
     }
   }, []);
 
+  const loadActiveClients = useCallback(async () => {
+    setActiveLoading(true);
+    setActiveError(null);
+    try {
+      const list = await fetchActiveClients();
+      setActiveClients(list);
+    } catch (err) {
+      setActiveError(err instanceof Error ? err.message : "Failed to load active users");
+      setActiveClients([]);
+    } finally {
+      setActiveLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadPendingClients();
-  }, [loadPendingClients]);
+    loadActiveClients();
+  }, [loadPendingClients, loadActiveClients]);
+
+  // Refetch lists when returning from approve/deny so approved user appears in Active and is removed from Pending
+  useEffect(() => {
+    if (location.state?.refreshUsers) {
+      loadPendingClients();
+      loadActiveClients();
+      navigate("/users", { replace: true, state: {} });
+    }
+  }, [location.state?.refreshUsers, loadPendingClients, loadActiveClients, navigate]);
 
   const pendingFiltered = useMemo(() => {
     const lower = q.trim().toLowerCase();
@@ -112,19 +145,21 @@ export default function Users() {
     );
   }, [pendingClients, q]);
 
-  const active = useMemo(
-    () =>
-      SEED_ACTIVE_USERS.filter(
-        (u) =>
-          u.status === "active" &&
-          u.name.toLowerCase().includes(q.trim().toLowerCase())
-      ),
-    [q]
+  // Only show approved users (status === true) in Active; exclude any pending that might slip through
+  const activeUsers = useMemo(
+    () => activeClients.filter((c) => c.status === true).map(toUser),
+    [activeClients]
   );
-
-  const handleCardClick = (u: User) => {
-    if (u.id === "a1") navigate("/user-approval");
-  };
+  const active = useMemo(() => {
+    const lower = q.trim().toLowerCase();
+    if (!lower) return activeUsers;
+    return activeUsers.filter(
+      (u) =>
+        u.status === "active" &&
+        (u.name.toLowerCase().includes(lower) ||
+          (u.email ?? "").toLowerCase().includes(lower))
+    );
+  }, [activeUsers, q]);
 
   const handlePendingCardClick = (client: PendingClient) => {
     navigate("/user-approval", { state: { user: client } });
@@ -200,14 +235,21 @@ export default function Users() {
           </div>
 
           <div className="user-grid">
-            {active.length ? (
-              active.map((u) => (
-                <UserCard
-                  key={u.id}
-                  user={u}
-                  onClick={() => handleCardClick(u)}
-                />
-              ))
+            {activeLoading ? (
+              <div className="user-empty">Loading active users…</div>
+            ) : activeError ? (
+              <div className="user-error-wrap">
+                <p className="user-error" role="alert">{activeError}</p>
+                <button
+                  type="button"
+                  className="user-retry-btn"
+                  onClick={loadActiveClients}
+                >
+                  Retry
+                </button>
+              </div>
+            ) : active.length ? (
+              active.map((u) => <UserCard key={u.id} user={u} />)
             ) : (
               <div className="user-empty">No active users</div>
             )}
