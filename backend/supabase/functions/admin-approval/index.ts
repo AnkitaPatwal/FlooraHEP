@@ -7,6 +7,39 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, content-type",
 };
 
+/** Send approval or denial email via Resend. No domain: set only RESEND_API_KEY; uses onboarding@resend.dev (delivers to Resend account email). */
+async function sendStatusEmail(
+  kind: "approve" | "deny",
+  to: string,
+  name: string
+): Promise<void> {
+  const apiKey = Deno.env.get("RESEND_API_KEY");
+  if (!apiKey) return;
+  const from = Deno.env.get("RESEND_FROM_EMAIL") || Deno.env.get("FROM_EMAIL") || "Floora HEP <onboarding@resend.dev>";
+  const isApproved = kind === "approve";
+  const subject = isApproved ? "Your Account Has Been Approved!" : "Account Request Denied";
+  const html = isApproved
+    ? `<!DOCTYPE html><html><body style="font-family: Arial, sans-serif;"><h2>Welcome, ${escapeHtml(name)}!</h2><p>Your account has been <strong>approved</strong>.</p><p>You can now log in to your account.</p></body></html>`
+    : `<!DOCTYPE html><html><body style="font-family: Arial, sans-serif;"><h2>Hello ${escapeHtml(name)},</h2><p>Your account request was <strong>denied</strong>.</p><p>You will not be able to log in. If you believe this is an error, please contact support.</p></body></html>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
+  if (!res.ok) console.error("Resend email error:", res.status, await res.text());
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -26,8 +59,17 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // GET or POST (no body) → list pending clients (name + email only; no password)
+  // GET or POST (no body) → list pending clients (status false and never denied; denied users disappear from list)
   const listPending = async () => {
+    let deniedSet = new Set<number>();
+    const { data: deniedRows, error: auditErr } = await supabase
+      .from("audit_log")
+      .select("target_user_id")
+      .eq("action", "deny");
+    if (!auditErr && deniedRows) {
+      deniedSet = new Set(deniedRows.map((r) => Number(r.target_user_id)));
+    }
+
     const { data, error } = await supabase
       .from("user")
       .select("user_id, email, fname, lname, status")
@@ -38,7 +80,8 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    return new Response(JSON.stringify(data), {
+    const pendingOnly = (data ?? []).filter((u) => !deniedSet.has(Number(u.user_id)));
+    return new Response(JSON.stringify(pendingOnly), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -104,7 +147,7 @@ serve(async (req) => {
 
     const { data: existing } = await supabase
       .from("user")
-      .select("status")
+      .select("status, email, fname, lname")
       .eq("user_id", user_id)
       .single();
 
@@ -133,6 +176,12 @@ serve(async (req) => {
       action: "approve",
     });
 
+    const email = existing?.email;
+    const name = [existing?.fname, existing?.lname].filter(Boolean).join(" ") || "there";
+    if (email) {
+      try { await sendStatusEmail("approve", email, name); } catch (_) { /* don't fail the request */ }
+    }
+
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -158,6 +207,12 @@ serve(async (req) => {
       );
     }
 
+    const { data: existing } = await supabase
+      .from("user")
+      .select("email, fname, lname")
+      .eq("user_id", user_id)
+      .single();
+
     const { error } = await supabase
       .from("user")
       .update({ status: false })
@@ -170,11 +225,24 @@ serve(async (req) => {
       });
     }
 
-    await supabase.from("audit_log").insert({
+    const { error: auditError } = await supabase.from("audit_log").insert({
       admin_id,
       target_user_id: user_id,
       action: "deny",
     });
+    if (auditError) {
+      console.error("audit_log insert (deny) failed:", auditError.message);
+      return new Response(
+        JSON.stringify({ error: "Failed to record denial. Ensure audit_log exists and service_role has INSERT." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const email = existing?.email;
+    const name = [existing?.fname, existing?.lname].filter(Boolean).join(" ") || "there";
+    if (email) {
+      try { await sendStatusEmail("deny", email, name); } catch (_) { /* don't fail the request */ }
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
