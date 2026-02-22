@@ -66,16 +66,16 @@ async function isUserAdminByTable(user: User): Promise<boolean> {
 
 /*
  - Backend checks that the authenticated user has admin privileges.
- - Requests from authenticated non-admin users return 403 Forbidden.
  - Admin routes are protected using this logic.
+ - When DISABLE_ADMIN_GUARD=true (dev only), the guard is skipped and sign-in bypass is allowed.
  */
 export async function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
-  if (process.env.DISABLE_ADMIN_GUARD === 'true') { //DELETE BEFORE PROD -- TESTING ONLY
+  const bypassEnabled = /^(true|1)$/i.test(String(process.env.DISABLE_ADMIN_GUARD ?? '').trim());
+  if (bypassEnabled) {
     console.log('⚠️ Admin guard disabled (dev mode)');
     return next();
   }
 
-  // First ensure authenticated
   await requireAuth(req, res, async () => {
     try {
       const user = req.user!;
@@ -91,9 +91,4 @@ export async function requireAdmin(req: AuthedRequest, res: Response, next: Next
       return res.status(403).json({ message: 'Forbidden' });
     }
   });
-
-  if (process.env.DISABLE_ADMIN_GUARD === 'true') { //DELETE BEFORE PROD -- TESTING ONLY
-    return next()
-  }
-  
 }
