@@ -4,6 +4,7 @@ import {
   fetchActiveClients,
   approveClient,
   denyClient,
+  deleteClient,
 } from "./admin-api";
 
 // Describe the admin-api component
@@ -183,4 +184,81 @@ describe("admin-api", () => {
       );
     });
   });
+<<<<<<< Updated upstream
+=======
+
+  describe("client notification on approval or denial", () => {
+    it("approve calls admin-approval with action approve so client can be notified", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      } as Response);
+
+      await approveClient(1, 42);
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ action: "approve", admin_id: 1, user_id: 42 }),
+        })
+      );
+    });
+
+    it("deny calls admin-approval with action deny so client can be notified", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      } as Response);
+
+      await denyClient(1, 99);
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ action: "deny", admin_id: 1, user_id: 99 }),
+        })
+      );
+    });
+  });
+
+  describe("deleteClient", () => {
+    it("sends action delete with admin_id and user_id and resolves on 200", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      } as Response);
+
+      await deleteClient(1, 10);
+
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            action: "delete",
+            admin_id: 1,
+            user_id: 10,
+          }),
+        })
+      );
+    });
+
+    it("throws with API error message when delete fails", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({ error: "Failed to delete user record: constraint violation" })
+          ),
+      } as Response);
+
+      await expect(deleteClient(1, 10)).rejects.toThrow(
+        "Failed to delete user record: constraint violation"
+      );
+    });
+  });
+>>>>>>> Stashed changes
 });

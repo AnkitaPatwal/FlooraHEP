@@ -99,3 +99,15 @@ export async function denyClient(
 ): Promise<void> {
   await invoke({ action: "deny", admin_id: adminId, user_id: userId });
 }
+
+/**
+ * Deletes an active client. Removes the user from public.user and from auth.
+ * @param adminId - Admin user_id.
+ * @param userId - Client user_id to delete.
+ */
+export async function deleteClient(
+  adminId: number,
+  userId: number
+): Promise<void> {
+  await invoke({ action: "delete", admin_id: adminId, user_id: userId });
+}

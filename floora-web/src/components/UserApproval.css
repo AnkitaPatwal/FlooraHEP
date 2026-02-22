@@ -137,6 +137,75 @@
     background: #f5f9f9;
     border-color: #8fb0b0;
   }
+
+  .ua-delete-btn {
+    color: #b91c1c;
+    border-color: #fca5a5;
+  }
+  .ua-delete-btn:hover {
+    background: #fef2f2;
+    border-color: #b91c1c;
+  }
+
+  .ua-delete-confirm-btn {
+    min-width: 90px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #b91c1c;
+    color: #fff;
+    border: 1px solid transparent;
+  }
+  .ua-delete-confirm-btn:hover:not(:disabled) {
+    background: #991b1b;
+  }
+  .ua-delete-confirm-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  /* Confirmation modal */
+  .ua-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  .ua-modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 400px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  }
+  .ua-modal-title {
+    margin: 0 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+  .ua-modal-text {
+    margin: 0 0 20px;
+    font-size: 14px;
+    color: #6b7280;
+    line-height: 1.5;
+  }
+  .ua-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+  }
+  .ua-modal-cancel {
+    background: #f3f4f6;
+    color: #374151;
+  }
+  .ua-modal-cancel:hover {
+    background: #e5e7eb;
+  }
   
   /* Right column form */
   .ua-form {
