@@ -184,8 +184,6 @@ describe("admin-api", () => {
       );
     });
   });
-<<<<<<< Updated upstream
-=======
 
   describe("client notification on approval or denial", () => {
     it("approve calls admin-approval with action approve so client can be notified", async () => {
@@ -260,5 +258,4 @@ describe("admin-api", () => {
       );
     });
   });
->>>>>>> Stashed changes
 });
