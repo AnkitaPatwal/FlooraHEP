@@ -24,7 +24,7 @@ export default function AdminLogin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // do NOT log password; just send it in request body
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
       // Backend returns 400/401 with a JSON { message }
@@ -49,16 +49,16 @@ export default function AdminLogin() {
         return;
       }
 
-      const data: { access_token: string } = await res.json();
+      const data: { ok?: boolean; admin?: { id: string; email: string } } =
+        await res.json();
 
-      if (!data?.access_token) {
+      if (!data?.ok) {
         setLoginError("Login failed. Please try again.");
         return;
       }
 
-      // Store token in memory for this session (NOT localStorage)
-      // You can later move this to a proper AuthContext
-      (window as any).__adminAccessToken = data.access_token;
+      // optional: store admin info for this session
+      (window as any).__adminUser = data.admin;
 
       navigate("/dashboard", { replace: true });
     } finally {
