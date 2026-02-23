@@ -8,7 +8,7 @@ const MOCK_EXERCISE_ID = 19;
 function buildMockSupabase({ uploadError = null as any, dbInsertError = null as any, dbUpdateError = null as any, dbSelectError = null as any, publicUrl = MOCK_PUBLIC_URL as string | null, exerciseData = null as any } = {}) {
   const storageFrom = { upload: jest.fn().mockResolvedValue({ error: uploadError }), getPublicUrl: jest.fn().mockReturnValue({ data: { publicUrl } }) };
   const videoInsertChain = { insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: dbInsertError ? null : { video_id: MOCK_VIDEO_ID }, error: dbInsertError }) };
-  const exerciseUpdateChain = { update: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ error: dbUpdateError }) };
+  const exerciseUpdateChain = { update: jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: dbUpdateError }) }) };
   const exerciseSelectChain = { select: jest.fn().mockReturnThis(), eq: jest.fn().mockReturnThis(), single: jest.fn().mockResolvedValue({ data: dbSelectError ? null : (exerciseData ?? { exercise_id: MOCK_EXERCISE_ID, title: 'pelvic tilt', description: 'gentle pelvic floor activation exercise', video_id: MOCK_VIDEO_ID, video: [{ bucket: BUCKET_NAME, object_key: MOCK_OBJECT_KEY, original_filename: 'crunches.mp4', mime_type: 'video/mp4' }] }), error: dbSelectError }) };
   return { storage: { from: jest.fn().mockReturnValue(storageFrom) }, from: jest.fn((table: string) => { if (table === 'video') return videoInsertChain; if (table === 'exercise') return { ...exerciseUpdateChain, ...exerciseSelectChain }; return {}; }), _storageFrom: storageFrom, _videoInsertChain: videoInsertChain };
 }
