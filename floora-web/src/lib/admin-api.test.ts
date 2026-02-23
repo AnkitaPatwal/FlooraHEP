@@ -7,6 +7,7 @@ import {
   fetchActiveClients,
   approveClient,
   denyClient,
+  deleteClient,
 } from "./admin-api";
 
 // Describe the admin-api component
@@ -182,42 +183,6 @@ describe("admin-api", () => {
             admin_id: 1,
             user_id: 99,
           }),
-        })
-      );
-    });
-  });
-
-  describe("client notification on approval or denial", () => {
-    it("approve calls admin-approval with action approve so client can be notified", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({ ok: true })),
-      } as Response);
-
-      await approveClient(1, 42);
-
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/functions/v1/admin-approval"),
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ action: "approve", admin_id: 1, user_id: 42 }),
-        })
-      );
-    });
-
-    it("deny calls admin-approval with action deny so client can be notified", async () => {
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify({ ok: true })),
-      } as Response);
-
-      await denyClient(1, 99);
-
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/functions/v1/admin-approval"),
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ action: "deny", admin_id: 1, user_id: 99 }),
         })
       );
     });

@@ -250,12 +250,122 @@ serve(async (req) => {
     });
   }
 
-  // Clear error when POST looks like approve/deny but action was wrong
+  // POST with action "delete" → delete approved user from public.user and auth
+  if (req.method === "POST" && action === "delete") {
+    const rawAdminId = body.admin_id;
+    const rawUserId = body.user_id;
+    if (rawAdminId == null || rawUserId == null) {
+      return new Response(
+        JSON.stringify({ error: "Missing admin_id or user_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const user_id = Number(rawUserId);
+    const admin_id = Number(rawAdminId);
+    if (!Number.isFinite(user_id) || !Number.isFinite(admin_id)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid admin_id or user_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { data: existing, error: fetchErr } = await supabase
+      .from("user")
+      .select("user_id, email, fname, lname, status")
+      .eq("user_id", user_id)
+      .single();
+
+    if (fetchErr || !existing) {
+      return new Response(
+        JSON.stringify({ error: "User not found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const email = (existing.email ?? "").toLowerCase();
+    if (!email) {
+      return new Response(
+        JSON.stringify({ error: "User has no email" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Find auth user by email and delete from auth
+    const { data: listData } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    const authUser = listData?.users?.find((u) => (u.email ?? "").toLowerCase() === email);
+    if (authUser?.id) {
+      const { error: authDelErr } = await supabase.auth.admin.deleteUser(authUser.id);
+      if (authDelErr) {
+        console.error("auth.admin.deleteUser error:", authDelErr.message);
+        return new Response(
+          JSON.stringify({ error: "Failed to delete auth user: " + authDelErr.message }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const { error: auditError } = await supabase.from("audit_log").insert({
+      admin_id,
+      target_user_id: user_id,
+      action: "delete",
+    });
+    if (auditError) {
+      console.error("audit_log insert (delete) failed:", auditError.message);
+    }
+
+    // If this user is an admin, reassign their content to another admin so user (and admin row) can be deleted
+    const { data: adminRow } = await supabase.from("admin").select("user_id").eq("user_id", user_id).maybeSingle();
+    if (adminRow) {
+      const { data: otherAdmins } = await supabase.from("admin").select("user_id").neq("user_id", user_id).limit(1);
+      const fallbackAdminId = otherAdmins?.[0]?.user_id;
+      if (fallbackAdminId == null) {
+        return new Response(
+          JSON.stringify({ error: "Cannot delete: this user is an admin and there is no other admin to reassign their content to." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      await supabase.from("tag").update({ created_by_admin_id: fallbackAdminId }).eq("created_by_admin_id", user_id);
+      await supabase.from("exercise").update({ created_by_admin_id: fallbackAdminId }).eq("created_by_admin_id", user_id);
+      await supabase.from("module").update({ created_by_admin_id: fallbackAdminId }).eq("created_by_admin_id", user_id);
+      await supabase.from("user_module").update({ assigned_by_admin_id: fallbackAdminId }).eq("assigned_by_admin_id", user_id);
+    }
+
+    // Remove rows that reference this user with ON DELETE RESTRICT (video, photo)
+    const { error: videoErr } = await supabase.from("video").delete().eq("uploader_user_id", user_id);
+    if (videoErr) {
+      return new Response(
+        JSON.stringify({ error: "Failed to delete user videos: " + videoErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { error: photoErr } = await supabase.from("photo").delete().eq("uploader_user_id", user_id);
+    if (photoErr) {
+      return new Response(
+        JSON.stringify({ error: "Failed to delete user photos: " + photoErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { error: deleteErr } = await supabase.from("user").delete().eq("user_id", user_id);
+    if (deleteErr) {
+      return new Response(
+        JSON.stringify({ error: "Failed to delete user record: " + deleteErr.message }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Clear error when POST looks like approve/deny/delete but action was wrong
   if (req.method === "POST" && (body.user_id != null || body.admin_id != null)) {
     return new Response(
       JSON.stringify({
         error:
-          "Missing or invalid action. Send JSON body: { action: 'approve' or 'deny', admin_id: number, user_id: number }",
+          "Missing or invalid action. Send JSON body: { action: 'approve', 'deny', or 'delete', admin_id: number, user_id: number }",
       }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

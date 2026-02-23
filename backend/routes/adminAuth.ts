@@ -41,6 +41,17 @@ router.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Email and password are required." });
   }
 
+  // Dev bypass: when DISABLE_ADMIN_GUARD is set, allow sign-in with password "bypass" (no real Supabase auth)
+  const bypassEnabled = /^(true|1)$/i.test(String(process.env.DISABLE_ADMIN_GUARD ?? '').trim());
+  const isBypassPassword = password.trim().toLowerCase() === 'bypass';
+  if (bypassEnabled && isBypassPassword) {
+    console.log('Dev bypass login used for', email.trim());
+    return res.status(200).json({
+      access_token: 'dev-bypass-token',
+      user: { id: 'dev-bypass', email: email.trim() },
+    });
+  }
+
   try {
     const normalizedEmail = email.trim().toLowerCase();
 

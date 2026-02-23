@@ -42,8 +42,20 @@ function Avatar({ name, url }: { name: string; url?: string }) {
 }
 
 function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (onClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onClick();
+    }
+  };
   return (
-    <article className="user-card" role="button" tabIndex={0} onClick={onClick}>
+    <article
+      className="user-card"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+    >
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
           <Avatar name={user.name} url={user.avatarUrl} />
@@ -89,6 +101,7 @@ export default function Users() {
   const [activeClients, setActiveClients] = useState<ActiveClient[]>([]);
   const [activeError, setActiveError] = useState<string | null>(null);
   const [activeLoading, setActiveLoading] = useState(true);
+  const [deleteSuccessBanner, setDeleteSuccessBanner] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -125,11 +138,12 @@ export default function Users() {
     loadActiveClients();
   }, [loadPendingClients, loadActiveClients]);
 
-  // Refetch lists when returning from approve/deny so approved user appears in Active and is removed from Pending
+  // Refetch lists when returning from approve/deny/delete so lists stay in sync
   useEffect(() => {
     if (location.state?.refreshUsers) {
       loadPendingClients();
       loadActiveClients();
+      if (location.state?.deleteSuccess) setDeleteSuccessBanner(true);
       navigate("/users", { replace: true, state: {} });
     }
   }, [location.state?.refreshUsers, loadPendingClients, loadActiveClients, navigate]);
@@ -150,19 +164,36 @@ export default function Users() {
     () => activeClients.filter((c) => c.status === true).map(toUser),
     [activeClients]
   );
+  // Search by first name, last name, full name (any order), or email. Normalize whitespace so "John  Doe" matches "John Doe".
   const active = useMemo(() => {
-    const lower = q.trim().toLowerCase();
-    if (!lower) return activeUsers;
-    return activeUsers.filter(
-      (u) =>
-        u.status === "active" &&
-        (u.name.toLowerCase().includes(lower) ||
-          (u.email ?? "").toLowerCase().includes(lower))
-    );
-  }, [activeUsers, q]);
+    const normalizedQuery = q.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalizedQuery) return activeUsers;
+    const queryWords = normalizedQuery.split(" ").filter(Boolean);
+    return activeUsers.filter((u) => {
+      if (u.status !== "active") return false;
+      if ((u.email ?? "").toLowerCase().includes(normalizedQuery)) return true;
+      const client = activeClients.find((c) => String(c.user_id) === u.id);
+      const fname = (client?.fname ?? "").trim().toLowerCase();
+      const lname = (client?.lname ?? "").trim().toLowerCase();
+      const fullNameNormalized = [fname, lname].filter(Boolean).join(" ").replace(/\s+/g, " ");
+      if (!fullNameNormalized) return u.name.toLowerCase().includes(normalizedQuery);
+      // Match if the whole query is a substring, or every word in the query appears in the name (handles "John Doe", "Doe John", "John", "Doe")
+      const fullQueryMatch = fullNameNormalized.includes(normalizedQuery);
+      const allWordsMatch =
+        queryWords.length > 0 && queryWords.every((word) => fullNameNormalized.includes(word));
+      return fullQueryMatch || allWordsMatch;
+    });
+  }, [activeUsers, activeClients, q]);
 
   const handlePendingCardClick = (client: PendingClient) => {
     navigate("/user-approval", { state: { user: client } });
+  };
+
+  const handleActiveCardClick = (user: User) => {
+    const client = activeClients.find(
+      (c) => c.status === true && String(c.user_id) === user.id
+    );
+    if (client) navigate("/user-profile", { state: { user: client } });
   };
 
   return (
@@ -177,6 +208,24 @@ export default function Users() {
         </header>
 
         <hr className="user-divider" />
+
+        {deleteSuccessBanner && (
+          <div
+            className="user-success-banner"
+            role="status"
+            aria-live="polite"
+          >
+            Client deleted successfully. They have been removed from the list.
+            <button
+              type="button"
+              className="user-success-dismiss"
+              onClick={() => setDeleteSuccessBanner(false)}
+              aria-label="Dismiss"
+            >
+              ×
+            </button>
+          </div>
+        )}
 
         <section className="user-section" aria-labelledby="pending-users-title">
           <h2 id="pending-users-title" className="user-section-title">Pending Users</h2>
@@ -249,7 +298,13 @@ export default function Users() {
                 </button>
               </div>
             ) : active.length ? (
-              active.map((u) => <UserCard key={u.id} user={u} />)
+              active.map((u) => (
+                <UserCard
+                  key={u.id}
+                  user={u}
+                  onClick={() => handleActiveCardClick(u)}
+                />
+              ))
             ) : (
               <div className="user-empty">No active users</div>
             )}
