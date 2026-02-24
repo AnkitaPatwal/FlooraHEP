@@ -2,15 +2,26 @@
 -- Seed: insert one video record into the exercise-videos bucket
 --       and link it to exercise_id = 19 (pelvic tilt).
 --
--- Prerequisites already satisfied by earlier migrations:
---   • video table with BIGINT PK exists      (20251102211852_main_schema.sql)
---   • exercise.video_id BIGINT FK exists     (20251102211852_main_schema.sql)
---   • exercise-videos bucket exists in Storage (created manually in Supabase dashboard)
---
--- NOTE: video.uploader_user_id is NOT NULL, so we use the seeded admin user_id = 19.
---       Adjust if your admin user_id differs.
+-- Notes:
+-- - Avoid hardcoding uploader_user_id; look it up by email.
+-- - This migration is idempotent (safe to rerun).
+-- - Creates the uploader user if missing (dev-friendly).
 
 BEGIN;
+
+-- Step 0: Ensure uploader user exists (dev seed)
+-- (Adjust columns if your user table requires more/less fields.)
+INSERT INTO public."user" (email, password, fname, lname)
+SELECT
+  'kayla.garibay31@gmail.com',
+  'demo',        -- dev-only placeholder
+  'Kayla',
+  'Garibay'
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public."user"
+  WHERE email = 'kayla.garibay31@gmail.com'
+);
 
 -- Step 1: Insert the seed video record (skip if already seeded)
 INSERT INTO public.video (
@@ -33,19 +44,19 @@ SELECT
   30,
   1280,
   720,
-  19          -- admin user_id who owns this upload
-WHERE NOT EXISTS (
-  SELECT 1 FROM public.video WHERE object_key = 'pelvic-tilt-demo.mp4'
-);
+  u.user_id
+FROM public."user" u
+WHERE u.email = 'kayla.garibay31@gmail.com'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.video WHERE object_key = 'pelvic-tilt-demo.mp4'
+  );
 
 -- Step 2: Link the video to exercise_id = 19 (pelvic tilt)
-UPDATE public.exercise
-SET video_id = (
-  SELECT video_id FROM public.video
-  WHERE object_key = 'pelvic-tilt-demo.mp4'
-  LIMIT 1
-)
-WHERE exercise_id = 19
-  AND video_id IS NULL;
+UPDATE public.exercise e
+SET video_id = v.video_id
+FROM public.video v
+WHERE v.object_key = 'pelvic-tilt-demo.mp4'
+  AND e.exercise_id = 19
+  AND e.video_id IS NULL;
 
 COMMIT;
