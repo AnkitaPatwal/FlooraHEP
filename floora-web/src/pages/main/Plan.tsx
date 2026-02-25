@@ -1,7 +1,14 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Plan.css";
 import { useState, useEffect } from "react";
-//import exerciseImg from "../../assets/exercise.jpg";
+
+interface Module {
+  module_id: number;
+  title: string;
+  description: string;
+  session_number: number;
+  module_exercise: any[];
+}
 
 interface Plan {
   id: number;
@@ -11,26 +18,45 @@ interface Plan {
   image: string;
 }
 
+function mapModuleToPlan(module: Module): Plan {
+  return {
+    id: module.module_id,
+    title: module.title,
+    category: 'Pelvic Floor', // default until category field is added to DB
+    type: module.description ?? 'Exercise',
+    image: '', // placeholder until thumbnail is implemented
+  };
+}
+
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
+
   useEffect(() => {
     fetch("http://localhost:3000/api/admin/modules")
       .then(res => res.json())
-      .then(data => {
+      .then((data: unknown) => {
         console.log("RAW DATA:", data);
-        setPlans(data); // temporary test
+        if (!Array.isArray(data)) {
+          console.error("Expected array from API, got:", typeof data);
+          setPlans([]);
+          return;
+        }
+        setPlans((data as Module[]).map(mapModuleToPlan));
       })
-      .catch(err => console.error(err));
+      .catch(err => {
+        console.error("Failed to fetch modules:", err);
+        setPlans([]);
+      });
   }, []);
   
-  
-  
-  // Group plans by category
-  const groupedPlans = plans.reduce((acc, plan) => {
-    if (!acc[plan.category]) acc[plan.category] = [];
-    acc[plan.category].push(plan);
-    return acc;
-  }, {} as Record<string, Plan[]>);
+// Group plans by category
+// handles null/undefined plans or category
+const groupedPlans = (plans ?? []).reduce((acc, plan) => {
+  const category = plan.category ?? 'Uncategorized';
+  if (!acc[category]) acc[category] = [];
+  acc[category].push(plan);
+  return acc;
+}, {} as Record<string, Plan[]>);
 
   console.log("PLANS STATE:", plans);
 
