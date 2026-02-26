@@ -10,6 +10,7 @@ const router = express.Router();
 // Protect everything below
 router.use(requireAdmin);
 
+
 /**
  * ATH-254 Assign module to client (admin only)
  */
@@ -67,7 +68,7 @@ router.post("/clients/:userId/modules", async (req, res) => {
 });
 
 /**
- * Get assigned modules for a client (admin only)
+ * ATH-254 Retrieve assigned modules for a client (admin only)
  */
 router.get("/clients/:userId/modules", async (req, res) => {
   try {
@@ -90,11 +91,11 @@ router.get("/clients/:userId/modules", async (req, res) => {
     }
 
     return res.status(200).json(data ?? []);
+
   } catch (err) {
     return res.status(500).json({ message: "Internal server error" });
   }
 });
-
 
 /**
  * Approve a client (admin-only)
