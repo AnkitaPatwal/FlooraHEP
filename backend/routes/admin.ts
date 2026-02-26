@@ -11,6 +11,92 @@ const router = express.Router();
 router.use(requireAdmin);
 
 /**
+ * ATH-254 Assign module to client (admin only)
+ */
+router.post("/clients/:userId/modules", async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const { module_id, available_at, notes } = req.body;
+
+    if (!userId || !module_id) {
+      return res.status(400).json({
+        message: "userId and module_id are required"
+      });
+    }
+
+    // Get admin email from authenticated request
+    const adminEmail = (req as any).user?.email?.toLowerCase().trim();
+    if (!adminEmail) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Get admin user_id from public.user table
+    const { data: adminUser, error: adminError } = await supabase
+      .from("user")
+      .select("user_id")
+      .eq("email", adminEmail)
+      .maybeSingle();
+
+    if (adminError || !adminUser) {
+      return res.status(403).json({ message: "Admin not found in user table" });
+    }
+
+    const { data, error } = await supabase
+      .from("user_module")
+      .insert({
+        user_id: userId,
+        module_id: Number(module_id),
+        assigned_by_admin_id: adminUser.user_id,
+        available_at: available_at ?? null,
+        notes: notes ?? null
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error assigning module:", error);
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(201).json(data);
+
+  } catch (err) {
+    console.error("Assign module error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+/**
+ * Get assigned modules for a client (admin only)
+ */
+router.get("/clients/:userId/modules", async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+
+    const { data, error } = await supabase
+      .from("user_module")
+      .select(`
+        user_module_id,
+        assigned_at,
+        available_at,
+        notes,
+        module (module_id, title)
+      `)
+      .eq("user_id", userId)
+      .order("assigned_at", { ascending: false });
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+
+    return res.status(200).json(data ?? []);
+  } catch (err) {
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+
+/**
  * Approve a client (admin-only)
  */
 router.post('/clients/:id/approve', async (req, res) => {
