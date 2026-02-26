@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
 import "../layouts/SideNav.css";
-import logo from "../../assets/flooraLogo.png"; 
+import logo from "../../assets/flooraLogo.png";
 import {
   FaTachometerAlt,
   FaUsers,
@@ -9,12 +9,15 @@ import {
   FaDumbbell,
   FaUserCircle,
   FaEllipsisV,
+  FaUserPlus,
 } from "react-icons/fa";
 
 const SideNav = () => {
   const location = useLocation();
+
   const usersActive =
-    location.pathname === "/users" || location.pathname === "/user-approval";
+    location.pathname === "/users" ||
+    location.pathname === "/user-approval";
 
   return (
     <div className="sidenav">
@@ -22,6 +25,7 @@ const SideNav = () => {
       <div className="logo-container">
         <img src={logo} alt="Floora Logo" className="logo-img" />
       </div>
+
       <hr className="divider-top" />
 
       {/* Navigation */}
@@ -30,14 +34,30 @@ const SideNav = () => {
           <NavLink
             to="/dashboard"
             end
-            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "active" : ""}`
+            }
           >
             <FaTachometerAlt className="icon" /> Dashboard
           </NavLink>
         </li>
+
+        <li>
+          <NavLink
+            to="/create-admin"
+            end
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "active" : ""}`
+            }
+          >
+            <FaUserPlus className="icon" /> Create Admin
+          </NavLink>
+        </li>
+
         <li>
           <NavLink
             to="/users"
+            end
             className={({ isActive }) =>
               `nav-item ${isActive || usersActive ? "active" : ""}`
             }
@@ -45,18 +65,39 @@ const SideNav = () => {
             <FaUsers className="icon" /> Users
           </NavLink>
         </li>
+
         <li>
-          <NavLink to="/plan-dashboard" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/plan-dashboard"
+            end
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "active" : ""}`
+            }
+          >
             <FaClipboardList className="icon" /> Plans
           </NavLink>
         </li>
+
         <li>
-          <NavLink to="/sessions" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/sessions"
+            end
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "active" : ""}`
+            }
+          >
             <FaCalendarAlt className="icon" /> Sessions
           </NavLink>
         </li>
+
         <li>
-          <NavLink to="/exercise-dashboard" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/exercise-dashboard"
+            end
+            className={({ isActive }) =>
+              `nav-item ${isActive ? "active" : ""}`
+            }
+          >
             <FaDumbbell className="icon" /> Exercises
           </NavLink>
         </li>
