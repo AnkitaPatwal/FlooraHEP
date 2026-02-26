@@ -8,38 +8,34 @@ const router = express.Router();
 // Protect everything below
 router.use(requireAdmin);
 
-
 /**
  * ATH-253 List clients (admin only)
  */
-router.get("/clients", async (req, res) => {
+router.get('/clients', async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("user")
-      .select("user_id, fname, lname, email, status, role")
-      .eq("role", "client")
-      .order("fname", { ascending: true });
+      .from('user')
+      .select('user_id, fname, lname, email, status')
+      .order('fname', { ascending: true });
 
     if (error) {
-      console.error("Supabase error (list clients):", error);
-      return res.status(500).json({ message: "Error fetching clients" });
+      console.error('Supabase error (list clients):', error);
+      return res.status(500).json({ message: 'Error fetching clients' });
     }
 
     const clients = (data ?? []).map((u: any) => ({
       id: u.user_id,
-      name: `${u.fname ?? ""} ${u.lname ?? ""}`.trim(),
+      name: `${u.fname ?? ''} ${u.lname ?? ''}`.trim(),
       email: u.email,
-      status: u.status, // boolean
+      status: u.status,
     }));
 
     return res.status(200).json({ clients });
   } catch (err) {
-    console.error("Error fetching clients:", err);
-    return res.status(500).json({ message: "Error fetching clients" });
+    console.error('Error fetching clients:', err);
+    return res.status(500).json({ message: 'Error fetching clients' });
   }
 });
-
-
 
 /**
  * Approve a client
