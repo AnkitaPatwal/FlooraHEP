@@ -10,26 +10,35 @@ router.use(requireAdmin);
 
 
 /**
- * List clients (admin only)
+ * ATH-253 List clients (admin only)
  */
 router.get("/clients", async (req, res) => {
   try {
     const { data, error } = await supabase
-      .from("clients")
-      .select("id, name, status")
-      .order("name", { ascending: true });
+      .from("user")
+      .select("user_id, fname, lname, email, status, role")
+      .eq("role", "client")
+      .order("fname", { ascending: true });
 
     if (error) {
       console.error("Supabase error (list clients):", error);
       return res.status(500).json({ message: "Error fetching clients" });
     }
 
-    return res.status(200).json({ clients: data ?? [] });
+    const clients = (data ?? []).map((u: any) => ({
+      id: u.user_id,
+      name: `${u.fname ?? ""} ${u.lname ?? ""}`.trim(),
+      email: u.email,
+      status: u.status, // boolean
+    }));
+
+    return res.status(200).json({ clients });
   } catch (err) {
     console.error("Error fetching clients:", err);
     return res.status(500).json({ message: "Error fetching clients" });
   }
 });
+
 
 
 /**
