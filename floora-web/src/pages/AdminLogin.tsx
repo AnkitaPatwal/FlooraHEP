@@ -17,6 +17,7 @@ export default function AdminLogin() {
     setLoginError(null);
 
     await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 250));
 
     try {
       // Call your backend (JWT-based auth)
@@ -107,10 +108,13 @@ export default function AdminLogin() {
         )}
 
         <a href="#" className="forgot">
+          
           Forgot Password?
+        
         </a>
 
         <button type="submit" className="signin" disabled={loading}>
+          {loading ? "Signing in…" : "Admin Sign In"}
           {loading ? "Signing in…" : "Admin Sign In"}
         </button>
 
@@ -119,7 +123,12 @@ export default function AdminLogin() {
           <Link to="/admin-register" className="link">
             Register here
           </Link>
+          New Admin Account?{" "}
+          <Link to="/admin-register" className="link">
+            Register here
+          </Link>
         </p>
+        
         
       </form>
     </div>
