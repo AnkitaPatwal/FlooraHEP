@@ -2,6 +2,8 @@ import express from 'express';
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { requireAdmin } from '../lib/adminGuard';
+import { getAllModulesWithExercises } from '../services/moduleService'
+import { supabaseServer } from '../lib/supabaseServer'
 
 const router = express.Router();
 
@@ -9,6 +11,7 @@ const router = express.Router();
 router.use(requireAdmin);
 
 /**
+feature/ATH-253-admin-clients-list
  * ATH-253 List clients (admin only)
  */
 router.get('/clients', async (req, res) => {
@@ -38,7 +41,9 @@ router.get('/clients', async (req, res) => {
 });
 
 /**
- * Approve a client
+ 
+ * Approve a client (admin-only)
+
  */
 router.post('/clients/:id/approve', async (req, res) => {
   const clientId = req.params.id;
@@ -70,7 +75,7 @@ router.post('/clients/:id/approve', async (req, res) => {
 });
 
 /**
- * Deny a client
+ * Deny a client (admin-only)
  */
 router.post('/clients/:id/deny', async (req, res) => {
   const clientId = req.params.id;
@@ -98,6 +103,22 @@ router.post('/clients/:id/deny', async (req, res) => {
   } catch (err) {
     console.error('Error denying client:', err);
     res.status(500).json({ message: 'Error denying client' });
+  }
+});
+
+feature/ATH-253-admin-clients-list
+export default router;
+/**
+ * Fetch all modules/plans with exercises (admin-only)
+ */
+router.get('/modules', requireAdmin, async (req, res) => {
+
+  try {
+    const modules = await getAllModulesWithExercises(supabaseServer)
+    return res.status(200).json(modules)
+  } catch (error) {
+    console.error('Failed to fetch modules:', error)
+    return res.status(500).json({ error: 'Failed to fetch modules' })
   }
 });
 

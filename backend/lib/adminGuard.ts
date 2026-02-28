@@ -15,7 +15,6 @@ function getBearerToken(req: Request): string | null {
   return token;
 }
 
-
  /* 
  - Requests without authentication return 401 Unauthorized.
  - Backend validates that the request is authenticated.
@@ -67,11 +66,16 @@ async function isUserAdminByTable(user: User): Promise<boolean> {
 
 /*
  - Backend checks that the authenticated user has admin privileges.
- - Requests from authenticated non-admin users return 403 Forbidden.
  - Admin routes are protected using this logic.
+ - When DISABLE_ADMIN_GUARD=true (dev only), the guard is skipped and sign-in bypass is allowed.
  */
 export async function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction) {
-  // First ensure authenticated
+  const bypassEnabled = /^(true|1)$/i.test(String(process.env.DISABLE_ADMIN_GUARD ?? '').trim());
+  if (bypassEnabled) {
+    console.log('⚠️ Admin guard disabled (dev mode)');
+    return next();
+  }
+
   await requireAuth(req, res, async () => {
     try {
       const user = req.user!;
