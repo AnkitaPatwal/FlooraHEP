@@ -1,12 +1,67 @@
-import { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type MeResponse =
+  | { ok: true; admin: { id: string | number; email: string; role: string | null; name: string | null } }
+  | { message?: string };
+
 export default function CreateAdmin() {
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
+
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Check access (must be super_admin)
+  useEffect(() => {
+    const run = async () => {
+      setCheckingAccess(true);
+      setErrorMsg(null);
+
+      try {
+        const res = await fetch("http://localhost:3000/api/admin/me", {
+          method: "GET",
+          credentials: "include", // ✅ send admin_token cookie
+        });
+
+        if (!res.ok) {
+          setIsAuthorized(false);
+          if (res.status === 401) setErrorMsg("Unauthorized: Please log in.");
+          else setErrorMsg("Unable to verify access.");
+          return;
+        }
+
+        const data = (await res.json()) as MeResponse;
+
+        if (!("ok" in data) || !data.ok) {
+          setIsAuthorized(false);
+          setErrorMsg("Unauthorized: Please log in.");
+          return;
+        }
+
+        const role = data.admin.role;
+        if (role !== "super_admin") {
+          setIsAuthorized(false);
+          setErrorMsg("Unauthorized: You do not have access to this page.");
+          return;
+        }
+
+        setIsAuthorized(true);
+      } catch {
+        setIsAuthorized(false);
+        setErrorMsg("Unauthorized: Unable to verify access.");
+      } finally {
+        setCheckingAccess(false);
+      }
+    };
+
+    run();
+  }, []);
 
   const emailError = useMemo(() => {
     const trimmed = email.trim();
@@ -15,15 +70,19 @@ export default function CreateAdmin() {
     return null;
   }, [email]);
 
-  const canSubmit = !isSubmitting && !emailError;
+  const canSubmit = isAuthorized && !isSubmitting && !emailError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (!isAuthorized) {
+      setErrorMsg("Unauthorized: You do not have access to perform this action.");
+      return;
+    }
+
     if (emailError) {
-      setSuccessMsg(null);
       setErrorMsg(emailError);
       return;
     }
@@ -31,26 +90,64 @@ export default function CreateAdmin() {
     try {
       setIsSubmitting(true);
 
-      // simulate success
-      await new Promise((r) => setTimeout(r, 700));
+      const res = await fetch("http://localhost:3000/api/admin/assign-admin-role", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include", // ✅ cookie auth
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          name: name.trim() || null,
+        }),
+      });
 
-      setErrorMsg(null);
-      setSuccessMsg("Admin created successfully.");
+      const json = await res.json().catch(() => ({} as any));
+
+      if (!res.ok) {
+        const msg =
+          json?.message ||
+          json?.error ||
+          (res.status === 401 || res.status === 403
+            ? "Unauthorized access."
+            : "Backend failure. Please try again.");
+        setErrorMsg(msg);
+        return;
+      }
+
+      setSuccessMsg("Admin role assigned successfully.");
       setEmail("");
+      setName("");
     } catch {
-      setSuccessMsg(null);
-      setErrorMsg("Something went wrong. Please try again.");
+      setErrorMsg("Backend failure. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (checkingAccess) {
+    return (
+      <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
+        <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
+        <p style={{ marginBottom: 18, opacity: 0.8 }}>Checking access…</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) {
+    return (
+      <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
+        <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
+        <p style={{ marginBottom: 18, opacity: 0.8 }}>
+          You are not authorized to access this page.
+        </p>
+        {errorMsg && <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>}
+      </div>
+    );
+  }
+
   return (
-   <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
+    <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
       <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
-      <p style={{ marginBottom: 18, opacity: 0.8 }}>
-        Create an admin account.
-      </p>
+      <p style={{ marginBottom: 18, opacity: 0.8 }}>Assign admin role to an existing account.</p>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gap: 6 }}>
@@ -64,7 +161,6 @@ export default function CreateAdmin() {
             value={email}
             onChange={(ev) => {
               setEmail(ev.target.value);
-              // keep UI clean: clear old messages while typing
               if (errorMsg) setErrorMsg(null);
               if (successMsg) setSuccessMsg(null);
             }}
@@ -76,9 +172,30 @@ export default function CreateAdmin() {
             }}
           />
 
-          {emailError && (
-            <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>
-          )}
+          {emailError && <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>}
+        </div>
+
+        <div style={{ display: "grid", gap: 6 }}>
+          <label htmlFor="name" style={{ fontWeight: 600 }}>
+            Name <span style={{ opacity: 0.6 }}>(optional)</span>
+          </label>
+
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(ev) => {
+              setName(ev.target.value);
+              if (errorMsg) setErrorMsg(null);
+              if (successMsg) setSuccessMsg(null);
+            }}
+            placeholder="Admin Name"
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.2)",
+            }}
+          />
         </div>
 
         <button
@@ -96,15 +213,11 @@ export default function CreateAdmin() {
             justifyContent: "center",
           }}
         >
-          {isSubmitting ? "Creating..." : "Submit"}
+          {isSubmitting ? "Saving..." : "Submit"}
         </button>
 
-        {successMsg && (
-          <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>
-        )}
-        {errorMsg && (
-          <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>
-        )}
+        {successMsg && <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>}
+        {errorMsg && <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>}
       </form>
     </div>
   );
