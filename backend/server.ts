@@ -1,3 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config({ path: ".env" });
+
+console.log("JWT_SECRET loaded:", Boolean(process.env.JWT_SECRET));
+
 import 'dotenv/config';
 import express from 'express';
 import adminRoutes from './routes/admin';
