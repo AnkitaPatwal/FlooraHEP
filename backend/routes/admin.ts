@@ -128,8 +128,6 @@ router.post('/clients/:id/deny', async (req, res) => {
   }
 });
 
-feature/ATH-253-admin-clients-list
-export default router;
 /**
  * Fetch all modules/plans with exercises (admin-only)
  */
