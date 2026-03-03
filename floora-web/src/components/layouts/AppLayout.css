@@ -16,7 +16,7 @@ body,
   grid-template-columns: var(--sidenav-width) minmax(0, 1fr);
   min-height: 100vh;
   width: 100%;
-  background: #f8f9f9;
+  background: #264343;
 }
 
 /* Sidebar column (participates in grid; not fixed) */
