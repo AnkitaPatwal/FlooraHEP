@@ -1,6 +1,8 @@
+// backend/routes/admin.ts
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 const router = express.Router();
 
@@ -28,6 +30,23 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+function signAdminToken(admin: { id: string; email: string; role?: string | null }) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET not set in env");
+  }
+
+  const payload = {
+    sub: admin.id,
+    email: admin.email,
+    role: admin.role ?? "admin",
+  };
+
+  const expiresIn = process.env.JWT_EXPIRES_IN || "1h";
+
+  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+}
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body ?? {};
@@ -57,7 +76,7 @@ router.post("/login", async (req, res) => {
 
     const { data: adminUser, error } = await supabaseAdmin
       .from("admin_users")
-      .select("id, email, password_hash, is_active")
+      .select("id, email, password_hash, is_active, role")
       .ilike("email", normalizedEmail) // case-insensitive match
       .maybeSingle();
 
@@ -79,11 +98,23 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password." });
     }
 
-    // success (for now)
-    return res.status(200).json({
-      ok: true,
-      admin: { id: adminUser.id, email: adminUser.email },
-    });
+    // SUCCESS: sign a JWT and return it as access_token
+    try {
+      const access_token = signAdminToken({
+        id: adminUser.id,
+        email: adminUser.email,
+        role: (adminUser as any).role,
+      });
+
+      return res.status(200).json({
+        ok: true,
+        access_token,
+        admin: { id: adminUser.id, email: adminUser.email, role: (adminUser as any).role },
+      });
+    } catch (signErr) {
+      console.error("Failed to sign token:", signErr);
+      return res.status(500).json({ message: "Login failed." });
+    }
   } catch (err) {
     console.error("admin login error:", err);
     return res.status(500).json({ message: "Login failed." });
