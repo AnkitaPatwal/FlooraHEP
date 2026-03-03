@@ -40,6 +40,10 @@ body,
 
   /*  center page content area */
   display: flex;
-  justify-content: center; /* centers horizontally */
+ justify-content: flex-start;
   align-items: flex-start; /* keep at top */
+}
+/* THIS is the key line */
+.app-content > * {
+  width: 100%;
 }
