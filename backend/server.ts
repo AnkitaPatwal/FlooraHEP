@@ -10,10 +10,9 @@ import adminAuthRoutes from "./routes/adminAuth";
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 
-// must be before routes
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: 'http://localhost:5173',
     credentials: true,
   })
 );
@@ -35,3 +34,4 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
+

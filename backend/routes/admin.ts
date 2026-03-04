@@ -4,14 +4,68 @@ import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailServi
 import { requireAdmin } from '../lib/adminGuard';
 import { getAllModulesWithExercises } from '../services/moduleService'
 import { supabaseServer } from '../lib/supabaseServer'
+import { requireAdminJwt } from "../middleware/requireAdminJwt";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.LOCAL_SUPABASE_URL;
+
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+
+if (!SUPABASE_URL) {
+  throw new Error("SUPABASE_URL is not set");
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+}
+
+// 👇 THIS is the important part
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
 
 const router = express.Router();
 
 // Protect everything below
-router.use(requireAdmin);
+router.use(requireAdminJwt);
 
 /**
+feature/ATH-253-admin-clients-list
+ * ATH-253 List clients (admin only)
+*/
+
+router.get("/clients", async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('user')
+      .select('user_id, fname, lname, email, status')
+      .order('fname', { ascending: true });
+
+    if (error) {
+      console.error("Supabase error (list clients):", JSON.stringify(error, null, 2));
+      return res.status(500).json({ message: "Error fetching clients", details: error });
+    }
+
+    const clients = (data ?? []).map((u: any) => ({
+      id: u.user_id,
+      name: `${u.fname ?? ''} ${u.lname ?? ''}`.trim(),
+      email: u.email,
+      status: u.status,
+    }));
+
+    return res.status(200).json({ clients });
+  } catch (err) {
+    console.error('Error fetching clients:', err);
+    return res.status(500).json({ message: 'Error fetching clients' });
+  }
+});
+
+/**
+ 
  * Approve a client (admin-only)
+
  */
 router.post('/clients/:id/approve', async (req, res) => {
   const clientId = req.params.id;

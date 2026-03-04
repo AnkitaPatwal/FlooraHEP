@@ -145,7 +145,7 @@ export default function CreateAdmin() {
   }
 
   return (
-    <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
+   <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
       <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
       <p style={{ marginBottom: 18, opacity: 0.8 }}>Assign admin role to an existing account.</p>
 
