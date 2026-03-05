@@ -7,6 +7,7 @@ import { afterEach } from "vitest";
 import { cleanup } from "@testing-library/react";
 
 afterEach(() => cleanup());
+
 const mockDeleteClient = vi.fn();
 vi.mock("../lib/admin-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/admin-api")>();
@@ -44,11 +45,7 @@ describe("UserProfile", () => {
   it("shows empty message when no user in state", () => {
     renderWithRouter("/user-profile");
     expect(
-feature/ATH-405-web-upload-page
       screen.getByText(/No user selected\. Go back and click an active user\./i)
-
-      screen.getByText(/No user selected. Go back and click an active user./i)
-
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
   });
@@ -81,25 +78,17 @@ feature/ATH-405-web-upload-page
 
     renderWithRouter("/user-profile", { user });
 
-    // Click the page Delete button (exact match)
+    // Click the page Delete button once
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
-    // Modal is async -> use findByRole/findByText
+    // Wait for modal
     const dialog = await screen.findByRole("dialog");
+
     expect(
       within(dialog).getByText(/Are you sure you want to delete this client\?/i)
     ).toBeInTheDocument();
 
-
-    // Click the page delete button (unique BEFORE modal opens)
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-
-    expect(
-      screen.getByText(/Are you sure you want to delete this client\?/i)
-    ).toBeInTheDocument();
-
-    const dialog = screen.getByRole("dialog");
-
+    // Verify modal buttons (scoped within dialog to avoid "two Delete buttons" issue)
     expect(within(dialog).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
   });
@@ -117,24 +106,12 @@ feature/ATH-405-web-upload-page
 
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
-
     const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
-
-    expect(
-      screen.getByText(/Are you sure you want to delete this client\?/i)
-    ).toBeInTheDocument();
-
-    const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
-
-    expect(
-      screen.queryByText(/Are you sure you want to delete this client\?/i)
-    ).not.toBeInTheDocument();
   });
 
   it("calls deleteClient and navigates to users when Confirm Delete is clicked", async () => {
@@ -152,11 +129,9 @@ feature/ATH-405-web-upload-page
 
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
- feature/ATH-405-web-upload-page
     const dialog = await screen.findByRole("dialog");
 
-    const dialog = screen.getByRole("dialog");
-
+    // Click the modal confirm delete (scoped)
     fireEvent.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
     await waitFor(() => {
