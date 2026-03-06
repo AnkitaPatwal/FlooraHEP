@@ -1,6 +1,9 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
+import multer from 'multer';
 import { supabaseServer } from '../lib/supabaseServer';
 import { createSignedUrl } from '../lib/signedUrl';
+import { requireSuperAdmin } from '../middleware/requireSuperAdmin';
+import { uploadExerciseVideo, linkVideoToExercise, BUCKET_NAME } from '../services/videoService';
 
 const router = express.Router();
 
@@ -136,3 +139,109 @@ router.get('/:id', async (req, res) => {
 });
 
 export default router;
+
+// ─── ATH-393: Upload video for an exercise (super_admin only) ────────────────
+
+const ALLOWED_MIME_TYPES = ["video/mp4", "video/quicktime"];
+const ALLOWED_EXTENSIONS = [".mp4", ".mov"];
+
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (
+    _req: express.Request,
+    file: Express.Multer.File,
+    cb: multer.FileFilterCallback
+  ) => {
+    const ext = '.' + file.originalname.split('.').pop()?.toLowerCase();
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype) || ALLOWED_EXTENSIONS.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type'));
+    }
+  },
+});
+
+// POST /api/exercises/:id/video
+router.post(
+  '/:id/video',
+  requireSuperAdmin as express.RequestHandler,
+  ((req: Request, res: Response, next: NextFunction) => {
+    videoUpload.single('file')(req as any, res as any, (err: any) => {
+      if (err) {
+        return res.status(400).json({ error: '400 Invalid file type' });
+      }
+      next();
+    });
+  }) as express.RequestHandler,
+  (async (req: Request, res: Response) => {
+    try {
+      const exerciseId = Number(req.params.id);
+      if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+        return res.status(400).json({ error: 'Invalid exercise id' });
+      }
+
+      const file = (req as any).file as Express.Multer.File | undefined;
+      if (!file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+
+      const ext = '.' + file.originalname.split('.').pop()?.toLowerCase();
+      if (!ALLOWED_MIME_TYPES.includes(file.mimetype) && !ALLOWED_EXTENSIONS.includes(ext)) {
+        return res.status(400).json({ error: '400 Invalid file type' });
+      }
+
+      const timestamp = Date.now();
+      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const objectKey = `exercises/${exerciseId}/${timestamp}_${safeName}`;
+
+      const { error: uploadError } = await supabaseServer.storage
+        .from(BUCKET_NAME)
+        .upload(objectKey, file.buffer, {
+          contentType: file.mimetype,
+          upsert: false,
+        });
+
+      if (uploadError) {
+        return res.status(500).json({ error: 'Upload failed', detail: uploadError.message });
+      }
+
+      const { data: urlData } = supabaseServer.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(objectKey);
+
+      const { data: videoRecord, error: dbError } = await supabaseServer
+        .from('video')
+        .insert({
+          bucket: BUCKET_NAME,
+          object_key: objectKey,
+          original_filename: file.originalname,
+          mime_type: file.mimetype,
+          byte_size: file.size,
+          uploader_user_id: null,
+          duration_seconds: null,
+          width: null,
+          height: null,
+        })
+        .select('video_id')
+        .single();
+
+      if (dbError || !videoRecord) {
+        return res.status(500).json({ error: 'Upload failed', detail: dbError?.message });
+      }
+
+      await linkVideoToExercise(supabaseServer, exerciseId, videoRecord.video_id);
+
+      return res.status(200).json({
+        storage_path: objectKey,
+        url: urlData.publicUrl,
+        metadata: {
+          size: file.size,
+          content_type: file.mimetype,
+        },
+      });
+    } catch (err: any) {
+      console.error('POST /api/exercises/:id/video error:', err);
+      return res.status(500).json({ error: 'Upload failed', detail: err.message });
+    }
+  }) as express.RequestHandler
+);
