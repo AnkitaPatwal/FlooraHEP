@@ -1,24 +1,19 @@
-// ─────────────────────────────────────────────────────────────
-// MUST be the very first lines in the file (no imports above)
-// ─────────────────────────────────────────────────────────────
+// Set environment variables FIRST (before any imports)
+process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
+process.env.LOCAL_SUPABASE_URL = "http://localhost:54321";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+process.env.ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
+
 jest.mock("../../lib/adminGuard", () => {
-  // a single handler used for both default and named exports
   const handler = (req: any, res: any, next: any) => {
-    // if handlers expect req.user, you can attach a fake user here:
-    // req.user = { id: "test", roles: ["admin"] };
     next();
   };
 
-  // Cover multiple export styles so the mock always supplies a function:
-  // - CommonJS: module.exports = handler
-  // - ES default: export default handler
-  // - Named export: export const requireAdmin = handler
   return {
     __esModule: true,
     default: handler,
     requireAdmin: handler,
-    // Also export the handler itself as module.exports in case of require()
-    // (Jest converts the return into the mocked module)
   };
 });
 
