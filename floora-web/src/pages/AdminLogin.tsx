@@ -24,6 +24,7 @@ export default function AdminLogin() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // do NOT log password; just send it in request body
+        credentials: "include", // REQUIRED so browser stores cookie
         body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
       });
 
