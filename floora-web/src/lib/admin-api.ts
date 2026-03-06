@@ -111,3 +111,23 @@ export async function deleteClient(
 ): Promise<void> {
   await invoke({ action: "delete", admin_id: adminId, user_id: userId });
 }
+
+export async function uploadExerciseVideo(
+  exerciseId: number,
+  file: File
+): Promise<{ ok: true; video_id: number; publicUrl: string }> {
+  const form = new FormData();
+  form.append("file", file);
+
+  const res = await fetch(
+    `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
+    { method: "POST", body: form, credentials: "include" }
+  );
+
+  const text = await res.text();
+  let body: any = {};
+  try { body = text ? JSON.parse(text) : {}; } catch { body = {}; }
+
+  if (!res.ok) throw new Error(body?.message || `Upload failed (${res.status})`);
+  return body;
+}

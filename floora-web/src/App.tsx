@@ -1,4 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AdminVideoUpload from "./pages/AdminVideoUpload";
+
 //import Login from "./pages/Login";
 import "./App.css";
 
@@ -35,6 +37,7 @@ export default function App() {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/admin-register" element={<AdminRegister />} />
+        <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
 
         {/* ✅ ONLY this route gets the sidebar layout */}
         <Route
