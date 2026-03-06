@@ -22,6 +22,15 @@ jest.mock("../../lib/adminGuard", () => {
   };
 });
 
+jest.mock("../../middleware/requireAdminJwt", () => {
+  const handler = (req: any, res: any, next: any) => next();
+  return {
+    __esModule: true,
+    requireAdminJwt: handler,
+    default: handler,
+  };
+});
+
 import request from "supertest";
 import app from "../../server";
 import * as moduleService from "../../services/moduleService";
