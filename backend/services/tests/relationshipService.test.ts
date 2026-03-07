@@ -2,6 +2,7 @@ import {
   getPlanWithHierarchy,
   verifyAdminAccess,
   isAdminUser,
+  assignPackageToUser,
   PlanWithHierarchy,
   AdminAccessResult,
 } from '../../services/relationshipService';
@@ -413,5 +414,102 @@ describe('ATH-221 — Verify Data Relationships and Admin Access', () => {
       expect(result.exercises).toEqual([]);
       expect(result.rlsError).toBeTruthy();
     });
+  });
+});
+
+describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
+  it("valid user + valid package -> success", async () => {
+    const maybeSingleMock = jest.fn().mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    const eqSecondMock = jest.fn(() => ({
+      maybeSingle: maybeSingleMock,
+    }));
+
+    const eqFirstMock = jest.fn(() => ({
+      eq: eqSecondMock,
+    }));
+
+    const selectMock = jest.fn(() => ({
+      eq: eqFirstMock,
+    }));
+
+    const insertMock = jest.fn().mockResolvedValue({
+      error: null,
+    });
+
+    const userPackagesChain = {
+      select: selectMock,
+      insert: insertMock,
+    };
+
+    const mockSupabase: any = {
+      from: jest.fn((table: string) => {
+        if (table === "user_packages") return userPackagesChain;
+        return {};
+      }),
+    };
+
+    const result = await assignPackageToUser(mockSupabase, "56", 2);
+
+    expect(result).toEqual({ success: true });
+    expect(mockSupabase.from).toHaveBeenCalledWith("user_packages");
+    expect(insertMock).toHaveBeenCalledWith([
+      {
+        user_id: "56",
+        package_id: 2,
+      },
+    ]);
+  });
+
+  it("same user + same package again -> duplicate error", async () => {
+    const maybeSingleMock = jest.fn().mockResolvedValue({
+      data: { id: 1 },
+      error: null,
+    });
+
+    const eqSecondMock = jest.fn(() => ({
+      maybeSingle: maybeSingleMock,
+    }));
+
+    const eqFirstMock = jest.fn(() => ({
+      eq: eqSecondMock,
+    }));
+
+    const selectMock = jest.fn(() => ({
+      eq: eqFirstMock,
+    }));
+
+    const insertMock = jest.fn();
+
+    const userPackagesChain = {
+      select: selectMock,
+      insert: insertMock,
+    };
+
+    const mockSupabase: any = {
+      from: jest.fn((table: string) => {
+        if (table === "user_packages") return userPackagesChain;
+        return {};
+      }),
+    };
+
+    await expect(assignPackageToUser(mockSupabase, "56", 2)).rejects.toThrow(
+      "This package is already assigned to this user."
+    );
+
+    expect(insertMock).not.toHaveBeenCalled();
+  });
+
+  it("missing selections -> validation error", async () => {
+    const mockSupabase: any = {
+      from: jest.fn(),
+    };
+
+    await expect(assignPackageToUser(mockSupabase, "", 0)).rejects.toThrow(
+      "Please select both user and package."
+    );
   });
 });

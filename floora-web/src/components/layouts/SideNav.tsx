@@ -41,7 +41,17 @@ const SideNav = () => {
             <FaTachometerAlt className="icon" /> Dashboard
           </NavLink>
         </li>
-
+<li>
+  <NavLink
+    to="/assign-package"
+    end
+    className={({ isActive }) =>
+      `nav-item ${isActive ? "active" : ""}`
+    }
+  >
+    <FaClipboardList className="icon" /> Assign Package
+  </NavLink>
+</li>
         <li>
           <NavLink
             to="/create-admin"
