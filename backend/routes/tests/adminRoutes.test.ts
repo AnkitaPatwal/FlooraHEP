@@ -7,10 +7,14 @@ process.env.ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
 
 let app: any;
 
-jest.mock("../../lib/adminGuard", () => {
-  const handler = (req: any, res: any, next: any) => {
-    next();
-  };
+// Set environment variables before loading modules
+process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
+process.env.SUPABASE_URL = "https://test.supabase.co";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+
+// MUST be first: mock auth middleware before loading server/routes
+jest.mock("../../middleware/requireAdminJwt", () => {
+  const passThrough = (_req: any, _res: any, next: any) => next();
 
   return {
     __esModule: true,
@@ -37,6 +41,12 @@ beforeAll(() => {
 });
 
 describe("GET /api/admin/modules", () => {
+  const validAdminToken = require("jsonwebtoken").sign(
+    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
+    "test-admin-jwt-secret-key",
+    { expiresIn: "1h" }
+  );
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -50,7 +60,9 @@ describe("GET /api/admin/modules", () => {
       .spyOn(moduleService, "getAllModulesWithExercises")
       .mockResolvedValue(mockModules as any);
 
-    const res = await request(app).get("/api/admin/modules");
+    const res = await request(app)
+      .get("/api/admin/modules")
+      .set("Cookie", `admin_token=${validAdminToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockModules);
@@ -61,7 +73,9 @@ describe("GET /api/admin/modules", () => {
       .spyOn(moduleService, "getAllModulesWithExercises")
       .mockRejectedValue(new Error("DB failure"));
 
-    const res = await request(app).get("/api/admin/modules");
+    const res = await request(app)
+      .get("/api/admin/modules")
+      .set("Cookie", `admin_token=${validAdminToken}`);
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: "Failed to fetch modules" });
