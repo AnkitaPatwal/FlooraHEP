@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 
 import adminRoutes from "./routes/admin";
+import assignPackageRoutes from "./routes/assignPackage";
 import exercisesRoutes from "./routes/exercises";
 import adminAuthRoutes from "./routes/adminAuth";
 
@@ -12,7 +13,7 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
@@ -20,9 +21,10 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
-//  routes
+// routes
 app.use("/api/admin", adminAuthRoutes);
-app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminRoutes);                // restore this
+app.use("/api/assign-package", assignPackageRoutes); // move assign package routes here
 app.use("/api/exercises", exercisesRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
@@ -34,4 +36,3 @@ if (process.env.NODE_ENV !== "test") {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
-
