@@ -15,7 +15,14 @@ const PORT = process.env.PORT || 3000;
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: (origin, cb) => {
+      const allowed =
+        !origin ||
+        origin === "http://localhost:5173" ||
+        origin === "http://localhost:8081" ||
+        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
+      cb(null, allowed);
+    },
     credentials: true,
   })
 );
