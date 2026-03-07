@@ -19,8 +19,37 @@ export async function uploadExerciseVideo(supabase: SupabaseClient, fileData: Bu
   return { video_id: videoRecord.video_id, publicUrl };
 }
 
-export async function linkVideoToExercise(supabase: SupabaseClient, exerciseId: number, videoId: number): Promise<void> {
-  const { error } = await supabase.from('exercise').update({ video_id: videoId }).eq('exercise_id', exerciseId);
+export async function linkVideoToExercise(
+  supabase: SupabaseClient,
+  exerciseId: number,
+  videoId: number,
+  videoUrl?: string | null
+): Promise<void> {
+  // Fetch existing video_id so we can log the old one being replaced
+  const { data: existing } = await supabase
+    .from('exercise')
+    .select('video_id, video_url')
+    .eq('exercise_id', exerciseId)
+    .single();
+
+  if (existing?.video_id && existing.video_id !== videoId) {
+    // Old video is being replaced — log it for cleanup
+    console.log(
+      `[ATH-410] Replacing video on exercise ${exerciseId}: ` +
+      `old video_id=${existing.video_id}, new video_id=${videoId}`
+    );
+  }
+
+  const updatePayload: Record<string, any> = { video_id: videoId };
+  if (videoUrl !== undefined) {
+    updatePayload.video_url = videoUrl;
+  }
+
+  const { error } = await supabase
+    .from('exercise')
+    .update(updatePayload)
+    .eq('exercise_id', exerciseId);
+
   if (error) throw new Error(`Failed to link video to exercise: ${error.message}`);
 }
 
