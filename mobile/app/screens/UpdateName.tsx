@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 import {
   SafeAreaView,
@@ -7,17 +7,91 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 
 import { useRouter } from "expo-router";
+import { useAuth } from "../../providers/AuthProvider";
+
+const MAX_NAME_LENGTH = 100;
 
 export default function UpdateName() {
   const router = useRouter();
-  const [name, setName] = useState("Loretta Barry");
+  const { session } = useAuth();
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    console.log("Updated name:", name);
-    router.back();
+  useEffect(() => {
+    if (!session?.access_token) return;
+
+    const fetchProfile = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/update-profile`;
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            "Content-Type": "application/json",
+          },
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success && data.profile) {
+          const fullName =
+            data.profile.name ??
+            [data.profile.fname, data.profile.lname].filter(Boolean).join(" ").trim();
+          setName(fullName || "");
+        }
+      } catch {
+        setError("Failed to load current name");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [session?.access_token]);
+
+  const handleSubmit = async () => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      Alert.alert("Invalid name", "Please enter your name.");
+      return;
+    }
+    if (trimmed.length > MAX_NAME_LENGTH) {
+      Alert.alert("Invalid name", `Name must be ${MAX_NAME_LENGTH} characters or less.`);
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/update-profile`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        Alert.alert("Update failed", data.message || "Could not update name.");
+        return;
+      }
+      router.back();
+    } catch {
+      Alert.alert("Error", "Something went wrong. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -28,30 +102,41 @@ export default function UpdateName() {
           <Text style={styles.backChevron}>‹</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Name</Text>
-        {/* spacer for centering */}
         <View style={{ width: 18 }} />
       </View>
 
       <View style={styles.container}>
-        {/* Title */}
         <Text style={styles.title}>Update Name</Text>
-
-        {/* Label */}
         <Text style={styles.label}>New Name</Text>
 
-        {/* Input */}
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter new name"
-          placeholderTextColor="#999"
-        />
+        {loading ? (
+          <ActivityIndicator size="small" color="#5A8E93" style={{ marginVertical: 24 }} />
+        ) : (
+          <>
+            <TextInput
+              style={styles.input}
+              value={name}
+              onChangeText={setName}
+              placeholder="Enter new name"
+              placeholderTextColor="#999"
+              maxLength={MAX_NAME_LENGTH}
+              editable={!submitting}
+            />
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-        {/* Button */}
-        <TouchableOpacity style={styles.button} onPress={handleSubmit}>
-          <Text style={styles.buttonText}>Submit</Text>
-        </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, submitting && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.buttonText}>Save</Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -62,8 +147,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-
-  // Header
   header: {
     height: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -86,8 +169,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#333",
   },
-
-  // Body
   container: {
     flex: 1,
     paddingHorizontal: 24,
@@ -115,6 +196,11 @@ const styles = StyleSheet.create({
     color: "#333",
     marginBottom: 24,
   },
+  errorText: {
+    fontSize: 14,
+    color: "#B91C1C",
+    marginBottom: 12,
+  },
   button: {
     backgroundColor: "#5A8E93",
     paddingVertical: 12,
@@ -127,6 +213,9 @@ const styles = StyleSheet.create({
     elevation: 4,
     width: 150,
     alignSelf: "center",
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: "#fff",
