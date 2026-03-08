@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
+import React from "react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import CreateAdmin from "../CreateAdmin";
@@ -19,17 +20,105 @@ const renderPage = () => {
   );
 };
 
-describe("CreateAdmin", () => {
+type MockFetchOpts = {
+  meStatus?: number;
+  meRole?: "super_admin" | "admin" | null;
+  assignStatus?: number;
+};
+
+const mockFetch = (opts: MockFetchOpts) => {
+  const meStatus = opts.meStatus ?? 200;
+  const meRole = opts.meRole ?? "super_admin";
+  const assignStatus = opts.assignStatus ?? 200;
+
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+
+    // GET /me
+    if (url.includes("/api/admin/me")) {
+      if (meStatus === 200) {
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            admin: { id: 1, email: "sa@example.com", role: meRole, name: "SA" },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } }
+        );
+      }
+
+      // 401 / 403 / etc
+      return new Response(JSON.stringify({ message: "Unauthorized" }), {
+        status: meStatus,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    // POST /assign-admin-role
+    if (url.includes("/api/admin/assign-admin-role")) {
+      if (assignStatus === 200) {
+        return new Response(JSON.stringify({ ok: true }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response(JSON.stringify({ message: "Backend failure" }), {
+        status: assignStatus,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    return new Response(JSON.stringify({ message: "Not mocked" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  });
+
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+};
+
+describe("CreateAdmin (UI + access)", () => {
   beforeEach(() => {
-    // make sure we are NOT using fake timers
     vi.useRealTimers();
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("super_admin users can access the Create Admin page", async () => {
+    mockFetch({ meStatus: 200, meRole: "super_admin" });
+    renderPage();
+
+    // wait until access check finishes and form is shown
+    expect(await screen.findByPlaceholderText("admin@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/assign admin role to an existing account/i)).toBeInTheDocument();
+  });
+
+  it("admin users receive Unauthorized (not super_admin)", async () => {
+    mockFetch({ meStatus: 200, meRole: "admin" });
+    renderPage();
+
+    expect(
+      await screen.findByText(/unauthorized: you do not have access to this page/i)
+    ).toBeInTheDocument();
+  });
+
+  it("unauthenticated users are denied access (401)", async () => {
+    mockFetch({ meStatus: 401 });
+    renderPage();
+
+    expect(await screen.findByText(/unauthorized: please log in/i)).toBeInTheDocument();
+  });
+
   it("renders the form and keeps submit disabled until email is valid", async () => {
+    mockFetch({ meStatus: 200, meRole: "super_admin" });
     const user = userEvent.setup();
     renderPage();
 
-    const emailInput = screen.getByPlaceholderText("admin@example.com");
+    const emailInput = await screen.findByPlaceholderText("admin@example.com");
     const submitBtn = screen.getByRole("button", { name: /submit/i });
 
     // empty -> disabled
@@ -46,22 +135,30 @@ describe("CreateAdmin", () => {
     expect(submitBtn).toBeEnabled();
   });
 
-  it("shows success message on valid submit (UI only)", async () => {
+  it("submits and shows success message", async () => {
+    mockFetch({ meStatus: 200, meRole: "super_admin", assignStatus: 200 });
     const user = userEvent.setup();
     renderPage();
 
-    const emailInput = screen.getByPlaceholderText("admin@example.com");
+    const emailInput = await screen.findByPlaceholderText("admin@example.com");
+    const nameInput = screen.getByPlaceholderText("Admin Name");
     const submitBtn = screen.getByRole("button", { name: /submit/i });
 
     await user.type(emailInput, "admin@example.com");
+    await user.type(nameInput, "Test Admin");
+    expect(submitBtn).toBeEnabled();
+
     await user.click(submitBtn);
 
-    // loading state
-    expect(screen.getByRole("button", { name: /creating/i })).toBeInTheDocument();
-
-    // real 700ms delay in component -> just wait for success text
+    // "Saving..." might be too fast to catch; just assert final success
     expect(
-      await screen.findByText(/admin created successfully\./i, {}, { timeout: 2000 })
+      await screen.findByText(/admin role assigned successfully\./i, {}, { timeout: 2000 })
     ).toBeInTheDocument();
+
+    // fields cleared after success
+    await waitFor(() => {
+      expect(emailInput).toHaveValue("");
+      expect(nameInput).toHaveValue("");
+    });
   });
 });

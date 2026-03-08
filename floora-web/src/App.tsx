@@ -4,6 +4,7 @@ import AdminVideoUpload from "./pages/AdminVideoUpload";
 //import Login from "./pages/Login";
 import "./App.css";
 
+import AssignPackage from "./pages/AssignPackage";
 import CreateAccount from "./pages/CreateAccount";
 import AdminLogin from "./pages/AdminLogin";
 import Users from "./pages/main/Users";
@@ -39,12 +40,20 @@ export default function App() {
         <Route path="/admin-register" element={<AdminRegister />} />
         <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
 
-        {/* ✅ ONLY this route gets the sidebar layout */}
         <Route
           path="/create-admin"
           element={
             <AppLayout>
               <CreateAdmin />
+            </AppLayout>
+          }
+        />
+
+        <Route
+          path="/assign-package"
+          element={
+            <AppLayout>
+              <AssignPackage />
             </AppLayout>
           }
         />

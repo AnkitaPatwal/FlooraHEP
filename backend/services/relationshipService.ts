@@ -200,3 +200,85 @@ export async function verifyAdminAccess(
     rlsError,
   };
 }
+export interface AssignableUser {
+  id: string;
+  email: string | null;
+}
+
+export interface AssignablePlan {
+  plan_id: number;
+  title: string;
+}
+
+export async function getAssignableUsers(
+  supabase: SupabaseClient,
+): Promise<AssignableUser[]> {
+  const { data, error } = await supabase
+    .from("user")
+    .select("user_id, email")
+    .order("email", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch users: ${error.message}`);
+  }
+
+  return (data ?? []).map((u: any) => ({
+    id: String(u.user_id),
+    email: u.email ?? null,
+  }));
+}
+
+export async function getAssignablePlans(
+  supabase: SupabaseClient,
+): Promise<AssignablePlan[]> {
+  const { data, error } = await supabase
+    .from("plan")
+    .select("plan_id, title")
+    .order("title", { ascending: true });
+
+  if (error) {
+    throw new Error(`Failed to fetch plans: ${error.message}`);
+  }
+
+  return (data ?? []) as AssignablePlan[];
+}
+
+export async function assignPackageToUser(
+  supabase: SupabaseClient,
+  userId: string,
+  packageId: number,
+): Promise<{ success: true }> {
+  if (!userId || !packageId) {
+    throw new Error("Please select both user and package.");
+  }
+
+  const { data: existing, error: existingError } = await supabase
+    .from("user_packages")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("package_id", packageId)
+    .maybeSingle();
+
+  if (existingError) {
+    throw new Error(`Failed to check existing assignment: ${existingError.message}`);
+  }
+
+  if (existing) {
+    throw new Error("This package is already assigned to this user.");
+  }
+
+  const { error: insertError } = await supabase
+    .from("user_packages")
+    .insert([
+      {
+        user_id: userId,
+        package_id: packageId,
+      },
+    ]);
+
+  if (insertError) {
+    throw new Error(`Failed to assign package: ${insertError.message}`);
+  }
+
+  return { success: true };
+}

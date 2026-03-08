@@ -9,14 +9,18 @@ import path from 'path';
 import { uploadExerciseVideo, linkVideoToExercise } from '../services/videoService';
 import { getAllModulesWithExercises } from '../services/moduleService'
 import { supabaseServer } from '../lib/supabaseServer'
-import { requireAdminJwt } from "../middleware/requireAdminJwt";
 import { createClient } from "@supabase/supabase-js";
+import jwt from "jsonwebtoken";
 
 const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.LOCAL_SUPABASE_URL;
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.LOCAL_SUPABASE_URL;
 
 const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 if (!SUPABASE_URL) {
   throw new Error("SUPABASE_URL is not set");
@@ -26,14 +30,37 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
 }
 
+
+if (!ADMIN_JWT_SECRET) {
+  throw new Error("ADMIN_JWT_SECRET is not set");
+}
+
+
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
 const router = express.Router();
 
-// Protect everything below
-router.use(requireAdminJwt);
+// Cookie-based admin authentication middleware
+function requireAdminCookie(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = (req as any).cookies?.admin_token;
+  
+  if (!token) {
+    return res.status(401).json({ ok: false, error: "Missing authorization token" });
+  }
+
+  try {
+    const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
+    (req as any).admin = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+  }
+}
+
+// Protect all routes with cookie-based auth
+router.use(requireAdminCookie);
 
 /**
 feature/ATH-253-admin-clients-list
@@ -197,4 +224,21 @@ router.post('/clients/:id/deny', async (req, res) => {
   }
 });
 
+
 export default router;
+
+/**
+ * Fetch all modules/plans with exercises (admin-only)
+ */
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = await getAllModulesWithExercises(supabaseServer)
+    return res.status(200).json(modules)
+  } catch (error) {
+    console.error('Failed to fetch modules:', error)
+    return res.status(500).json({ error: 'Failed to fetch modules' })
+  }
+});
+
+export default router;
+

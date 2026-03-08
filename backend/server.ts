@@ -1,37 +1,38 @@
-import dotenv from "dotenv";
-dotenv.config({ path: ".env" });
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import cookieParser from "cookie-parser";
 
-console.log("JWT_SECRET loaded:", Boolean(process.env.JWT_SECRET));
-
-import 'dotenv/config';
-import express from 'express';
-import adminRoutes from './routes/admin';
-import exercisesRoutes from './routes/exercises';
-import adminAuthRoutes from './routes/adminAuth';
-import cors from 'cors';
+import adminRoutes from "./routes/admin";
+import assignPackageRoutes from "./routes/assignPackage";
+import exercisesRoutes from "./routes/exercises";
+import adminAuthRoutes from "./routes/adminAuth";
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: "http://localhost:5173",
     credentials: true,
   })
 );
 
+app.use(cookieParser());
 app.use(express.json());
 
-app.use('/api/admin', adminAuthRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/exercises', exercisesRoutes);
+// routes
+app.use("/api/admin", adminAuthRoutes);
+app.use("/api/admin", adminRoutes);                // restore this
+app.use("/api/assign-package", assignPackageRoutes); // move assign package routes here
+app.use("/api/exercises", exercisesRoutes);
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 export default app;
 
-if (process.env.NODE_ENV !== 'test') {
-  app.listen(Number(PORT), () => {
+if (process.env.NODE_ENV !== "test") {
+  app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }
