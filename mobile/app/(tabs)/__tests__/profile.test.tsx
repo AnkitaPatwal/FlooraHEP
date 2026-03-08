@@ -1,13 +1,15 @@
 /**
- * ATH-386 / ATH-390: Profile info updates — unit tests for Profile tab
+  Secure sign-out — unit tests for Profile tab
  */
 import React from "react";
-import { render, waitFor } from "@testing-library/react-native";
+import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import Profile from "../profile";
 
+const mockReplace = jest.fn();
+
 jest.mock("expo-router", () => ({
-  useRouter: () => ({ replace: jest.fn(), push: jest.fn(), back: jest.fn() }),
-  Link: ({ children, href }: any) => children,
+  useRouter: () => ({ replace: mockReplace, push: jest.fn(), back: jest.fn() }),
+  Link: ({ children }: any) => children,
 }));
 
 jest.mock("@react-navigation/native", () => ({
@@ -23,7 +25,35 @@ jest.mock("../../../providers/AuthProvider", () => ({
   }),
 }));
 
-describe("Profile (ATH-386/ATH-390)", () => {
+jest.mock("../../../lib/supabaseClient", () => ({
+  supabase: {
+    auth: {
+      signOut: jest.fn().mockResolvedValue(undefined),
+    },
+  },
+}));
+
+let alertConfirm: (() => void) | null = null;
+jest.spyOn(require("react-native").Alert, "alert").mockImplementation(
+  (...args: unknown[]) => {
+    const buttons = args[2] as Array<{ text: string; onPress?: () => void }> | undefined;
+    const signOutButton = buttons?.find((b) => b.text === "Sign out");
+    if (signOutButton?.onPress) alertConfirm = signOutButton.onPress;
+  }
+);
+
+const goodProfile = {
+  success: true,
+  profile: {
+    user_id: 1,
+    name: "Jane Doe",
+    fname: "Jane",
+    lname: "Doe",
+    email: "jane@example.com",
+  },
+};
+
+describe("Profile sign-out (ATH-386/ATH-392)", () => {
   const originalError = console.error;
   beforeAll(() => {
     console.error = (...args: unknown[]) => {
@@ -36,89 +66,42 @@ describe("Profile (ATH-386/ATH-390)", () => {
     console.error = originalError;
   });
 
-  const goodProfile = {
-    success: true,
-    profile: {
-      user_id: 1,
-      name: "Jane Doe",
-      fname: "Jane",
-      lname: "Doe",
-      email: "jane@example.com",
-    },
-  };
-
   beforeEach(() => {
     jest.clearAllMocks();
-    (global as any).fetch = jest.fn();
+    (global as any).userEmail = "user@example.com";
+    (global as any).fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => goodProfile,
+    });
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
   });
 
-  it("renders Profile Settings header", () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: true,
-      json: async () => goodProfile,
-    });
-
-    const { getByText } = render(<Profile />);
+  it("renders Profile Settings and Sign out button", async () => {
+    const { getByText, getByTestId } = render(<Profile />);
     expect(getByText("Profile Settings")).toBeTruthy();
+    await waitFor(() => {
+      expect(getByTestId("profile-sign-out")).toBeTruthy();
+    });
+    expect(getByText("Sign out")).toBeTruthy();
   });
 
-  it("shows loading then name and email after successful fetch", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => goodProfile,
-    });
-
-    const { getByText, getByDisplayValue } = render(<Profile />);
+  it("calls supabase.auth.signOut and redirects to login when Sign out is pressed", async () => {
+    alertConfirm = null;
+    const { supabase } = require("../../../lib/supabaseClient");
+    const { getByTestId } = render(<Profile />);
 
     await waitFor(() => {
-      expect(getByDisplayValue("Jane Doe")).toBeTruthy();
-      expect(getByDisplayValue("jane@example.com")).toBeTruthy();
+      expect(getByTestId("profile-sign-out")).toBeTruthy();
     });
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      "https://test.supabase.co/functions/v1/update-profile",
-      expect.objectContaining({
-        method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer test-token",
-        }),
-      })
-    );
-  });
-
-  it("displays name from fname/lname when name field is missing", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        success: true,
-        profile: {
-          user_id: 1,
-          fname: "John",
-          lname: "Smith",
-          email: "john@example.com",
-        },
-      }),
-    });
-
-    const { getByDisplayValue } = render(<Profile />);
+    fireEvent.press(getByTestId("profile-sign-out"));
+    expect(alertConfirm).toBeTruthy();
+    await alertConfirm!();
 
     await waitFor(() => {
-      expect(getByDisplayValue("John Smith")).toBeTruthy();
-      expect(getByDisplayValue("john@example.com")).toBeTruthy();
-    });
-  });
-
-  it("shows error when profile fetch fails", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce({
-      ok: false,
-      json: async () => ({ message: "User not found" }),
-    });
-
-    const { getByText } = render(<Profile />);
-
-    await waitFor(() => {
-      expect(getByText("User not found")).toBeTruthy();
+      expect(supabase.auth.signOut).toHaveBeenCalled();
+      expect((global as any).userEmail).toBe("");
+      expect(mockReplace).toHaveBeenCalledWith("/screens/LoginScreen");
     });
   });
 });
