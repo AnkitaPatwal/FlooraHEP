@@ -8,12 +8,10 @@ html, body, #root {
 }
 
 #root {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #437C7D; /* teal background */
+  height: 100%;
   font-family: 'Poppins', sans-serif;
 }
+
 
 /* ========== LOGIN CARD CONTAINER ========== */
 .login-container {
