@@ -16,6 +16,7 @@ import SessionDashboard from "./pages/main/Session";
 import CreateExercise from "./components/main/CreateExercise";
 import AdminRegister from "./pages/AdminRegister";
 import CreateAdmin from "./pages/CreateAdmin";
+import Profile from "./pages/main/Profile";
 
 import AppLayout from "./components/layouts/AppLayout";
 
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/admin-register" element={<AdminRegister />} />
+        <Route path="/profile" element={<Profile />} />
 
         <Route
           path="/create-admin"
