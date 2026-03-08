@@ -1,59 +1,59 @@
 import express from 'express';
+import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
+
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
-
-import { requireAdmin } from '../lib/adminGuard';
 import { getAllModulesWithExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
 
-import { getAllModulesWithExercises } from '../services/moduleService'
-import { supabaseServer } from '../lib/supabaseServer'
-import { createClient } from "@supabase/supabase-js";
-import jwt from "jsonwebtoken";
-
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
   process.env.LOCAL_SUPABASE_URL;
 
 const SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
 
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 if (!SUPABASE_URL) {
-  throw new Error("SUPABASE_URL is not set");
+  throw new Error('SUPABASE_URL is not set');
 }
 
 if (!SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+  throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
 }
 
 if (!ADMIN_JWT_SECRET) {
-  throw new Error("ADMIN_JWT_SECRET is not set");
+  throw new Error('ADMIN_JWT_SECRET is not set');
 }
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-
 const router = express.Router();
 
 // Cookie-based admin authentication middleware
-function requireAdminCookie(req: express.Request, res: express.Response, next: express.NextFunction) {
+function requireAdminCookie(
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) {
   const token = (req as any).cookies?.admin_token;
-  
+
   if (!token) {
-    return res.status(401).json({ ok: false, error: "Missing authorization token" });
+    return res.status(401).json({ ok: false, error: 'Missing authorization token' });
   }
 
   try {
     const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
     (req as any).admin = payload;
-    next();
-  } catch (err) {
-    return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+    return next();
+  } catch (_err) {
+    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
   }
 }
 
@@ -61,11 +61,9 @@ function requireAdminCookie(req: express.Request, res: express.Response, next: e
 router.use(requireAdminCookie);
 
 /**
-feature/ATH-253-admin-clients-list
  * ATH-253 List clients (admin only)
-*/
-
-router.get("/clients", async (req, res) => {
+ */
+router.get('/clients', async (_req, res) => {
   try {
     const { data, error } = await supabaseAdmin
       .from('user')
@@ -73,8 +71,8 @@ router.get("/clients", async (req, res) => {
       .order('fname', { ascending: true });
 
     if (error) {
-      console.error("Supabase error (list clients):", JSON.stringify(error, null, 2));
-      return res.status(500).json({ message: "Error fetching clients", details: error });
+      console.error('Supabase error (list clients):', JSON.stringify(error, null, 2));
+      return res.status(500).json({ message: 'Error fetching clients', details: error });
     }
 
     const clients = (data ?? []).map((u: any) => ({
@@ -92,9 +90,7 @@ router.get("/clients", async (req, res) => {
 });
 
 /**
- 
  * Approve a client (admin-only)
-
  */
 router.post('/clients/:id/approve', async (req, res) => {
   const clientId = req.params.id;
@@ -118,10 +114,10 @@ router.post('/clients/:id/approve', async (req, res) => {
     }
 
     await sendApprovalEmail(client.email, client.name);
-    res.status(200).json({ message: 'Client approved and email sent' });
+    return res.status(200).json({ message: 'Client approved and email sent' });
   } catch (err) {
     console.error('Error approving client:', err);
-    res.status(500).json({ message: 'Error approving client' });
+    return res.status(500).json({ message: 'Error approving client' });
   }
 });
 
@@ -150,21 +146,17 @@ router.post('/clients/:id/deny', async (req, res) => {
     }
 
     await sendDenialEmail(client.email, client.name);
-    res.status(200).json({ message: 'Client denied and email sent' });
+    return res.status(200).json({ message: 'Client denied and email sent' });
   } catch (err) {
     console.error('Error denying client:', err);
-    res.status(500).json({ message: 'Error denying client' });
+    return res.status(500).json({ message: 'Error denying client' });
   }
 });
 
 /**
  * Fetch all modules/plans with exercises (admin-only)
  */
-
-router.get('/modules', requireAdmin, async (_req, res) => {
-
-router.get('/modules', async (req, res) => {
-
+router.get('/modules', async (_req, res) => {
   try {
     const modules = await getAllModulesWithExercises(supabaseServer);
     return res.status(200).json(modules);
@@ -188,8 +180,7 @@ router.post('/clients/:userId/modules', async (req, res) => {
       return res.status(400).json({ error: 'userId and module_id are required' });
     }
 
-    // requireAdmin sets req.user (see adminGuard.ts) -> use admin email to resolve user_id
-    const adminEmail = (req as any).user?.email?.toLowerCase().trim();
+    const adminEmail = ((req as any).admin?.email as string | undefined)?.toLowerCase().trim();
     if (!adminEmail) {
       return res.status(401).json({ error: 'Missing admin email context' });
     }
@@ -238,7 +229,10 @@ router.post('/clients/:userId/modules', async (req, res) => {
 router.get('/clients/:userId/modules', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
-    if (!userId) return res.status(400).json({ error: 'userId is required' });
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
 
     const { data, error } = await supabaseServer
       .from('user_module')
