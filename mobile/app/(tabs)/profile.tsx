@@ -1,5 +1,4 @@
-import React from "react";
-
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,78 +6,133 @@ import {
   Image,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
-
 import { Link } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import { useAuth } from "../../providers/AuthProvider";
+import { supabase } from "../../lib/supabaseClient";
 import profilePic from "../../assets/images/profile-pic.png";
 
+type ProfileRecord = {
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
 export default function Profile() {
+  const { session } = useAuth();
+  const [profile, setProfile] = useState<ProfileRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const userEmail = session?.user?.email;
+        if (!userEmail) {
+          throw new Error("No authenticated user found.");
+        }
+
+        const { data, error: profileError } = await supabase
+          .from("profiles")
+          .select("display_name, email, avatar_url")
+          .eq("email", userEmail)
+          .single();
+
+        if (profileError) {
+          throw new Error(profileError.message);
+        }
+
+        setProfile(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load profile.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void fetchProfile();
+  }, [session]);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const name = profile?.display_name?.trim() || session?.user?.email || "—";
+  const email = profile?.email || session?.user?.email || "—";
+  const avatarUrl = profile?.avatar_url || null;
+
   return (
     <View style={styles.container}>
-      {/* Header */}
       <Text style={styles.header}>Profile Settings</Text>
       <View style={styles.headerLine} />
 
-      {/* Profile Image */}
-      <Image source={profilePic} style={styles.avatar} />
-
-      {/* Name */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.label}>Name</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value="Loretta Barry"
-            editable={false}
-            style={styles.input}
-          />
-          <Link href="../screens/UpdateName" asChild>
-            <TouchableOpacity style={styles.iconContainer}>
-              <Feather name="edit-3" size={18} color="#5A8E93" />
-            </TouchableOpacity>
-          </Link>
+      {loading ? (
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color="#5A8E93" />
+          <Text style={styles.statusText}>Loading profile...</Text>
         </View>
-      </View>
-
-      {/* Email */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.label}>Email</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value="loretta@floora-pt.com"
-            editable={false}
-            style={styles.input}
-          />
-          <Link href="../screens/UpdateEmail" asChild>
-            <TouchableOpacity style={styles.iconContainer}>
-              <Feather name="edit-3" size={18} color="#5A8E93" />
-            </TouchableOpacity>
-          </Link>
+      ) : error ? (
+        <View style={styles.centerContent}>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
-      </View>
-
-      {/* Password */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value="••••••••••"
-            editable={false}
-            secureTextEntry
-            style={styles.input}
+      ) : (
+        <>
+          <Image
+            source={avatarUrl ? { uri: avatarUrl } : profilePic}
+            style={styles.avatar}
           />
-          <Link href="../screens/ResetPassword" asChild>
-            <TouchableOpacity style={styles.iconContainer}>
-              <Feather name="edit-3" size={18} color="#5A8E93" />
-              </TouchableOpacity>
-            </Link>
-        </View>
-      </View>
 
-      {/* Sign Out Button */}
-      <TouchableOpacity style={styles.signOutButton}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </TouchableOpacity>
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Name</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput value={name} editable={false} style={styles.input} />
+              <Link href="../screens/UpdateName" asChild>
+                <TouchableOpacity style={styles.iconContainer}>
+                  <Feather name="edit-3" size={18} color="#5A8E93" />
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput value={email} editable={false} style={styles.input} />
+              <Link href="../screens/UpdateEmail" asChild>
+                <TouchableOpacity style={styles.iconContainer}>
+                  <Feather name="edit-3" size={18} color="#5A8E93" />
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Password</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                value="••••••••••"
+                editable={false}
+                secureTextEntry
+                style={styles.input}
+              />
+              <Link href="../screens/ResetPassword" asChild>
+                <TouchableOpacity style={styles.iconContainer}>
+                  <Feather name="edit-3" size={18} color="#5A8E93" />
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <Text style={styles.signOutText}>Sign out</Text>
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
@@ -87,8 +141,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingHorizontal: 0, 
-    paddingTop: 60, 
+    paddingHorizontal: 0,
+    paddingTop: 60,
   },
   header: {
     fontSize: 22,
@@ -99,8 +153,24 @@ const styles = StyleSheet.create({
   headerLine: {
     height: 1,
     backgroundColor: "#F0F0F0",
-    width: "100%", 
+    width: "100%",
     marginBottom: 30,
+  },
+  centerContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
+  statusText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#333",
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#D32F2F",
+    textAlign: "center",
   },
   avatar: {
     width: 110,
@@ -115,7 +185,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: "600", 
+    fontWeight: "600",
     color: "#333",
     marginBottom: 6,
   },
