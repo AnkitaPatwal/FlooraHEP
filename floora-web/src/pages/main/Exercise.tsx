@@ -130,7 +130,10 @@ function ExerciseDashboard() {
                   <div className="exercise-info">
                     <h3>{exercise.title}</h3>
                     <p>{exercise.category}</p>
-                    <span className="exercise-tag">{exercise.type}</span>
+                    <span className="exercise-tag">
+                      <span className="material-symbols-outlined">vital_signs</span>
+                      {exercise.type}
+                    </span>
 
                     {/* ✅ ATH-305: Play button only when video exists */}
                     {exercise.videoUrl ? (

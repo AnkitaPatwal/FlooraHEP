@@ -1,17 +1,100 @@
 import express from 'express';
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
+
 import { requireAdmin } from '../lib/adminGuard';
 import { getAllModulesWithExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
 
+import { getAllModulesWithExercises } from '../services/moduleService'
+import { supabaseServer } from '../lib/supabaseServer'
+import { createClient } from "@supabase/supabase-js";
+import jwt from "jsonwebtoken";
+
+const SUPABASE_URL =
+  process.env.SUPABASE_URL ||
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 
+  process.env.LOCAL_SUPABASE_URL;
+
+const SUPABASE_SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
+
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
+
+if (!SUPABASE_URL) {
+  throw new Error("SUPABASE_URL is not set");
+}
+
+if (!SUPABASE_SERVICE_ROLE_KEY) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+}
+
+if (!ADMIN_JWT_SECRET) {
+  throw new Error("ADMIN_JWT_SECRET is not set");
+}
+
+const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
+
+
 const router = express.Router();
 
-// Protect everything below
-router.use(requireAdmin);
+// Cookie-based admin authentication middleware
+function requireAdminCookie(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const token = (req as any).cookies?.admin_token;
+  
+  if (!token) {
+    return res.status(401).json({ ok: false, error: "Missing authorization token" });
+  }
+
+  try {
+    const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
+    (req as any).admin = payload;
+    next();
+  } catch (err) {
+    return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+  }
+}
+
+// Protect all routes with cookie-based auth
+router.use(requireAdminCookie);
 
 /**
+feature/ATH-253-admin-clients-list
+ * ATH-253 List clients (admin only)
+*/
+
+router.get("/clients", async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('user')
+      .select('user_id, fname, lname, email, status')
+      .order('fname', { ascending: true });
+
+    if (error) {
+      console.error("Supabase error (list clients):", JSON.stringify(error, null, 2));
+      return res.status(500).json({ message: "Error fetching clients", details: error });
+    }
+
+    const clients = (data ?? []).map((u: any) => ({
+      id: u.user_id,
+      name: `${u.fname ?? ''} ${u.lname ?? ''}`.trim(),
+      email: u.email,
+      status: u.status,
+    }));
+
+    return res.status(200).json({ clients });
+  } catch (err) {
+    console.error('Error fetching clients:', err);
+    return res.status(500).json({ message: 'Error fetching clients' });
+  }
+});
+
+/**
+ 
  * Approve a client (admin-only)
+
  */
 router.post('/clients/:id/approve', async (req, res) => {
   const clientId = req.params.id;
@@ -77,7 +160,11 @@ router.post('/clients/:id/deny', async (req, res) => {
 /**
  * Fetch all modules/plans with exercises (admin-only)
  */
+
 router.get('/modules', requireAdmin, async (_req, res) => {
+
+router.get('/modules', async (req, res) => {
+
   try {
     const modules = await getAllModulesWithExercises(supabaseServer);
     return res.status(200).json(modules);

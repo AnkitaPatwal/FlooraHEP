@@ -36,14 +36,14 @@ function Session() {
             <h1 className="session-title">Sessions</h1>
             <p className="session-count">{sessions.length} Sessions</p>
             <Link to="/sessions/create">
-              <button className="new-session-btn">+ New Session</button>
+              <button className="session-new-session-btn">+ New Session</button>
             </Link>
           </div>
 
           {/* SEARCH BAR SECTION */}
           <div className="session-header-right">
-            <div className="search-wrapper">
-              <span className="search-icon">
+            <div className="session-search-wrapper">
+              <span className="session-search-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -59,17 +59,17 @@ function Session() {
                   />
                 </svg>
               </span>
-              <input type="text" className="search-bar" placeholder="Search" />
+              <input type="text" className="session-search-bar" placeholder="Search" />
             </div>
           </div>
         </header>
 
-        <hr className="divider" />
+        <hr className="session-divider" />
 
         {/* ==== SESSION CARDS ==== */}
         {Object.entries(groupedSessions).map(([category, items]) => (
-          <section className="category-section" key={category}>
-            <h2 className="category-title">
+          <section className="session-category-section" key={category}>
+            <h2 className="session-category-title">
               {category} <span>{items.length} Sessions</span>
             </h2>
 
@@ -84,7 +84,10 @@ function Session() {
                   <div className="session-info">
                     <h3>{session.title}</h3>
                     <p>{session.category}</p>
-                    <span className="session-tag">{session.type}</span>
+                    <span className="session-tag">
+                      <span className="material-symbols-outlined">vital_signs</span>
+                      {session.type}
+                    </span>
                   </div>
                 </div>
               ))}
