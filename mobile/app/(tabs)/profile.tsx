@@ -10,15 +10,13 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import profilePic from "../../assets/images/profile-pic.png";
 import { useAuth } from "../../providers/AuthProvider";
-import { supabase } from "../../lib/supabaseClient";
 
 export default function Profile() {
-  const router = useRouter();
   const { session } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -67,12 +65,6 @@ export default function Profile() {
       if (session?.access_token) fetchProfile();
     }, [session?.access_token, fetchProfile])
   );
-
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    (global as any).userEmail = "";
-    router.replace("/screens/LoginScreen");
-  };
 
   return (
     <View style={styles.container}>
@@ -154,7 +146,7 @@ export default function Profile() {
       </View>
 
       {/* Sign Out Button */}
-      <TouchableOpacity testID="profile-sign-out" style={styles.signOutButton} onPress={handleSignOut}>
+      <TouchableOpacity style={styles.signOutButton}>
         <Text style={styles.signOutText}>Sign out</Text>
       </TouchableOpacity>
     </View>

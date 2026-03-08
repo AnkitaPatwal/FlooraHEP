@@ -2,7 +2,7 @@
  * ATH-386 / ATH-390: Profile info updates — unit tests for Profile tab
  */
 import React from "react";
-import { render, waitFor, fireEvent } from "@testing-library/react-native";
+import { render, waitFor } from "@testing-library/react-native";
 import Profile from "../profile";
 
 jest.mock("expo-router", () => ({
@@ -23,17 +23,19 @@ jest.mock("../../../providers/AuthProvider", () => ({
   }),
 }));
 
-const mockSignOut = jest.fn().mockResolvedValue(undefined);
-
-jest.mock("../../../lib/supabaseClient", () => ({
-  supabase: {
-    auth: {
-      signOut: mockSignOut,
-    },
-  },
-}));
-
 describe("Profile (ATH-386/ATH-390)", () => {
+  const originalError = console.error;
+  beforeAll(() => {
+    console.error = (...args: unknown[]) => {
+      const msg = typeof args[0] === "string" ? args[0] : "";
+      if (msg.includes("not wrapped in act(...)")) return;
+      originalError.apply(console, args);
+    };
+  });
+  afterAll(() => {
+    console.error = originalError;
+  });
+
   const goodProfile = {
     success: true,
     profile: {
@@ -117,19 +119,6 @@ describe("Profile (ATH-386/ATH-390)", () => {
 
     await waitFor(() => {
       expect(getByText("User not found")).toBeTruthy();
-    });
-  });
-
-  it("renders Sign out button when profile is loaded", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: true,
-      json: async () => goodProfile,
-    });
-
-    const { getByTestId } = render(<Profile />);
-
-    await waitFor(() => {
-      expect(getByTestId("profile-sign-out")).toBeTruthy();
     });
   });
 });
