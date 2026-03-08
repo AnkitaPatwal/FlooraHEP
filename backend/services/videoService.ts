@@ -9,7 +9,6 @@ interface VideoRow {
   mime_type?: string;
 }
 
-
 interface ExerciseRow {
   exercise_id: number;
   title: string;
@@ -31,21 +30,16 @@ export interface UploadVideoResult {
   publicUrl: string;
 }
 
-
 export async function uploadExerciseVideo(
   supabase: SupabaseClient,
   fileData: Buffer | File,
   fileName: string,
   mimeType: string,
   byteSize: number,
-
-  uploaderUserId: number,              
-  width = 640,                          // defaults satisfy CHECK (>0)
+  uploaderUserId: number,
+  width = 640,
   height = 360,
-  durationSeconds = 1                   // satisfies CHECK (>=0)
-
-  uploaderUserId?: string | null   // new optional param — won't break existing callers
-
+  durationSeconds = 1
 ): Promise<UploadVideoResult> {
   const objectKey = `${Date.now()}_${fileName}`;
 
@@ -53,37 +47,31 @@ export async function uploadExerciseVideo(
     .from(BUCKET_NAME)
     .upload(objectKey, fileData, { contentType: mimeType, upsert: false });
 
-  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
-
-
-  const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(objectKey);
-  const publicUrl = urlData?.publicUrl;
-  if (!publicUrl) throw new Error('Could not retrieve public URL after upload.');
-
-  const { data: videoRecord, error: dbError } = await supabase
-    .from('video')
+  if (uploadError) {
+    throw new Error(`Storage upload failed: ${uploadError.message}`);
+  }
 
   const { data: urlData } = supabase.storage
     .from(BUCKET_NAME)
     .getPublicUrl(objectKey);
 
   const publicUrl = urlData?.publicUrl;
-  if (!publicUrl) throw new Error("Could not retrieve public URL after upload.");
+  if (!publicUrl) {
+    throw new Error('Could not retrieve public URL after upload.');
+  }
 
   const { data: videoRecord, error: dbError } = await supabase
-    .from("video")
-
+    .from('video')
     .insert({
       bucket: BUCKET_NAME,
       object_key: objectKey,
       original_filename: fileName,
       mime_type: mimeType,
       byte_size: byteSize,
-
       duration_seconds: durationSeconds,
       width,
       height,
-      uploader_user_id: uploaderUserId, // MUST EXIST (FK)
+      uploader_user_id: uploaderUserId,
     })
     .select('video_id')
     .single();
@@ -92,35 +80,15 @@ export async function uploadExerciseVideo(
     throw new Error(`Video DB insert failed: ${dbError?.message}`);
   }
 
-      uploader_user_id: uploaderUserId ?? null,
-      duration_seconds: null,
-      width: null,
-      height: null,
-    })
-    .select("video_id")
-    .single();
-
-  if (dbError || !videoRecord)
-    throw new Error(`Video DB insert failed: ${dbError?.message}`);
-
-
   return { video_id: videoRecord.video_id, publicUrl };
 }
 
 export async function linkVideoToExercise(
   supabase: SupabaseClient,
   exerciseId: number,
-
-  videoId: number
-): Promise<void> {
-  const { error } = await supabase
-    .from('exercise')
-    .update({ video_id: videoId })
-
   videoId: number,
   videoUrl?: string | null
 ): Promise<void> {
-  // Fetch existing video_id so we can log the old one being replaced
   const { data: existing } = await supabase
     .from('exercise')
     .select('video_id, video_url')
@@ -128,14 +96,14 @@ export async function linkVideoToExercise(
     .single();
 
   if (existing?.video_id && existing.video_id !== videoId) {
-    // Old video is being replaced — log it for cleanup
     console.log(
       `[ATH-410] Replacing video on exercise ${exerciseId}: ` +
-      `old video_id=${existing.video_id}, new video_id=${videoId}`
+        `old video_id=${existing.video_id}, new video_id=${videoId}`
     );
   }
 
   const updatePayload: Record<string, any> = { video_id: videoId };
+
   if (videoUrl !== undefined) {
     updatePayload.video_url = videoUrl;
   }
@@ -143,13 +111,17 @@ export async function linkVideoToExercise(
   const { error } = await supabase
     .from('exercise')
     .update(updatePayload)
-
     .eq('exercise_id', exerciseId);
 
-  if (error) throw new Error(`Failed to link video to exercise: ${error.message}`);
+  if (error) {
+    throw new Error(`Failed to link video to exercise: ${error.message}`);
+  }
 }
 
-export function getVideoPublicUrl(supabase: SupabaseClient, objectKey: string): string | null {
+export function getVideoPublicUrl(
+  supabase: SupabaseClient,
+  objectKey: string
+): string | null {
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(objectKey);
   return data?.publicUrl ?? null;
 }
@@ -166,7 +138,9 @@ export async function getExerciseWithVideoUrl(
     .eq('exercise_id', exerciseId)
     .single();
 
-  if (error || !data) throw new Error(`Failed to fetch exercise: ${error?.message}`);
+  if (error || !data) {
+    throw new Error(`Failed to fetch exercise: ${error?.message}`);
+  }
 
   const row = data as unknown as ExerciseRow;
   const videoObj = Array.isArray(row.video) ? (row.video[0] ?? null) : row.video;
@@ -179,6 +153,9 @@ export async function getExerciseWithVideoUrl(
     video: videoObj,
   };
 
-  const videoUrl = videoObj?.object_key ? getVideoPublicUrl(supabase, videoObj.object_key) : null;
+  const videoUrl = videoObj?.object_key
+    ? getVideoPublicUrl(supabase, videoObj.object_key)
+    : null;
+
   return { exercise, videoUrl };
 }
