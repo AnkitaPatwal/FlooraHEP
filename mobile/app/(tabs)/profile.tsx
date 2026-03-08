@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+
+import React, { useEffect, useState } from "react"
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,12 +9,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+
 } from "react-native";
 import { Link } from "expo-router";
+  Alert,
+} from "react-native";
+
+import { Link, useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
+
 import { Feather } from "@expo/vector-icons";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
 import profilePic from "../../assets/images/profile-pic.png";
+import { useAuth } from "../../providers/AuthProvider";
+import { supabase } from "../../lib/supabaseClient";
 
 type ProfileRecord = {
   email: string;
@@ -21,6 +32,7 @@ type ProfileRecord = {
 };
 
 export default function Profile() {
+
   const { session } = useAuth();
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [loading, setLoading] = useState(true);
@@ -66,10 +78,79 @@ export default function Profile() {
   const email = profile?.email || session?.user?.email || "—";
   const avatarUrl = profile?.avatar_url || null;
 
+  const router = useRouter();
+  const { session } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProfile = useCallback(async () => {
+    if (!session?.access_token) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/update-profile`;
+      const res = await fetch(url, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Failed to load profile");
+        return;
+      }
+      if (data.success && data.profile) {
+        const fullName =
+          data.profile.name ??
+          [data.profile.fname, data.profile.lname].filter(Boolean).join(" ").trim();
+        setName(fullName || "");
+        setEmail(data.profile.email ?? "");
+      }
+    } catch {
+      setError("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.access_token]);
+
+  useEffect(() => {
+    if (session?.access_token) fetchProfile();
+  }, [session?.access_token, fetchProfile]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (session?.access_token) fetchProfile();
+    }, [session?.access_token, fetchProfile])
+  );
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    (global as any).userEmail = "";
+    router.replace("/screens/LoginScreen");
+  };
+
+  const onSignOutPress = () => {
+    Alert.alert(
+      "Sign out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign out", style: "destructive", onPress: handleSignOut },
+      ]
+    );
+  };
+
+
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Profile Settings</Text>
       <View style={styles.headerLine} />
+
 
       {loading ? (
         <View style={styles.centerContent}>
@@ -133,6 +214,89 @@ export default function Profile() {
           </TouchableOpacity>
         </>
       )}
+
+      {/* Profile Image */}
+      <Image source={profilePic} style={styles.avatar} />
+
+      {loading ? (
+        <View style={styles.loadingRow}>
+          <ActivityIndicator size="small" color="#5A8E93" />
+        </View>
+      ) : (
+        <>
+          {error ? (
+            <View style={styles.fieldContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {/* Name */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Name</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                value={name}
+                editable={false}
+                style={styles.input}
+                placeholder="Your name"
+                placeholderTextColor="#999"
+              />
+              <Link href="/screens/UpdateName" asChild>
+                <TouchableOpacity style={styles.iconContainer}>
+                  <Feather name="edit-3" size={18} color="#5A8E93" />
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+
+          {/* Email */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.label}>Email</Text>
+            <View style={styles.inputWrapper}>
+              <TextInput
+                value={email}
+                editable={false}
+                style={styles.input}
+                placeholder="your@email.com"
+                placeholderTextColor="#999"
+              />
+              <Link href="/screens/UpdateEmail" asChild>
+                <TouchableOpacity style={styles.iconContainer}>
+                  <Feather name="edit-3" size={18} color="#5A8E93" />
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+        </>
+      )}
+
+      {/* Password */}
+      <View style={styles.fieldContainer}>
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            value="••••••••••"
+            editable={false}
+            secureTextEntry
+            style={styles.input}
+          />
+          <Link href="/screens/ResetPassword" asChild>
+            <TouchableOpacity style={styles.iconContainer}>
+              <Feather name="edit-3" size={18} color="#5A8E93" />
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </View>
+
+      {/* Sign Out Button */}
+      <TouchableOpacity
+        testID="profile-sign-out"
+        style={styles.signOutButton}
+        onPress={onSignOutPress}
+      >
+        <Text style={styles.signOutText}>Sign out</Text>
+      </TouchableOpacity>
+
     </View>
   );
 }
@@ -178,6 +342,16 @@ const styles = StyleSheet.create({
     borderRadius: 55,
     alignSelf: "center",
     marginBottom: 30,
+  },
+  loadingRow: {
+    paddingHorizontal: 24,
+    marginBottom: 18,
+    alignItems: "center",
+  },
+  errorText: {
+    fontSize: 14,
+    color: "#B91C1C",
+    marginBottom: 8,
   },
   fieldContainer: {
     marginBottom: 18,

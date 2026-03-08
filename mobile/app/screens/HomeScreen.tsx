@@ -6,28 +6,101 @@ import {
   Image,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { supabase } from "../../lib/supabase";
+
+type SessionItem = {
+  module_id: number | string;
+  title?: string;
+};
 
 const HomeScreen = () => {
   const router = useRouter();
 
-  //  dynamic name state
   const [displayName, setDisplayName] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
 
-  //  extract name from logged-in email
   useEffect(() => {
     const email = (global as any)?.userEmail || "";
 
     if (email) {
       const name = email.split("@")[0];
-      setDisplayName(
-        name.charAt(0).toUpperCase() + name.slice(1)
-      );
+      setDisplayName(name.charAt(0).toUpperCase() + name.slice(1));
     }
   }, []);
 
-  // accepts BOTH id and sessionName
+  useEffect(() => {
+    const fetchAssignedSessions = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const email = (global as any)?.userEmail || "keshwa@example.com";
+
+        const { data: userRow, error: userError } = await supabase
+          .from("user")
+          .select("user_id")
+          .eq("email", email)
+          .maybeSingle();
+
+        if (userError || !userRow) {
+          setError("Unable to load user.");
+          setSessions([]);
+          return;
+        }
+
+        const { data: packageRow, error: packageError } = await supabase
+          .from("user_packages")
+          .select("package_id")
+          .eq("user_id", userRow.user_id)
+          .maybeSingle();
+
+        if (packageError || !packageRow) {
+          setSessions([]);
+          return;
+        }
+
+        const { data: planModules, error: planModulesError } = await supabase
+          .from("plan_module")
+          .select("module_id")
+          .eq("plan_id", packageRow.package_id)
+          .order("order_index", { ascending: true });
+
+        if (planModulesError || !planModules || planModules.length === 0) {
+          setSessions([]);
+          return;
+        }
+
+        const moduleIds = planModules.map((item: any) => item.module_id);
+
+        const { data: modulesData, error: modulesError } = await supabase
+          .from("module")
+          .select("module_id, title")
+          .in("module_id", moduleIds)
+          .order("module_id", { ascending: true });
+
+        if (modulesError) {
+          setError("Failed to load assigned sessions.");
+          setSessions([]);
+          return;
+        }
+
+        setSessions(modulesData || []);
+      } catch (err) {
+        setError("Something went wrong.");
+        setSessions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAssignedSessions();
+  }, []);
+
   const goToSession = (id: string, sessionName: string) => {
     router.push({
       pathname: "/screens/ExerciseDetail",
@@ -35,13 +108,40 @@ const HomeScreen = () => {
     });
   };
 
+  const currentSession = sessions[0];
+  const previousSessions = sessions.slice(1);
+
+  if (loading) {
+    return (
+      <View style={styles.stateContainer}>
+        <ActivityIndicator size="large" color="#0F9AA8" />
+        <Text style={styles.stateText}>Loading sessions...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={styles.stateText}>{error}</Text>
+      </View>
+    );
+  }
+
+  if (sessions.length === 0) {
+    return (
+      <View style={styles.stateContainer}>
+        <Text style={styles.stateText}>No assigned sessions yet.</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      {/* Top header */}
       <View style={styles.headerRow}>
         <Text style={styles.greeting}>
           Hi {displayName || "Loretta"}!
@@ -49,45 +149,64 @@ const HomeScreen = () => {
         <Text style={styles.brand}>Floora</Text>
       </View>
 
-      {/* Current Session */}
       <Text style={styles.sectionTitle}>Your Current Session</Text>
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        style={styles.card}
-        onPress={() => goToSession("2", "Session 2")}
-      >
-        <Image
-          source={require("../../assets/images/current-session.jpg")}
-          style={styles.cardImage}
-        />
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardTitle}>Session 2</Text>
-          <Text style={styles.cardSubtitle}>3 Exercises</Text>
-        </View>
-      </TouchableOpacity>
+      {currentSession && (
+        <TouchableOpacity
+          activeOpacity={0.9}
+          style={styles.card}
+          onPress={() =>
+            goToSession(
+              String(currentSession.module_id),
+              currentSession.title || "Session 1"
+            )
+          }
+        >
+          <Image
+            source={require("../../assets/images/current-session.jpg")}
+            style={styles.cardImage}
+          />
+          <View style={styles.cardFooter}>
+            <Text style={styles.cardTitle}>
+              {currentSession.title || "Session 1"}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.accentLine} />
 
-      {/* Previous Sessions */}
       <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
         Previous Sessions
       </Text>
 
-      <TouchableOpacity
-        activeOpacity={0.9}
-        style={styles.card}
-        onPress={() => goToSession("1", "Session 1")}
-      >
-        <Image
-          source={require("../../assets/images/prev-1.jpg")}
-          style={styles.cardImage}
-        />
-        <View style={styles.cardFooter}>
-          <Text style={styles.cardTitle}>Session 1</Text>
-          <Text style={styles.cardSubtitle}>3 Exercises</Text>
-        </View>
-      </TouchableOpacity>
+      {previousSessions.length > 0 ? (
+        previousSessions.map((session, index) => (
+          <TouchableOpacity
+            key={String(session.module_id)}
+            activeOpacity={0.9}
+            style={styles.card}
+            onPress={() =>
+              goToSession(
+                String(session.module_id),
+                session.title || `Session ${index + 2}`
+              )
+            }
+          >
+            <Image
+              source={require("../../assets/images/prev-1.jpg")}
+              style={styles.cardImage}
+            />
+            <View style={styles.cardFooter}>
+              <Text style={styles.cardTitle}>
+                {session.title || `Session ${index + 2}`}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))
+      ) : (
+        <Text style={styles.emptyText}>No previous sessions.</Text>
+      )}
     </ScrollView>
   );
 };
@@ -103,6 +222,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 24,
     paddingBottom: 32,
+  },
+  stateContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  stateText: {
+    fontSize: 16,
+    color: "#374151",
+    textAlign: "center",
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 4,
   },
   headerRow: {
     flexDirection: "row",
@@ -153,10 +289,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111827",
     marginRight: 4,
-  },
-  cardSubtitle: {
-    fontSize: 16,
-    color: "#6B7280",
   },
   accentLine: {
     width: 120,
