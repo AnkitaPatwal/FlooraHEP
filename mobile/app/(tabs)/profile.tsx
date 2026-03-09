@@ -157,7 +157,7 @@ export default function Profile() {
             secureTextEntry
             style={styles.input}
           />
-          <Link href="/screens/ResetPassword" asChild>
+          <Link href="/screens/ChangePassword" asChild>
             <TouchableOpacity style={styles.iconContainer}>
               <Feather name="edit-3" size={18} color="#5A8E93" />
             </TouchableOpacity>
