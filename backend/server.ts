@@ -13,7 +13,14 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: (origin, cb) => {
+      const allowed =
+        !origin ||
+        origin === "http://localhost:5173" ||
+        origin === "http://localhost:8081" ||
+        /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
+      cb(null, allowed);
+    },
     credentials: true,
   })
 );
@@ -23,8 +30,8 @@ app.use(express.json());
 
 // routes
 app.use("/api/admin", adminAuthRoutes);
-app.use("/api/admin", adminRoutes);                // restore this
-app.use("/api/assign-package", assignPackageRoutes); // move assign package routes here
+app.use("/api/admin", adminRoutes);
+app.use("/api/assign-package", assignPackageRoutes);
 app.use("/api/exercises", exercisesRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));

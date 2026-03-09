@@ -13,6 +13,7 @@ import UserProfile from "./pages/UserProfile";
 import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
+import CreateSession from "./pages/main/CreateSession";
 import CreateExercise from "./components/main/CreateExercise";
 import EditExercise from "./components/main/EditExercise";
 import ExerciseDetail from "./pages/main/ExerciseDetail";
@@ -34,6 +35,8 @@ export default function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
         <Route path="/sessions" element={<SessionDashboard />} />
+        <Route path="/sessions/create" element={<CreateSession />} />
+        <Route path="/sessions/:id/edit" element={<CreateSession />} />
         <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
         <Route
           path="/exercises/create"

@@ -147,6 +147,7 @@ export default function Profile() {
             </View>
           </View>
 
+
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
@@ -163,6 +164,23 @@ export default function Profile() {
               </Link>
             </View>
           </View>
+      {/* Password */}
+      <View style={styles.fieldContainer}>
+        <Text style={styles.label}>Password</Text>
+        <View style={styles.inputWrapper}>
+          <TextInput
+            value="••••••••••"
+            editable={false}
+            secureTextEntry
+            style={styles.input}
+          />
+          <Link href="/screens/ChangePassword" asChild>
+            <TouchableOpacity style={styles.iconContainer}>
+              <Feather name="edit-3" size={18} color="#5A8E93" />
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </View>
 
           <TouchableOpacity
             testID="profile-sign-out"
