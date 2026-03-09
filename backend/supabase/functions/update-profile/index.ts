@@ -1,3 +1,4 @@
+// @ts-nocheck — Deno Edge Function; use Deno extension or supabase functions serve for type-checking
 // ATH-386/ATH-390: Profile info updates — name in DB, email in Supabase Auth + DB sync
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
@@ -94,7 +95,7 @@ serve(async (req) => {
           fname: userRow.fname,
           lname: userRow.lname,
           email: userRow.email,
-          avatar_url: profileRow?.avatar_url ?? undefined,
+          avatar_url: profileRow?.avatar_url ?? null,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
