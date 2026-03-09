@@ -157,7 +157,22 @@ describe('POST /api/exercises — Create New Exercise', () => {
     mockSingle.mockResolvedValue({ data: mockCreated, error: null });
     mockSelect.mockReturnValue({ single: mockSingle });
     mockInsert.mockReturnValue({ select: mockSelect });
-    (supabaseServer.from as jest.Mock).mockReturnValue({ insert: mockInsert });
+
+    // POST handler: 1) title existence check (select/ilike/limit/maybeSingle), 2) insert
+    const mockTitleCheckChain = {
+      select: jest.fn().mockReturnThis(),
+      ilike: jest.fn().mockReturnThis(),
+      limit: jest.fn().mockReturnThis(),
+      maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
+    };
+    let fromCallCount = 0;
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') {
+        fromCallCount++;
+        return fromCallCount === 1 ? mockTitleCheckChain : { insert: mockInsert };
+      }
+      return { insert: mockInsert, update: mockUpdate, select: mockSelect };
+    });
 
     const res = await request(app)
       .post('/api/exercises')
