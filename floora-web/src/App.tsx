@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import AdminVideoUpload from "./pages/AdminVideoUpload";
 
 //import Login from "./pages/Login";
+import { AuthProvider } from "./lib/auth";
 import "./App.css";
 
 import AssignPackage from "./pages/AssignPackage";
@@ -16,15 +17,19 @@ import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
 import CreateExercise from "./components/main/CreateExercise";
+import EditExercise from "./components/main/EditExercise";
+import ExerciseDetail from "./pages/main/ExerciseDetail";
 import AdminRegister from "./pages/AdminRegister";
 import CreateAdmin from "./pages/CreateAdmin";
+import { SuperAdminRoute } from "./components/SuperAdminRoute";
 
 import AppLayout from "./components/layouts/AppLayout";
 
 export default function App() {
   return (
     <Router>
-      <Routes>
+      <AuthProvider>
+        <Routes>
         <Route path="/" element={<AdminLogin />} />
         <Route path="/create" element={<CreateAccount />} />
         <Route path="/dashboard" element={<Dashboard />} />
@@ -33,7 +38,23 @@ export default function App() {
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
         <Route path="/sessions" element={<SessionDashboard />} />
         <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
-        <Route path="/exercises/create" element={<CreateExercise />} />
+        <Route
+          path="/exercises/create"
+          element={
+            <SuperAdminRoute fallbackTo="/exercise-dashboard">
+              <CreateExercise />
+            </SuperAdminRoute>
+          }
+        />
+        <Route
+          path="/exercises/:id/edit"
+          element={
+            <SuperAdminRoute fallbackTo={(p) => (p?.id ? `/exercises/${p.id}` : "/exercise-dashboard")}>
+              <EditExercise />
+            </SuperAdminRoute>
+          }
+        />
+        <Route path="/exercises/:id" element={<ExerciseDetail />} />
         <Route path="/user-approval" element={<UserApproval />} />
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -43,9 +64,11 @@ export default function App() {
         <Route
           path="/create-admin"
           element={
-            <AppLayout>
-              <CreateAdmin />
-            </AppLayout>
+            <SuperAdminRoute fallbackTo="/dashboard">
+              <AppLayout>
+                <CreateAdmin />
+              </AppLayout>
+            </SuperAdminRoute>
           }
         />
 
@@ -57,7 +80,8 @@ export default function App() {
             </AppLayout>
           }
         />
-      </Routes>
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
