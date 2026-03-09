@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,24 +6,140 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from "react-native";
+import { Video, ResizeMode } from "expo-av";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
+import { fetchExerciseById, type ExerciseFromApi } from "../../lib/api";
 
 const ExerciseDetail = () => {
-  const { id, sessionName } = useLocalSearchParams<{
+  const { id, sessionName, fromApi } = useLocalSearchParams<{
     id?: string;
     sessionName?: string;
+    fromApi?: string;
   }>();
   const router = useRouter();
+  const [apiExercise, setApiExercise] = useState<ExerciseFromApi | null>(null);
+  const [apiLoading, setApiLoading] = useState(false);
 
-  // Pick exercise by id; default to "1" if no id passed
-  const exercise: Exercise | undefined = useMemo(
+  const localExercise: Exercise | undefined = useMemo(
     () => EXERCISES.find((ex) => ex.id === String(id ?? "1")),
     [id]
   );
 
+  useEffect(() => {
+    if (fromApi !== "1" || !id) return;
+    let cancelled = false;
+    setApiLoading(true);
+    fetchExerciseById(id)
+      .then((data) => {
+        if (!cancelled) setApiExercise(data ?? null);
+      })
+      .catch(() => {
+        if (!cancelled) setApiExercise(null);
+      })
+      .finally(() => {
+        if (!cancelled) setApiLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fromApi, id]);
+
+  const sessionLabel =
+    (sessionName as string) ||
+    (id ? `Session ${id}` : "Session");
+
+  if (fromApi === "1") {
+    if (apiLoading) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#0F9AA8" />
+          <Text style={[styles.notFound, { marginTop: 12 }]}>Loading exercise...</Text>
+        </View>
+      );
+    }
+    if (!apiExercise) {
+      return (
+        <View style={styles.center}>
+          <Text style={styles.notFound}>Exercise not found.</Text>
+          <TouchableOpacity
+            onPress={() => {
+              if (router.canGoBack()) router.back();
+              else router.replace("/(tabs)");
+            }}
+          >
+            <Text style={styles.link}>Go back</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    const heroSource = apiExercise.thumbnail_url
+      ? { uri: apiExercise.thumbnail_url }
+      : require("../../assets/images/current-session.jpg");
+    const hasVideo = Boolean(apiExercise.video_url?.trim());
+    return (
+      <>
+        <Stack.Screen options={{ headerShown: false }} />
+        <View style={styles.screen}>
+          <View style={styles.topBar}>
+            <TouchableOpacity
+              onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}
+              style={styles.backButton}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.backArrow}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.topTitle}>{apiExercise.body_part || "Exercise"}</Text>
+            <View style={{ width: 24 }} />
+          </View>
+          <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+            <View style={styles.sessionRow}>
+              <View>
+                <Text style={styles.sessionLabel}>{apiExercise.title}</Text>
+                <Text style={styles.sessionSub}>
+                  {apiExercise.body_part || (apiExercise.default_sets != null && apiExercise.default_reps != null
+                    ? `${apiExercise.default_sets} sets × ${apiExercise.default_reps} reps`
+                    : "Exercise")}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.heroWrapper}>
+              {hasVideo ? (
+                <Video
+                  source={{ uri: apiExercise.video_url! }}
+                  style={styles.heroImage}
+                  resizeMode={ResizeMode.COVER}
+                  useNativeControls
+                  shouldPlay={false}
+                />
+              ) : (
+                <>
+                  <Image source={heroSource} style={styles.heroImage} />
+                  <View style={styles.playButton}>
+                    <View style={styles.playTriangle} />
+                  </View>
+                </>
+              )}
+            </View>
+            <View style={styles.textBlock}>
+              <Text style={styles.exerciseTitle}>{apiExercise.title}</Text>
+              {apiExercise.body_part && (
+                <Text style={styles.categoryText}>{apiExercise.body_part}</Text>
+              )}
+              <Text style={styles.description}>
+                {apiExercise.description || "No description."}
+              </Text>
+            </View>
+          </ScrollView>
+        </View>
+      </>
+    );
+  }
+
+  const exercise = localExercise;
   if (!exercise) {
     return (
       <View style={styles.center}>
@@ -40,12 +156,6 @@ const ExerciseDetail = () => {
     );
   }
 
-  // Session label derived from params; 
-  const sessionLabel =
-    (sessionName as string) ||
-    (id ? `Session ${id}` : "Session");
-
-  // Local hero image 
   const heroSource =
     (exercise as any).thumbnail != null
       ? { uri: String((exercise as any).thumbnail) }
