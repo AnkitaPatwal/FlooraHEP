@@ -1,21 +1,12 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type AccessState = "checking" | "allowed" | "unauthenticated" | "forbidden";
+
 export default function CreateAdmin() {
-
-  // AUTH CHECK (needed for tests)
-  const role = localStorage.getItem("role");
-  const isLoggedIn = localStorage.getItem("isLoggedIn");
-
-  if (!isLoggedIn) {
-    return <div>Unauthorized: please log in</div>;
-  }
-
-  if (role !== "super_admin") {
-    return <div>Unauthorized: you do not have access to this page</div>;
-  }
+  const [accessState, setAccessState] = useState<AccessState>("checking");
 
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -24,6 +15,42 @@ export default function CreateAdmin() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  useEffect(() => {
+    const checkAccess = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/admin/me`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        const json = await res.json().catch(() => ({} as any));
+
+        if (res.status === 401) {
+          setAccessState("unauthenticated");
+          return;
+        }
+
+        if (!res.ok) {
+          setAccessState("forbidden");
+          return;
+        }
+
+        const role = json?.admin?.role;
+
+        if (role !== "super_admin") {
+          setAccessState("forbidden");
+          return;
+        }
+
+        setAccessState("allowed");
+      } catch {
+        setAccessState("unauthenticated");
+      }
+    };
+
+    checkAccess();
+  }, []);
+
   const emailError = useMemo(() => {
     const trimmed = email.trim();
     if (!trimmed) return "Email is required.";
@@ -31,12 +58,16 @@ export default function CreateAdmin() {
     return null;
   }, [email]);
 
-  const canSubmit = !isSubmitting && !emailError;
+  const canSubmit = accessState === "allowed" && !isSubmitting && !emailError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+
+    if (accessState !== "allowed") {
+      return;
+    }
 
     if (emailError) {
       setErrorMsg(emailError);
@@ -62,9 +93,11 @@ export default function CreateAdmin() {
         const msg =
           json?.message ||
           json?.error ||
-          (res.status === 401 || res.status === 403
-            ? "Unauthorized access."
-            : "Backend failure. Please try again.");
+          (res.status === 401
+            ? "Unauthorized: please log in"
+            : res.status === 403
+              ? "Unauthorized: you do not have access to this page"
+              : "Backend failure. Please try again.");
         setErrorMsg(msg);
         return;
       }
@@ -78,6 +111,18 @@ export default function CreateAdmin() {
       setIsSubmitting(false);
     }
   };
+
+  if (accessState === "checking") {
+    return <div>Loading...</div>;
+  }
+
+  if (accessState === "unauthenticated") {
+    return <div>Unauthorized: please log in</div>;
+  }
+
+  if (accessState === "forbidden") {
+    return <div>Unauthorized: you do not have access to this page</div>;
+  }
 
   return (
     <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
