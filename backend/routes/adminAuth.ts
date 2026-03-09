@@ -3,6 +3,7 @@ import express from "express";
 import { createClient } from "@supabase/supabase-js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { ensureAdminProfileForInvite } from "../lib/adminUsers";
 
 const router = express.Router();
 
@@ -271,6 +272,39 @@ router.post(
       return res
         .status(500)
         .json({ message: "Backend failure. Please try again." });
+    }
+  }
+);
+
+/**
+ * POST /api/admin/invite-profile
+ * super_admin only
+ * body: { email, name? }
+ *
+ * Ensures an admin_users record exists for the invited email
+ * with role=admin, status=approved, is_active=true.
+ */
+router.post(
+  "/invite-profile",
+  requireAdmin,
+  requireSuperAdmin,
+  async (req, res) => {
+    try {
+      const { email, name } = req.body ?? {};
+
+      if (typeof email !== "string" || !email.trim()) {
+        return res.status(400).json({ message: "Email is required." });
+      }
+
+      const admin = await ensureAdminProfileForInvite({ email, name });
+
+      return res.status(200).json({ ok: true, admin });
+    } catch (err) {
+      console.error("invite-profile error:", err);
+      return res.status(500).json({
+        ok: false,
+        message: "Failed to create/update admin profile.",
+      });
     }
   }
 );
