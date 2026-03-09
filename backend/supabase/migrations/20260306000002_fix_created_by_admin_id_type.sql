@@ -26,10 +26,10 @@ do $$
 declare
   default_admin_id uuid;
 begin
-  select id into default_admin_id 
-  from public.admin_users 
-  where role = 'super_admin' 
-  and is_active = true 
+  select id into default_admin_id
+  from public.admin_users
+  where is_active = true
+  order by (role = 'super_admin') desc, created_at asc
   limit 1;
 
   if default_admin_id is not null then
