@@ -14,9 +14,7 @@ import jwt from "jsonwebtoken";
 // ── Mock Supabase storage and DB ─────────────────────────────────────────────
 jest.mock("../../lib/supabaseServer", () => ({
   supabaseServer: {
-    storage: {
-      from: jest.fn(),
-    },
+    storage: { from: jest.fn() },
     from: jest.fn(),
   },
 }));
@@ -24,6 +22,8 @@ jest.mock("../../lib/supabaseServer", () => ({
 // Mock admin_users for requireSuperAdmin middleware
 jest.mock('@supabase/supabase-js', () => {
   const actualSupabase = jest.requireActual('@supabase/supabase-js');
+jest.mock("@supabase/supabase-js", () => {
+  const actualSupabase = jest.requireActual("@supabase/supabase-js");
   return {
     ...actualSupabase,
     createClient: jest.fn(() => ({
@@ -45,6 +45,24 @@ jest.mock('@supabase/supabase-js', () => {
                     });
                   }
                   return Promise.resolve({ data: null, error: { message: 'Not found' } });
+        if (table === "admin_users") {
+          return {
+            select: jest.fn(() => ({
+              eq: jest.fn((_column: string, value: string) => ({
+                maybeSingle: jest.fn(() => {
+                  if (value === "admin-uuid-123") {
+                    return Promise.resolve({
+                      data: { id: "admin-uuid-123", email: "superadmin@test.com", role: "super_admin", is_active: true },
+                      error: null,
+                    });
+                  }
+                  if (value === "admin-uuid-456") {
+                    return Promise.resolve({
+                      data: { id: "admin-uuid-456", email: "admin@test.com", role: "admin", is_active: true },
+                      error: null,
+                    });
+                  }
+                  return Promise.resolve({ data: null, error: { message: "Not found" } });
                 }),
               })),
             })),
@@ -70,12 +88,19 @@ process.env.ADMIN_JWT_SECRET = ADMIN_JWT_SECRET;
 function makeToken(role: string, id: string = "admin-uuid-123") {
   return jwt.sign(
     { id, email: "admin@test.com", role },
+// ── JWT helpers (cookie-based auth) ───────────────────────────────────────────
+const ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
+
+function makeToken(role: string, id = "admin-uuid-123") {
+  return jwt.sign(
+    { id, email: "admin@test.com", role, name: "Test Admin" },
     ADMIN_JWT_SECRET,
     { expiresIn: "1h" }
   );
 }
 
 const superAdminToken = makeToken("super_admin", "admin-uuid-123");
+const superAdminToken = makeToken("super_admin");
 const adminToken = makeToken("admin", "admin-uuid-456");
 
 // ── Mock storage chain ────────────────────────────────────────────────────────
@@ -117,6 +142,18 @@ beforeEach(() => {
       };
     }
     return { insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis() };
+  // DB mock: exercise check + video insert
+  const exerciseChain = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
+  };
+  mockSingle.mockResolvedValue({ data: { video_id: 42 }, error: null });
+  mockSelect.mockReturnValue({ single: mockSingle });
+  mockInsert.mockReturnValue({ select: mockSelect });
+  (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+    if (table === "exercise") return exerciseChain;
+    return { insert: mockInsert };
   });
 
   // linkVideoToExercise mock
@@ -140,6 +177,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
     expect(res.body).toHaveProperty("url");
     expect(res.body).toHaveProperty("metadata");
     expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42, expect.any(String));
+    expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42, expect.stringMatching(/^https:\/\//));
   });
 
   it("valid .mov upload returns 200 with storage_path and url", async () => {

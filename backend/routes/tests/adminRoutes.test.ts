@@ -1,10 +1,3 @@
-// Set environment variables FIRST (before any imports)
-process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
-process.env.LOCAL_SUPABASE_URL = "http://localhost:54321";
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
-
 let app: any;
 
 // Set environment variables before loading modules
@@ -28,6 +21,17 @@ jest.mock("../../middleware/requireAdminJwt", () => {
   return {
     __esModule: true,
     requireAdminJwt: passThrough,
+    requireAdminJwt: passThrough,
+    default: passThrough,
+  };
+});
+
+jest.mock("../../lib/adminGuard", () => {
+  const passThrough = (_req: any, _res: any, next: any) => next();
+
+  return {
+    __esModule: true,
+    requireAdmin: passThrough,
     default: passThrough,
   };
 });
