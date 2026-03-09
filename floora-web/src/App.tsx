@@ -19,6 +19,7 @@ import EditExercise from "./components/main/EditExercise";
 import ExerciseDetail from "./pages/main/ExerciseDetail";
 import AdminRegister from "./pages/AdminRegister";
 import CreateAdmin from "./pages/CreateAdmin";
+import CreatePlan from "./pages/main/CreatePlan";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 
 import AppLayout from "./components/layouts/AppLayout";
@@ -34,6 +35,16 @@ export default function App() {
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/users" element={<Users />} />
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
+        <Route path="/plan-dashboard/create" element={
+          <SuperAdminRoute fallbackTo="/plan-dashboard">
+            <CreatePlan />
+          </SuperAdminRoute>
+        } />
+        <Route path="/plan-dashboard/:id" element={
+          <SuperAdminRoute fallbackTo="/plan-dashboard">
+            <CreatePlan />
+          </SuperAdminRoute>
+        } />
         <Route path="/sessions" element={<SessionDashboard />} />
         <Route path="/sessions/create" element={<CreateSession />} />
         <Route path="/sessions/:id/edit" element={<CreateSession />} />
