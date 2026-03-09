@@ -20,31 +20,12 @@ jest.mock("../../lib/supabaseServer", () => ({
 }));
 
 // Mock admin_users for requireSuperAdmin middleware
-jest.mock('@supabase/supabase-js', () => {
-  const actualSupabase = jest.requireActual('@supabase/supabase-js');
 jest.mock("@supabase/supabase-js", () => {
   const actualSupabase = jest.requireActual("@supabase/supabase-js");
   return {
     ...actualSupabase,
     createClient: jest.fn(() => ({
       from: jest.fn((table: string) => {
-        if (table === 'admin_users') {
-          return {
-            select: jest.fn(() => ({
-              eq: jest.fn((column: string, value: any) => ({
-                maybeSingle: jest.fn(() => {
-                  if (value === 'admin-uuid-123') {
-                    return Promise.resolve({
-                      data: { id: 'admin-uuid-123', email: 'superadmin@test.com', role: 'super_admin', is_active: true },
-                      error: null,
-                    });
-                  } else if (value === 'admin-uuid-456') {
-                    return Promise.resolve({
-                      data: { id: 'admin-uuid-456', email: 'admin@test.com', role: 'admin', is_active: true },
-                      error: null,
-                    });
-                  }
-                  return Promise.resolve({ data: null, error: { message: 'Not found' } });
         if (table === "admin_users") {
           return {
             select: jest.fn(() => ({
@@ -52,13 +33,23 @@ jest.mock("@supabase/supabase-js", () => {
                 maybeSingle: jest.fn(() => {
                   if (value === "admin-uuid-123") {
                     return Promise.resolve({
-                      data: { id: "admin-uuid-123", email: "superadmin@test.com", role: "super_admin", is_active: true },
+                      data: {
+                        id: "admin-uuid-123",
+                        email: "superadmin@test.com",
+                        role: "super_admin",
+                        is_active: true,
+                      },
                       error: null,
                     });
                   }
                   if (value === "admin-uuid-456") {
                     return Promise.resolve({
-                      data: { id: "admin-uuid-456", email: "admin@test.com", role: "admin", is_active: true },
+                      data: {
+                        id: "admin-uuid-456",
+                        email: "admin@test.com",
+                        role: "admin",
+                        is_active: true,
+                      },
                       error: null,
                     });
                   }
@@ -82,14 +73,8 @@ jest.mock("../../services/videoService", () => ({
 }));
 
 // ── JWT helpers ───────────────────────────────────────────────────────────────
-const ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "test-jwt-secret-key-for-testing";
 process.env.ADMIN_JWT_SECRET = ADMIN_JWT_SECRET;
-
-function makeToken(role: string, id: string = "admin-uuid-123") {
-  return jwt.sign(
-    { id, email: "admin@test.com", role },
-// ── JWT helpers (cookie-based auth) ───────────────────────────────────────────
-const ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
 
 function makeToken(role: string, id = "admin-uuid-123") {
   return jwt.sign(
@@ -99,7 +84,6 @@ function makeToken(role: string, id = "admin-uuid-123") {
   );
 }
 
-const superAdminToken = makeToken("super_admin", "admin-uuid-123");
 const superAdminToken = makeToken("super_admin");
 const adminToken = makeToken("admin", "admin-uuid-456");
 
@@ -126,22 +110,6 @@ beforeEach(() => {
   });
 
   // DB mock
-  (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
-    if (table === "exercise") {
-      return {
-        select: jest.fn().mockReturnThis(),
-        eq: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
-      };
-    }
-    if (table === "video") {
-      return {
-        insert: jest.fn().mockReturnThis(),
-        select: jest.fn().mockReturnThis(),
-        single: jest.fn().mockResolvedValue({ data: { video_id: 42 }, error: null }),
-      };
-    }
-    return { insert: jest.fn().mockReturnThis(), select: jest.fn().mockReturnThis() };
   // DB mock: exercise check + video insert
   const exerciseChain = {
     select: jest.fn().mockReturnThis(),
@@ -153,7 +121,8 @@ beforeEach(() => {
   mockInsert.mockReturnValue({ select: mockSelect });
   (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
     if (table === "exercise") return exerciseChain;
-    return { insert: mockInsert };
+    if (table === "video") return { insert: mockInsert };
+    return {};
   });
 
   // linkVideoToExercise mock
