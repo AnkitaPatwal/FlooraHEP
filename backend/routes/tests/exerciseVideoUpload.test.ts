@@ -33,13 +33,23 @@ jest.mock("@supabase/supabase-js", () => {
                 maybeSingle: jest.fn(() => {
                   if (value === "admin-uuid-123") {
                     return Promise.resolve({
-                      data: { id: "admin-uuid-123", email: "superadmin@test.com", role: "super_admin", is_active: true },
+                      data: {
+                        id: "admin-uuid-123",
+                        email: "superadmin@test.com",
+                        role: "super_admin",
+                        is_active: true,
+                      },
                       error: null,
                     });
                   }
                   if (value === "admin-uuid-456") {
                     return Promise.resolve({
-                      data: { id: "admin-uuid-456", email: "admin@test.com", role: "admin", is_active: true },
+                      data: {
+                        id: "admin-uuid-456",
+                        email: "admin@test.com",
+                        role: "admin",
+                        is_active: true,
+                      },
                       error: null,
                     });
                   }
@@ -62,8 +72,9 @@ jest.mock("../../services/videoService", () => ({
   BUCKET_NAME: "exercise-videos",
 }));
 
-// ── JWT helpers (cookie-based auth) ───────────────────────────────────────────
-const ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
+// ── JWT helpers ───────────────────────────────────────────────────────────────
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "test-jwt-secret-key-for-testing";
+process.env.ADMIN_JWT_SECRET = ADMIN_JWT_SECRET;
 
 function makeToken(role: string, id = "admin-uuid-123") {
   return jwt.sign(
@@ -82,6 +93,7 @@ const mockGetPublicUrl = jest.fn();
 const mockInsert = jest.fn();
 const mockSelect = jest.fn();
 const mockSingle = jest.fn();
+const mockEq = jest.fn();
 const mockLinkVideo = videoService.linkVideoToExercise as jest.Mock;
 
 beforeEach(() => {
@@ -97,6 +109,7 @@ beforeEach(() => {
     getPublicUrl: mockGetPublicUrl,
   });
 
+  // DB mock
   // DB mock: exercise check + video insert
   const exerciseChain = {
     select: jest.fn().mockReturnThis(),
@@ -108,7 +121,8 @@ beforeEach(() => {
   mockInsert.mockReturnValue({ select: mockSelect });
   (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
     if (table === "exercise") return exerciseChain;
-    return { insert: mockInsert };
+    if (table === "video") return { insert: mockInsert };
+    return {};
   });
 
   // linkVideoToExercise mock
@@ -131,6 +145,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
     expect(res.body.storage_path).toContain("exercises/1/");
     expect(res.body).toHaveProperty("url");
     expect(res.body).toHaveProperty("metadata");
+    expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42, expect.any(String));
     expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42, expect.stringMatching(/^https:\/\//));
   });
 

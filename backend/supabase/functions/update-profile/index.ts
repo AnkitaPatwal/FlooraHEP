@@ -55,7 +55,7 @@ serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
   const currentEmail = authUser.email.trim().toLowerCase();
 
-  // GET — return current user profile (name, email) from public.user
+  // GET — return current user profile (name, email, avatar_url) from public.user + profiles
   if (req.method === "GET") {
     const { data: userRow, error } = await supabase
       .from("user")
@@ -78,6 +78,12 @@ serve(async (req) => {
       );
     }
 
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("avatar_url")
+      .eq("id", userRow.user_id)
+      .maybeSingle();
+
     const name = [userRow.fname, userRow.lname].filter(Boolean).join(" ").trim() || null;
     return new Response(
       JSON.stringify({
@@ -88,6 +94,7 @@ serve(async (req) => {
           fname: userRow.fname,
           lname: userRow.lname,
           email: userRow.email,
+          avatar_url: profileRow?.avatar_url ?? undefined,
         },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
