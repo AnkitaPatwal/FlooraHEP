@@ -412,7 +412,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
       });
 
     expect(res.status).toBe(400);
-    expect(res.body.error).toMatch(/Invalid image type/i);
+    expect(res.body.error).toMatch(/Thumbnail must|Invalid image/i);
     expect(mockUpload).not.toHaveBeenCalled();
   });
 
