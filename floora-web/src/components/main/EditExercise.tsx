@@ -1,26 +1,60 @@
 import AppLayout from "../../components/layouts/AppLayout";
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
-const CreateExercise: React.FC = () => {
+const EditExercise: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [loadingExercise, setLoadingExercise] = useState(true);
   const [exercise, setExercise] = useState({
     title: "",
     category: "",
     setCount: "",
     repCount: "",
-    exerciseCopy: "",
+    description: "",
     tags: "",
     video: null as File | null,
     thumbnail: null as File | null,
   });
+  const [initialExercise, setInitialExercise] = useState<Record<string, unknown> | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchExercise = async () => {
+      if (!id) return;
+      try {
+        setLoadingExercise(true);
+        const res = await fetch(`${API_URL}/api/exercises/${id}`, {
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("Failed to load exercise");
+        const data = await res.json();
+        const tagsStr = Array.isArray(data.tags) ? data.tags.join(", ") : "";
+        setExercise({
+          title: data.title || "",
+          category: data.body_part || "",
+          setCount: data.default_sets != null ? String(data.default_sets) : "",
+          repCount: data.default_reps != null ? String(data.default_reps) : "",
+          description: data.description || "",
+          tags: tagsStr,
+          video: null,
+          thumbnail: null,
+        });
+        setInitialExercise(data);
+      } catch (err: unknown) {
+        setErrorMessage(err instanceof Error ? err.message : "Failed to load exercise");
+      } finally {
+        setLoadingExercise(false);
+      }
+    };
+    fetchExercise();
+  }, [id]);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -40,22 +74,11 @@ const CreateExercise: React.FC = () => {
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!exercise.title.trim()) errors.title = "Title is required";
-    if (!exercise.category.trim()) errors.category = "Category is required";
-    if (!exercise.exerciseCopy.trim()) errors.exerciseCopy = "Description is required";
-    const sets = exercise.setCount ? Number(exercise.setCount) : NaN;
-    const reps = exercise.repCount ? Number(exercise.repCount) : NaN;
-    if (!Number.isInteger(sets) || sets < 1) errors.setCount = "Sets must be a positive integer";
-    if (!Number.isInteger(reps) || reps < 1) errors.repCount = "Reps must be a positive integer";
-    if (!exercise.video) {
-      errors.video = "Video is required";
-    } else {
+    if (exercise.video) {
       const ext = exercise.video.name.split(".").pop()?.toLowerCase();
       if (!["mp4", "mov"].includes(ext || "")) errors.video = "Video must be .mp4 or .mov";
     }
-    if (!exercise.thumbnail) {
-      errors.thumbnail = "Thumbnail is required";
-    } else {
+    if (exercise.thumbnail) {
       const ext = exercise.thumbnail.name.split(".").pop()?.toLowerCase();
       if (!["png", "jpg", "jpeg", "webp"].includes(ext || "")) {
         errors.thumbnail = "Thumbnail must be .png, .jpg, .jpeg, or .webp";
@@ -67,6 +90,7 @@ const CreateExercise: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!id) return;
     setErrorMessage(null);
     setSuccessMessage(null);
     if (!validateForm()) {
@@ -76,40 +100,67 @@ const CreateExercise: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      const createRes = await fetch(`${API_URL}/api/exercises`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          title: exercise.title.trim(),
-          description: exercise.exerciseCopy.trim(),
-          default_sets: Number(exercise.setCount),
-          default_reps: Number(exercise.repCount),
-          category: exercise.category.trim(),
-          tags: exercise.tags.trim()
-            ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
-            : undefined,
-        }),
-      });
-
-      if (!createRes.ok) {
-        const errData = await createRes.json().catch(() => ({}));
-        const msg = errData.error || errData.detail || "Create failed";
-        if (createRes.status === 409) {
-          setErrorMessage("Exercise name already exists");
-          setIsSubmitting(false);
-          return;
+      const patchPayload: Record<string, unknown> = {};
+      const init = initialExercise;
+      if (init) {
+        if (exercise.title.trim() !== (String(init.title || ""))) {
+          patchPayload.title = exercise.title.trim();
         }
-        throw new Error(msg);
+        if (exercise.description !== (String(init.description || ""))) {
+          patchPayload.description = exercise.description.trim();
+        }
+        const newSets = exercise.setCount ? Number(exercise.setCount) : null;
+        if (newSets !== (init.default_sets ?? null)) patchPayload.default_sets = newSets;
+        const newReps = exercise.repCount ? Number(exercise.repCount) : null;
+        if (newReps !== (init.default_reps ?? null)) patchPayload.default_reps = newReps;
+        const newCat = exercise.category.trim() || null;
+        if (newCat !== (init.body_part ?? null)) patchPayload.category = newCat;
+        const newTags = exercise.tags.trim()
+          ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
+          : [];
+        const initTags = Array.isArray(init.tags) ? init.tags : [];
+        if (JSON.stringify(newTags) !== JSON.stringify(initTags)) {
+          patchPayload.tags = newTags;
+        }
+      } else {
+        patchPayload.title = exercise.title.trim();
+        patchPayload.description = exercise.description.trim();
+        patchPayload.default_sets = exercise.setCount ? Number(exercise.setCount) : null;
+        patchPayload.default_reps = exercise.repCount ? Number(exercise.repCount) : null;
+        patchPayload.category = exercise.category.trim() || null;
+        patchPayload.tags = exercise.tags.trim()
+          ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
+          : [];
+      }
+      if (Object.keys(patchPayload).length === 0 && !exercise.video && !exercise.thumbnail) {
+        setErrorMessage("No changes to save");
+        setIsSubmitting(false);
+        return;
       }
 
-      const created = await createRes.json();
-      const exerciseId = created.exercise_id;
+      if (Object.keys(patchPayload).length > 0) {
+        const patchRes = await fetch(`${API_URL}/api/exercises/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(patchPayload),
+        });
+
+        if (!patchRes.ok) {
+          const errData = await patchRes.json().catch(() => ({}));
+          if (patchRes.status === 409) {
+            setErrorMessage("Exercise name already exists");
+            setIsSubmitting(false);
+            return;
+          }
+          throw new Error(errData.error || errData.detail || "Update failed");
+        }
+      }
 
       if (exercise.video) {
         const formData = new FormData();
         formData.append("file", exercise.video);
-        const videoRes = await fetch(`${API_URL}/api/exercises/${exerciseId}/video`, {
+        const videoRes = await fetch(`${API_URL}/api/exercises/${id}/video`, {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -123,7 +174,7 @@ const CreateExercise: React.FC = () => {
       if (exercise.thumbnail) {
         const formData = new FormData();
         formData.append("file", exercise.thumbnail);
-        const thumbRes = await fetch(`${API_URL}/api/exercises/${exerciseId}/thumbnail`, {
+        const thumbRes = await fetch(`${API_URL}/api/exercises/${id}/thumbnail`, {
           method: "POST",
           credentials: "include",
           body: formData,
@@ -134,27 +185,37 @@ const CreateExercise: React.FC = () => {
         }
       }
 
-      setSuccessMessage("Exercise added successfully");
-      setTimeout(() => navigate("/exercise-dashboard", { replace: true }), 800);
+      setSuccessMessage("Exercise updated successfully");
+      setTimeout(() => navigate(`/exercises/${id}`), 800);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : "Failed to create exercise");
+      setErrorMessage(err instanceof Error ? err.message : "Failed to update exercise");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loadingExercise) {
+    return (
+      <AppLayout>
+        <div className="create-exercise-page">
+          <p>Loading exercise...</p>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
       <div className="create-exercise-page">
         <header className="create-exercise-header">
           <div className="create-exercise-header-left">
-            <h1 className="exercise-title">Add New Exercise</h1>
+            <h1 className="exercise-title">Edit Exercise</h1>
           </div>
           <div className="create-exercise-header-right">
             <button
               type="button"
               className="back-btn"
-              onClick={() => navigate("/exercise-dashboard")}
+              onClick={() => navigate(`/exercises/${id}`)}
               disabled={isSubmitting}
             >
               Back
@@ -162,7 +223,7 @@ const CreateExercise: React.FC = () => {
             <button
               type="submit"
               className="save-btn"
-              form="create-exercise-form"
+              form="edit-exercise-form"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Saving..." : "Save"}
@@ -177,10 +238,10 @@ const CreateExercise: React.FC = () => {
           <div className="message-banner success-banner">{successMessage}</div>
         )}
 
-        <form id="create-exercise-form" className="exercise-form" onSubmit={handleSubmit}>
+        <form id="edit-exercise-form" className="exercise-form" onSubmit={handleSubmit}>
           <div className="upload-section">
             <div className={`upload-box ${fieldErrors.video ? "error" : ""}`}>
-              <label htmlFor="video">Video</label>
+              <label htmlFor="video">Replace Video (optional)</label>
               <input
                 type="file"
                 id="video"
@@ -197,7 +258,7 @@ const CreateExercise: React.FC = () => {
             </div>
 
             <div className={`upload-box ${fieldErrors.thumbnail ? "error" : ""}`}>
-              <label htmlFor="thumbnail">Thumbnail</label>
+              <label htmlFor="thumbnail">Replace Thumbnail (optional)</label>
               <input
                 type="file"
                 id="thumbnail"
@@ -215,7 +276,7 @@ const CreateExercise: React.FC = () => {
           </div>
 
           <div className={`input-group ${fieldErrors.title ? "error" : ""}`}>
-            <label htmlFor="title">Title of Exercise <span className="required">*</span></label>
+            <label htmlFor="title">Title</label>
             <input
               id="title"
               type="text"
@@ -229,24 +290,21 @@ const CreateExercise: React.FC = () => {
             )}
           </div>
 
-          <div className={`input-group ${fieldErrors.category ? "error" : ""}`}>
-            <label htmlFor="category">Category <span className="required">*</span></label>
+          <div className="input-group">
+            <label htmlFor="category">Category</label>
             <input
               id="category"
               type="text"
               name="category"
               value={exercise.category}
               onChange={handleChange}
-              placeholder="Enter exercise category"
+              placeholder="Enter category (e.g. Core, Lower Body)"
             />
-            {fieldErrors.category && (
-              <div className="field-error">{fieldErrors.category}</div>
-            )}
           </div>
 
           <div className="input-row">
-            <div className={`input-group half ${fieldErrors.setCount ? "error" : ""}`}>
-              <label htmlFor="setCount">Set Count <span className="required">*</span></label>
+            <div className="input-group half">
+              <label htmlFor="setCount">Set Count</label>
               <input
                 id="setCount"
                 type="number"
@@ -256,13 +314,10 @@ const CreateExercise: React.FC = () => {
                 placeholder="3"
                 min={1}
               />
-              {fieldErrors.setCount && (
-                <div className="field-error">{fieldErrors.setCount}</div>
-              )}
             </div>
 
-            <div className={`input-group half ${fieldErrors.repCount ? "error" : ""}`}>
-              <label htmlFor="repCount">Rep Count <span className="required">*</span></label>
+            <div className="input-group half">
+              <label htmlFor="repCount">Rep Count</label>
               <input
                 id="repCount"
                 type="number"
@@ -272,14 +327,25 @@ const CreateExercise: React.FC = () => {
                 placeholder="3"
                 min={1}
               />
-              {fieldErrors.repCount && (
-                <div className="field-error">{fieldErrors.repCount}</div>
-              )}
             </div>
           </div>
 
-          <div className={`input-group`}>
-            <label htmlFor="tags">Tags (optional)</label>
+          <div className={`input-group ${fieldErrors.description ? "error" : ""}`}>
+            <label htmlFor="description">Description</label>
+            <textarea
+              id="description"
+              name="description"
+              value={exercise.description}
+              onChange={handleChange}
+              placeholder="Describe how to perform this exercise..."
+            />
+            {fieldErrors.description && (
+              <div className="field-error">{fieldErrors.description}</div>
+            )}
+          </div>
+
+          <div className="input-group">
+            <label htmlFor="tags">Tags</label>
             <input
               id="tags"
               type="text"
@@ -289,24 +355,10 @@ const CreateExercise: React.FC = () => {
               placeholder="e.g. quadriceps, hamstrings (comma-separated)"
             />
           </div>
-
-          <div className={`input-group ${fieldErrors.exerciseCopy ? "error" : ""}`}>
-            <label htmlFor="exerciseCopy">Exercise Copy (Description) <span className="required">*</span></label>
-            <textarea
-              id="exerciseCopy"
-              name="exerciseCopy"
-              value={exercise.exerciseCopy}
-              onChange={handleChange}
-              placeholder="Describe how to perform this exercise..."
-            />
-            {fieldErrors.exerciseCopy && (
-              <div className="field-error">{fieldErrors.exerciseCopy}</div>
-            )}
-          </div>
         </form>
       </div>
     </AppLayout>
   );
 };
 
-export default CreateExercise;
+export default EditExercise;
