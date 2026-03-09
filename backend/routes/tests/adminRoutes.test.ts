@@ -1,27 +1,28 @@
+// Set environment variables FIRST (before any imports)
+process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
+process.env.LOCAL_SUPABASE_URL = "http://localhost:54321";
+process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
+process.env.JWT_SECRET = "test-admin-jwt-secret-key";
+
 let app: any;
 
-// Set environment variables before loading modules
-process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
-process.env.SUPABASE_URL = "https://test.supabase.co";
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-
-// MUST be first: mock auth middleware before loading server/routes
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-
+// MUST be first: mock auth before loading server
+jest.mock("../../lib/adminGuard", () => {
+  const handler = (req: any, res: any, next: any) => next();
   return {
     __esModule: true,
-    requireAdminJwt: passThrough,
-    default: passThrough,
+    default: handler,
+    requireAdmin: handler,
   };
 });
 
-jest.mock("../../lib/adminGuard", () => {
+jest.mock("../../middleware/requireAdminJwt", () => {
   const passThrough = (_req: any, _res: any, next: any) => next();
-
   return {
     __esModule: true,
-    requireAdmin: passThrough,
+    requireAdminJwt: passThrough,
     default: passThrough,
   };
 });
@@ -30,7 +31,6 @@ import request from "supertest";
 import * as moduleService from "../../services/moduleService";
 
 beforeAll(() => {
-  // load server only AFTER mocks are in place
   app = require("../../server").default;
 });
 
