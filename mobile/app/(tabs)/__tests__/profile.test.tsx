@@ -238,9 +238,13 @@ describe("Profile avatar (ATH-411)", () => {
     });
 
     fireEvent.press(getByTestId("profile-avatar"));
-    const deleteBtn = alertButtons.find((b) => b.text === "Delete photo");
-    expect(deleteBtn).toBeTruthy();
-    await deleteBtn!.onPress!();
+    const deletePhotoBtn = alertButtons.find((b) => b.text === "Delete photo");
+    expect(deletePhotoBtn).toBeTruthy();
+    await deletePhotoBtn!.onPress!(); // triggers confirmation dialog
+
+    const confirmDeleteBtn = alertButtons.find((b) => b.text === "Delete");
+    expect(confirmDeleteBtn).toBeTruthy();
+    await confirmDeleteBtn!.onPress!(); // confirms and calls deleteAvatar
 
     await waitFor(
       () => {
