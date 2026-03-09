@@ -18,17 +18,17 @@ jest.mock("../../middleware/requireAdminJwt", () => {
 
   return {
     __esModule: true,
-    default: handler,
-    requireAdmin: handler,
+    default: passThrough,
+    requireAdmin: passThrough,
   };
 });
 
 jest.mock("../../middleware/requireAdminJwt", () => {
-  const handler = (req: any, res: any, next: any) => next();
+  const passThrough = (req: any, res: any, next: any) => next();
   return {
     __esModule: true,
-    requireAdminJwt: handler,
-    default: handler,
+    requireAdminJwt: passThrough,
+    default: passThrough,
   };
 });
 
