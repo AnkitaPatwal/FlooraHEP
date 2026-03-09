@@ -11,16 +11,6 @@ jest.mock("../../middleware/requireAdminJwt", () => {
 
   return {
     __esModule: true,
-    default: passThrough,
-    requireAdmin: passThrough,
-  };
-});
-
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (req: any, res: any, next: any) => next();
-  return {
-    __esModule: true,
-    requireAdminJwt: passThrough,
     requireAdminJwt: passThrough,
     default: passThrough,
   };
