@@ -118,12 +118,19 @@ export async function uploadExerciseVideo(
 ): Promise<{ ok: true; video_id: number; publicUrl: string }> {
   const form = new FormData();
   form.append("file", file);
-
+   
   const res = await fetch(
-    `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
-    { method: "POST", body: form, credentials: "include" }
-  );
-
+  `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
+  {
+    method: "POST",
+    body: form,
+    credentials: "include",
+    headers: {
+      "x-uploader-user-id": "56",
+    },
+  }
+);
+  
   const text = await res.text();
   let body: any = {};
   try { body = text ? JSON.parse(text) : {}; } catch { body = {}; }
