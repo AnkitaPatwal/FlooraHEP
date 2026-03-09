@@ -200,3 +200,16 @@
 .session-tag .material-symbols-outlined {
   font-size: 14px;
 }
+
+/* Error / empty state */
+.session-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.session-empty {
+  color: #6b7280;
+}

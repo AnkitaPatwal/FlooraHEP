@@ -1,3 +1,13 @@
+import path from "path";
+import dotenv from "dotenv";
+
+dotenv.config({ path: path.join(__dirname, "../../.env") });
+dotenv.config({ path: path.join(__dirname, "../../.env.local") });
+
+process.env.SUPABASE_URL = "http://127.0.0.1:54321";
+process.env.SUPABASE_ANON_KEY = process.env.LOCAL_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+
 import { createClient } from "@supabase/supabase-js";
 import { Client } from "pg";
 
@@ -21,18 +31,20 @@ async function seedUserPackages(userAId: string, userBId: string) {
   const client = new Client({ connectionString: dbUrl });
   await client.connect();
 
-  const planRes = await client.query(`select plan_id from public.plan limit 1;`);
-  const planId = planRes.rows?.[0]?.plan_id;
-  if (!planId) throw new Error("No plan found to attach user_packages");
+  try {
+    const planRes = await client.query(`select plan_id from public.plan limit 1;`);
+    const planId = planRes.rows?.[0]?.plan_id;
+    if (!planId) throw new Error("No plan found to attach user_packages");
 
-  await client.query(
-    `insert into public.user_packages (user_id, package_id)
-     values ($1, $3), ($2, $3)
-     on conflict do nothing;`,
-    [userAId, userBId, planId]
-  );
-
-  await client.end();
+    await client.query(
+      `insert into public.user_packages (user_id, package_id)
+       values ($1, $3), ($2, $3)
+       on conflict do nothing;`,
+      [userAId, userBId, planId]
+    );
+  } finally {
+    await client.end();
+  }
 }
 
 async function signUpAndLogin(email: string, password: string) {
