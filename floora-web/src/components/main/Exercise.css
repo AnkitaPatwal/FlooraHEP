@@ -186,6 +186,22 @@
   font-size: 14px;
 }
 
+.exercise-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.exercise-tag-chip {
+  font-size: 11px;
+  background-color: #d4e8e8;
+  color: #5a8e93;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
 .play-btn {
   margin-top: 10px;
   padding: 6px 12px;

@@ -1,4 +1,4 @@
--- Fix created_by_admin_id to reference admin_users (UUID) instead of admin (BIGINT)
+- Fix created_by_admin_id to reference admin_users (UUID) instead of admin (BIGINT)
 -- This aligns with the JWT auth system which uses admin_users.id (UUID)
 
 begin;
@@ -26,10 +26,10 @@ do $$
 declare
   default_admin_id uuid;
 begin
-  select id into default_admin_id 
-  from public.admin_users 
-  where role = 'super_admin' 
-  and is_active = true 
+  select id into default_admin_id
+  from public.admin_users
+  where is_active = true
+  order by (role = 'super_admin') desc, created_at asc
   limit 1;
 
   if default_admin_id is not null then
