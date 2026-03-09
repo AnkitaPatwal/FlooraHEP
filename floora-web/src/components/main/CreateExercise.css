@@ -109,6 +109,25 @@
   cursor: pointer;
 }
 
+.upload-box.error {
+  border-color: #b91c1c;
+}
+
+.field-error {
+  font-size: 13px;
+  color: #b91c1c;
+  margin-top: 4px;
+}
+
+.input-group.error input,
+.input-group.error textarea {
+  border-color: #b91c1c;
+}
+
+.required {
+  color: #b91c1c;
+}
+
 /* === Input Fields === */
 .input-group {
   display: flex;
@@ -143,6 +162,32 @@
 .input-group textarea {
   resize: vertical;
   min-height: 120px;
+}
+
+/* === Message banners === */
+.message-banner {
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.message-banner.error-banner {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.message-banner.success-banner {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.file-selected {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #5a8e93;
 }
 
 /* === Two-column fields === */

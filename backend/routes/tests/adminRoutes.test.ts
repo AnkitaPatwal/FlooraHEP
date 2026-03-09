@@ -3,9 +3,8 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
 process.env.LOCAL_SUPABASE_URL = "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
-process.env.JWT_SECRET = "test-jwt-secret-key";
-
+process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
+process.env.JWT_SECRET = "test-admin-jwt-secret-key";
 let app: any;
 
 // MUST be first: mock auth before loading server
@@ -37,7 +36,7 @@ beforeAll(() => {
 describe("GET /api/admin/modules", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
-    "test-jwt-secret-key-for-testing",
+    "test-admin-jwt-secret-key",
     { expiresIn: "1h" }
   );
 
@@ -79,7 +78,7 @@ describe("GET /api/admin/modules", () => {
 describe("POST /api/admin/modules", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
-    "test-jwt-secret-key-for-testing",
+    "test-admin-jwt-secret-key",
     { expiresIn: "1h" }
   );
 
@@ -124,7 +123,7 @@ describe("POST /api/admin/modules", () => {
 describe("PUT /api/admin/modules/:id/exercises", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
-    "test-jwt-secret-key-for-testing",
+    "test-admin-jwt-secret-key",
     { expiresIn: "1h" }
   );
 
