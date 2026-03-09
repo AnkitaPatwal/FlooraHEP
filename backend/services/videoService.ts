@@ -32,6 +32,7 @@ export interface UploadVideoResult {
 }
 
 
+
 export async function uploadExerciseVideo(
   supabase: SupabaseClient,
   fileData: Buffer | File,
@@ -47,12 +48,9 @@ export async function uploadExerciseVideo(
   uploaderUserId?: string | null   // new optional param — won't break existing callers
 
 ): Promise<UploadVideoResult> {
+export async function uploadExerciseVideo(supabase: SupabaseClient, fileData: Buffer | File, fileName: string, mimeType: string, byteSize: number): Promise<UploadVideoResult> {
   const objectKey = `${Date.now()}_${fileName}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(BUCKET_NAME)
-    .upload(objectKey, fileData, { contentType: mimeType, upsert: false });
-
+  const { error: uploadError } = await supabase.storage.from(BUCKET_NAME).upload(objectKey, fileData, { contentType: mimeType, upsert: false });
   if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
 
@@ -103,6 +101,13 @@ export async function uploadExerciseVideo(
   if (dbError || !videoRecord)
     throw new Error(`Video DB insert failed: ${dbError?.message}`);
 
+
+
+  const { data: urlData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(objectKey);
+  const publicUrl = urlData?.publicUrl;
+  if (!publicUrl) throw new Error('Could not retrieve public URL after upload.');
+  const { data: videoRecord, error: dbError } = await supabase.from('video').insert({ bucket: BUCKET_NAME, object_key: objectKey, original_filename: fileName, mime_type: mimeType, byte_size: byteSize }).select('video_id').single();
+  if (dbError || !videoRecord) throw new Error(`Video DB insert failed: ${dbError?.message}`);
 
   return { video_id: videoRecord.video_id, publicUrl };
 }
