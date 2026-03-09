@@ -4,6 +4,19 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function CreateAdmin() {
+
+  // AUTH CHECK (needed for tests)
+  const role = localStorage.getItem("role");
+  const isLoggedIn = localStorage.getItem("isLoggedIn");
+
+  if (!isLoggedIn) {
+    return <div>Unauthorized: please log in</div>;
+  }
+
+  if (role !== "super_admin") {
+    return <div>Unauthorized: you do not have access to this page</div>;
+  }
+
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
 
@@ -36,7 +49,7 @@ export default function CreateAdmin() {
       const res = await fetch(`${API_URL}/api/admin/assign-admin-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include", // ✅ cookie auth
+        credentials: "include",
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           name: name.trim() || null,
@@ -67,9 +80,11 @@ export default function CreateAdmin() {
   };
 
   return (
-   <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
+    <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
       <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
-      <p style={{ marginBottom: 18, opacity: 0.8 }}>Assign admin role to an existing account.</p>
+      <p style={{ marginBottom: 18, opacity: 0.8 }}>
+        Assign admin role to an existing account.
+      </p>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
         <div style={{ display: "grid", gap: 6 }}>
@@ -94,7 +109,9 @@ export default function CreateAdmin() {
             }}
           />
 
-          {emailError && <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>}
+          {emailError && (
+            <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>
+          )}
         </div>
 
         <div style={{ display: "grid", gap: 6 }}>
@@ -138,8 +155,12 @@ export default function CreateAdmin() {
           {isSubmitting ? "Saving..." : "Submit"}
         </button>
 
-        {successMsg && <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>}
-        {errorMsg && <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>}
+        {successMsg && (
+          <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>
+        )}
+        {errorMsg && (
+          <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>
+        )}
       </form>
     </div>
   );
