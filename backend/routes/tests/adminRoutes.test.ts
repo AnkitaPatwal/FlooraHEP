@@ -75,3 +75,99 @@ describe("GET /api/admin/modules", () => {
     expect(res.body).toEqual({ error: "Failed to fetch modules" });
   });
 });
+
+describe("POST /api/admin/modules", () => {
+  const validAdminToken = require("jsonwebtoken").sign(
+    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
+    "test-admin-jwt-secret-key",
+    { expiresIn: "1h" }
+  );
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("returns 201 with created module", async () => {
+    const created = {
+      module_id: 1,
+      title: "Week 1",
+      description: "Intro",
+      session_number: 1,
+      created_at: "2026-01-01T00:00:00Z",
+    };
+    jest.spyOn(moduleService, "createModule").mockResolvedValue(created as any);
+
+    const res = await request(app)
+      .post("/api/admin/modules")
+      .set("Cookie", `admin_token=${validAdminToken}`)
+      .send({ title: "Week 1", description: "Intro", session_number: 1 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual(created);
+  });
+
+  it("returns 400 when createModule throws", async () => {
+    jest
+      .spyOn(moduleService, "createModule")
+      .mockRejectedValue(new Error("Title is required"));
+
+    const res = await request(app)
+      .post("/api/admin/modules")
+      .set("Cookie", `admin_token=${validAdminToken}`)
+      .send({ title: "  ", session_number: 1 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Title is required");
+  });
+});
+
+describe("PUT /api/admin/modules/:id/exercises", () => {
+  const validAdminToken = require("jsonwebtoken").sign(
+    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
+    "test-admin-jwt-secret-key",
+    { expiresIn: "1h" }
+  );
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it("returns 200 with saved mapping", async () => {
+    const result = { module_id: 1, exercise_ids: [10, 20] };
+    jest
+      .spyOn(moduleService, "saveModuleExercises")
+      .mockResolvedValue(result as any);
+
+    const res = await request(app)
+      .put("/api/admin/modules/1/exercises")
+      .set("Cookie", `admin_token=${validAdminToken}`)
+      .send({ exercise_ids: [10, 20] });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(result);
+  });
+
+  it("returns 400 for invalid module id", async () => {
+    const res = await request(app)
+      .put("/api/admin/modules/0/exercises")
+      .set("Cookie", `admin_token=${validAdminToken}`)
+      .send({ exercise_ids: [1] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid module id");
+  });
+
+  it("returns 400 when saveModuleExercises throws", async () => {
+    jest
+      .spyOn(moduleService, "saveModuleExercises")
+      .mockRejectedValue(new Error("Invalid module id"));
+
+    const res = await request(app)
+      .put("/api/admin/modules/1/exercises")
+      .set("Cookie", `admin_token=${validAdminToken}`)
+      .send({ exercise_ids: [1] });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe("Invalid module id");
+  });
+});
