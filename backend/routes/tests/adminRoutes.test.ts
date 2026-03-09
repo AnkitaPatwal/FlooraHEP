@@ -5,6 +5,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
 process.env.JWT_SECRET = "test-admin-jwt-secret-key";
+
 let app: any;
 
 // MUST be first: mock auth before loading server
