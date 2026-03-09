@@ -37,7 +37,7 @@ beforeAll(() => {
 describe("GET /api/admin/modules", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
-    "test-admin-jwt-secret-key",
+    "test-jwt-secret-key-for-testing",
     { expiresIn: "1h" }
   );
 
