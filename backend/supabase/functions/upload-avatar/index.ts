@@ -1,7 +1,7 @@
+// @ts-nocheck — Deno Edge Function; use Deno extension or supabase functions serve for type-checking
 // ATH-411: Profile Picture Upload — upload, replace, delete avatar
 // Path format: avatars/{user_id}/{timestamp}.jpg
 // Only authenticated users can manage their own avatar
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 
@@ -153,13 +153,13 @@ serve(async (req) => {
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
     const avatarUrl = urlData.publicUrl;
 
-    const { error: updateErr } = await supabase
+    // Upsert ensures profiles row exists (create if missing, update if exists)
+    const { error: upsertErr } = await supabase
       .from("profiles")
-      .update({ avatar_url: avatarUrl })
-      .eq("id", user_id);
+      .upsert({ id: user_id, avatar_url: avatarUrl }, { onConflict: "id" });
 
-    if (updateErr) {
-      console.error("profiles update error:", updateErr);
+    if (upsertErr) {
+      console.error("profiles upsert error:", upsertErr);
       return jsonResponse({ success: false, message: "Failed to save avatar" }, 500);
     }
 

@@ -31,8 +31,6 @@ export default function Profile() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const hasLoadedOnce = useRef(false);
-  const avatarUrlRef = useRef<string | null>(null);
-  avatarUrlRef.current = avatarUrl;
 
   const fetchProfile = useCallback(async () => {
     if (!session?.access_token) return;
@@ -94,12 +92,22 @@ export default function Profile() {
     );
   };
 
+  const confirmDeleteAvatar = () => {
+    Alert.alert(
+      "Delete photo",
+      "Are you sure you want to delete your profile picture?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteAvatar },
+      ]
+    );
+  };
+
   const showAvatarOptions = () => {
-    const url = avatarUrlRef.current;
-    const hasAvatar = Boolean(url && typeof url === "string" && url.trim().length > 0);
+    const hasAvatar = Boolean(avatarUrl && avatarUrl.trim());
     const options: { text: string; onPress?: () => void; style?: "cancel" | "destructive" }[] = [
       { text: "Change photo", onPress: pickAndUploadAvatar },
-      ...(hasAvatar ? [{ text: "Delete photo", onPress: deleteAvatar, style: "destructive" as const }] : []),
+      ...(hasAvatar ? [{ text: "Delete photo", onPress: confirmDeleteAvatar, style: "destructive" as const }] : []),
       { text: "Cancel", style: "cancel" },
     ];
     Alert.alert("Profile picture", "Choose an option", options);
@@ -235,8 +243,13 @@ export default function Profile() {
       </TouchableOpacity>
 
       {successMessage ? (
-        <View style={styles.fieldContainer}>
+        <View style={[styles.fieldContainer, styles.messageContainer]}>
           <Text style={styles.successText}>{successMessage}</Text>
+        </View>
+      ) : null}
+      {error ? (
+        <View style={[styles.fieldContainer, styles.messageContainer]}>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
 
@@ -246,11 +259,6 @@ export default function Profile() {
         </View>
       ) : (
         <>
-          {error ? (
-            <View style={styles.fieldContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
 
           {/* Name */}
           <View style={styles.fieldContainer}>
@@ -386,6 +394,9 @@ const styles = StyleSheet.create({
   fieldContainer: {
     marginBottom: 18,
     paddingHorizontal: 24,
+  },
+  messageContainer: {
+    marginBottom: 8,
   },
   label: {
     fontSize: 14,
