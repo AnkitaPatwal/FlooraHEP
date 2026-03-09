@@ -14,12 +14,47 @@ import jwt from "jsonwebtoken";
 // ── Mock Supabase storage and DB ─────────────────────────────────────────────
 jest.mock("../../lib/supabaseServer", () => ({
   supabaseServer: {
-    storage: {
-      from: jest.fn(),
-    },
+    storage: { from: jest.fn() },
     from: jest.fn(),
   },
 }));
+
+// Mock admin_users for requireSuperAdmin middleware
+jest.mock("@supabase/supabase-js", () => {
+  const actualSupabase = jest.requireActual("@supabase/supabase-js");
+  return {
+    ...actualSupabase,
+    createClient: jest.fn(() => ({
+      from: jest.fn((table: string) => {
+        if (table === "admin_users") {
+          return {
+            select: jest.fn(() => ({
+              eq: jest.fn((_column: string, value: string) => ({
+                maybeSingle: jest.fn(() => {
+                  if (value === "admin-uuid-123") {
+                    return Promise.resolve({
+                      data: { id: "admin-uuid-123", email: "superadmin@test.com", role: "super_admin", is_active: true },
+                      error: null,
+                    });
+                  }
+                  if (value === "admin-uuid-456") {
+                    return Promise.resolve({
+                      data: { id: "admin-uuid-456", email: "admin@test.com", role: "admin", is_active: true },
+                      error: null,
+                    });
+                  }
+                  return Promise.resolve({ data: null, error: { message: "Not found" } });
+                }),
+              })),
+            })),
+          };
+        }
+        return actualSupabase.createClient().from(table);
+      }),
+      auth: { persistSession: false },
+    })),
+  };
+});
 
 jest.mock("../../services/videoService", () => ({
   ...jest.requireActual("../../services/videoService"),
@@ -27,20 +62,19 @@ jest.mock("../../services/videoService", () => ({
   BUCKET_NAME: "exercise-videos",
 }));
 
-// ── JWT helpers ───────────────────────────────────────────────────────────────
-const JWT_SECRET = "test-secret";
-process.env.JWT_SECRET = JWT_SECRET;
+// ── JWT helpers (cookie-based auth) ───────────────────────────────────────────
+const ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
 
-function makeToken(role: string) {
+function makeToken(role: string, id = "admin-uuid-123") {
   return jwt.sign(
-    { sub: "admin-uuid-123", email: "admin@test.com", role },
-    JWT_SECRET,
+    { id, email: "admin@test.com", role, name: "Test Admin" },
+    ADMIN_JWT_SECRET,
     { expiresIn: "1h" }
   );
 }
 
 const superAdminToken = makeToken("super_admin");
-const adminToken = makeToken("admin");
+const adminToken = makeToken("admin", "admin-uuid-456");
 
 // ── Mock storage chain ────────────────────────────────────────────────────────
 const mockUpload = jest.fn();
@@ -63,11 +97,19 @@ beforeEach(() => {
     getPublicUrl: mockGetPublicUrl,
   });
 
-  // DB mock
+  // DB mock: exercise check + video insert
+  const exerciseChain = {
+    select: jest.fn().mockReturnThis(),
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
+  };
   mockSingle.mockResolvedValue({ data: { video_id: 42 }, error: null });
   mockSelect.mockReturnValue({ single: mockSingle });
   mockInsert.mockReturnValue({ select: mockSelect });
-  (supabaseServer.from as jest.Mock).mockReturnValue({ insert: mockInsert });
+  (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+    if (table === "exercise") return exerciseChain;
+    return { insert: mockInsert };
+  });
 
   // linkVideoToExercise mock
   mockLinkVideo.mockResolvedValue(undefined);
@@ -78,7 +120,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("valid .mp4 upload returns 200 with storage_path and url", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Authorization", `Bearer ${superAdminToken}`)
+      .set("Cookie", `admin_token=${superAdminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",
@@ -89,13 +131,13 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
     expect(res.body.storage_path).toContain("exercises/1/");
     expect(res.body).toHaveProperty("url");
     expect(res.body).toHaveProperty("metadata");
-    expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42);
+    expect(mockLinkVideo).toHaveBeenCalledWith(expect.anything(), 1, 42, expect.stringMatching(/^https:\/\//));
   });
 
   it("valid .mov upload returns 200 with storage_path and url", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Authorization", `Bearer ${superAdminToken}`)
+      .set("Cookie", `admin_token=${superAdminToken}`)
       .attach("file", Buffer.from("fake mov"), {
         filename: "test.mov",
         contentType: "video/quicktime",
@@ -108,7 +150,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("invalid file type returns 400 and does not upload", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Authorization", `Bearer ${superAdminToken}`)
+      .set("Cookie", `admin_token=${superAdminToken}`)
       .attach("file", Buffer.from("not a video"), {
         filename: "test.pdf",
         contentType: "application/pdf",
@@ -122,7 +164,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("non-super_admin (admin role) returns 403 and does not upload", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Authorization", `Bearer ${adminToken}`)
+      .set("Cookie", `admin_token=${adminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",
@@ -149,7 +191,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
 
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Authorization", `Bearer ${superAdminToken}`)
+      .set("Cookie", `admin_token=${superAdminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",

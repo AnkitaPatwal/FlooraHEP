@@ -1,67 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type MeResponse =
-  | { ok: true; admin: { id: string | number; email: string; role: string | null; name: string | null } }
-  | { message?: string };
 
 export default function CreateAdmin() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
 
-  const [checkingAccess, setCheckingAccess] = useState(true);
-  const [isAuthorized, setIsAuthorized] = useState(false);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // Check access (must be super_admin)
-  useEffect(() => {
-    const run = async () => {
-      setCheckingAccess(true);
-      setErrorMsg(null);
-
-      try {
-        const res = await fetch("http://localhost:3000/api/admin/me", {
-          method: "GET",
-          credentials: "include", // ✅ send admin_token cookie
-        });
-
-        if (!res.ok) {
-          setIsAuthorized(false);
-          if (res.status === 401) setErrorMsg("Unauthorized: Please log in.");
-          else setErrorMsg("Unable to verify access.");
-          return;
-        }
-
-        const data = (await res.json()) as MeResponse;
-
-        if (!("ok" in data) || !data.ok) {
-          setIsAuthorized(false);
-          setErrorMsg("Unauthorized: Please log in.");
-          return;
-        }
-
-        const role = data.admin.role;
-        if (role !== "super_admin") {
-          setIsAuthorized(false);
-          setErrorMsg("Unauthorized: You do not have access to this page.");
-          return;
-        }
-
-        setIsAuthorized(true);
-      } catch {
-        setIsAuthorized(false);
-        setErrorMsg("Unauthorized: Unable to verify access.");
-      } finally {
-        setCheckingAccess(false);
-      }
-    };
-
-    run();
-  }, []);
 
   const emailError = useMemo(() => {
     const trimmed = email.trim();
@@ -70,17 +18,12 @@ export default function CreateAdmin() {
     return null;
   }, [email]);
 
-  const canSubmit = isAuthorized && !isSubmitting && !emailError;
+  const canSubmit = !isSubmitting && !emailError;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
-
-    if (!isAuthorized) {
-      setErrorMsg("Unauthorized: You do not have access to perform this action.");
-      return;
-    }
 
     if (emailError) {
       setErrorMsg(emailError);
@@ -90,7 +33,7 @@ export default function CreateAdmin() {
     try {
       setIsSubmitting(true);
 
-      const res = await fetch("http://localhost:3000/api/admin/assign-admin-role", {
+      const res = await fetch(`${API_URL}/api/admin/assign-admin-role`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // ✅ cookie auth
@@ -122,27 +65,6 @@ export default function CreateAdmin() {
       setIsSubmitting(false);
     }
   };
-
-  if (checkingAccess) {
-    return (
-      <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
-        <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
-        <p style={{ marginBottom: 18, opacity: 0.8 }}>Checking access…</p>
-      </div>
-    );
-  }
-
-  if (!isAuthorized) {
-    return (
-      <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
-        <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
-        <p style={{ marginBottom: 18, opacity: 0.8 }}>
-          You are not authorized to access this page.
-        </p>
-        {errorMsg && <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>}
-      </div>
-    );
-  }
 
   return (
    <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>

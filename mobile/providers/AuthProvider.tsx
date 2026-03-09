@@ -15,13 +15,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session ?? null);
+      const s = data.session ?? null;
+      setSession(s);
       setLoading(false);
+      (global as any).userEmail = s?.user?.email ?? "";
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setLoading(false);
+      (global as any).userEmail = newSession?.user?.email ?? "";
     });
 
     return () => listener.subscription.unsubscribe();
