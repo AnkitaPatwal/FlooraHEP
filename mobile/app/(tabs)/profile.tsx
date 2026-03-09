@@ -1,8 +1,4 @@
-
-import React, { useCallback, useEffect, useState } from "react";
-import React, { useCallback, useRef, useState } from "react";
-
-
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -18,11 +14,10 @@ import { Link, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import defaultProfile from "../../assets/images/default-profile.png";
 
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
-import profilePic from "../../assets/images/profile-pic.png";
+import defaultProfile from "../../assets/images/default-profile.png";
 
 type ProfileRecord = {
   email: string;
@@ -34,21 +29,15 @@ export default function Profile() {
   const router = useRouter();
   const { session } = useAuth();
 
-
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
-
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
+
   const hasLoadedOnce = useRef(false);
 
   const fetchProfile = useCallback(async () => {
-
     const userEmail = session?.user?.email;
 
     if (!userEmail) {
@@ -57,11 +46,9 @@ export default function Profile() {
       return;
     }
 
-    setLoading(true);
-
-    if (!session?.access_token) return;
-    // Only show loading on first load; keep current UI (including avatar) during refetch
-    if (!hasLoadedOnce.current) setLoading(true);
+    if (!hasLoadedOnce.current) {
+      setLoading(true);
+    }
 
     setError(null);
 
@@ -76,34 +63,18 @@ export default function Profile() {
         throw new Error(profileError.message);
       }
 
-
       setProfile(data);
+      hasLoadedOnce.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile.");
-
-      if (data.success && data.profile) {
-        hasLoadedOnce.current = true;
-        const fullName =
-          data.profile.name ??
-          [data.profile.fname, data.profile.lname].filter(Boolean).join(" ").trim();
-        setName(fullName || "");
-        setEmail(data.profile.email ?? "");
-        setAvatarUrl(data.profile.avatar_url ?? null);
-      }
-    } catch {
-      setError("Something went wrong");
-      // Don't clear avatarUrl on error — preserve current state
-
     } finally {
       setLoading(false);
     }
   }, [session?.user?.email]);
 
-
   useEffect(() => {
     void fetchProfile();
   }, [fetchProfile]);
-
 
   useFocusEffect(
     useCallback(() => {
@@ -123,97 +94,9 @@ export default function Profile() {
     ]);
   };
 
-
   const name = profile?.display_name?.trim() || session?.user?.email || "—";
   const email = profile?.email || session?.user?.email || "—";
   const avatarUrl = profile?.avatar_url || null;
-
-  const confirmDeleteAvatar = () => {
-    Alert.alert(
-      "Delete photo",
-      "Are you sure you want to delete your profile picture?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: deleteAvatar },
-      ]
-    );
-  };
-
-  const showAvatarOptions = () => {
-    const hasAvatar = Boolean(avatarUrl && avatarUrl.trim());
-    const options: { text: string; onPress?: () => void; style?: "cancel" | "destructive" }[] = [
-      { text: "Change photo", onPress: pickAndUploadAvatar },
-      ...(hasAvatar ? [{ text: "Delete photo", onPress: confirmDeleteAvatar, style: "destructive" as const }] : []),
-      { text: "Cancel", style: "cancel" },
-    ];
-    Alert.alert("Profile picture", "Choose an option", options);
-  };
-
-  const pickAndUploadAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      setError("Permission to access photos is required");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-
-    if (result.canceled) return;
-
-    const asset = result.assets[0];
-    if (!asset?.uri) return;
-
-    setAvatarLoading(true);
-    setError(null);
-    setSuccessMessage(null);
-
-    try {
-      const uri = asset.uri;
-      const ext = uri.split(".").pop()?.toLowerCase() || "jpg";
-      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : ext === "gif" ? "image/gif" : "image/jpeg";
-
-      const formData = new FormData();
-      formData.append("file", {
-        uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri,
-        name: `avatar.${ext}`,
-        type: mimeType,
-      } as any);
-
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/upload-avatar`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${session?.access_token}`,
-            // Do not set Content-Type; fetch sets it with boundary for FormData
-          },
-          body: formData,
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.message || "Failed to upload photo");
-        return;
-      }
-      if (data.success) {
-        const url = data.avatar_url ?? data.publicUrl ?? null;
-        if (url) setAvatarUrl(url);
-        setSuccessMessage("Profile picture updated");
-        setTimeout(() => setSuccessMessage(null), 3000);
-      }
-    } catch {
-      setError("Failed to upload photo");
-    } finally {
-      setAvatarLoading(false);
-    }
-  };
 
   const deleteAvatar = async () => {
     setAvatarLoading(true);
@@ -239,8 +122,16 @@ export default function Profile() {
         setError(data.message || "Failed to delete photo");
         return;
       }
+
       if (data.success) {
-        setAvatarUrl(null);
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                avatar_url: null,
+              }
+            : prev
+        );
         setSuccessMessage("Profile picture removed");
         setTimeout(() => setSuccessMessage(null), 3000);
       }
@@ -251,15 +142,127 @@ export default function Profile() {
     }
   };
 
+  const confirmDeleteAvatar = () => {
+    Alert.alert(
+      "Delete photo",
+      "Are you sure you want to delete your profile picture?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteAvatar },
+      ]
+    );
+  };
+
+  const pickAndUploadAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+    if (status !== "granted") {
+      setError("Permission to access photos is required");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset?.uri) return;
+
+    setAvatarLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const uri = asset.uri;
+      const ext = uri.split(".").pop()?.toLowerCase() || "jpg";
+      const mimeType =
+        ext === "png"
+          ? "image/png"
+          : ext === "webp"
+          ? "image/webp"
+          : ext === "gif"
+          ? "image/gif"
+          : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("file", {
+        uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri,
+        name: `avatar.${ext}`,
+        type: mimeType,
+      } as any);
+
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/upload-avatar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+          },
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Failed to upload photo");
+        return;
+      }
+
+      if (data.success) {
+        const url = data.avatar_url ?? data.publicUrl ?? null;
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                avatar_url: url,
+              }
+            : prev
+        );
+        setSuccessMessage("Profile picture updated");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch {
+      setError("Failed to upload photo");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  const showAvatarOptions = () => {
+    const hasAvatar = Boolean(avatarUrl && avatarUrl.trim());
+
+    const options: {
+      text: string;
+      onPress?: () => void;
+      style?: "cancel" | "destructive";
+    }[] = [
+      { text: "Change photo", onPress: pickAndUploadAvatar },
+      ...(hasAvatar
+        ? [
+            {
+              text: "Delete photo",
+              onPress: confirmDeleteAvatar,
+              style: "destructive" as const,
+            },
+          ]
+        : []),
+      { text: "Cancel", style: "cancel" },
+    ];
+
+    Alert.alert("Profile picture", "Choose an option", options);
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Profile Settings</Text>
       <View style={styles.headerLine} />
 
-
-
-      {/* Profile Image */}
       <TouchableOpacity
         testID="profile-avatar"
         onPress={avatarLoading ? undefined : showAvatarOptions}
@@ -275,6 +278,7 @@ export default function Profile() {
         ) : (
           <Image source={defaultProfile} style={styles.avatar} />
         )}
+
         <View style={styles.avatarEditBadge}>
           <Feather name="camera" size={16} color="#fff" />
         </View>
@@ -285,12 +289,12 @@ export default function Profile() {
           <Text style={styles.successText}>{successMessage}</Text>
         </View>
       ) : null}
-      {error ? (
+
+      {error && !loading ? (
         <View style={[styles.fieldContainer, styles.messageContainer]}>
           <Text style={styles.errorText}>{error}</Text>
         </View>
       ) : null}
-
 
       {loading ? (
         <View style={styles.centerContent}>
@@ -299,20 +303,6 @@ export default function Profile() {
         </View>
       ) : (
         <>
-
-          <Image
-            source={avatarUrl ? { uri: avatarUrl } : profilePic}
-            style={styles.avatar}
-          />
-
-          {error ? (
-            <View style={styles.fieldContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
-
-
-
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Name</Text>
             <View style={styles.inputWrapper}>
@@ -349,7 +339,6 @@ export default function Profile() {
             </View>
           </View>
 
-
           <View style={styles.fieldContainer}>
             <Text style={styles.label}>Password</Text>
             <View style={styles.inputWrapper}>
@@ -359,30 +348,13 @@ export default function Profile() {
                 secureTextEntry
                 style={styles.input}
               />
-              <Link href="/screens/ResetPassword" asChild>
+              <Link href="/screens/ChangePassword" asChild>
                 <TouchableOpacity style={styles.iconContainer}>
                   <Feather name="edit-3" size={18} color="#5A8E93" />
                 </TouchableOpacity>
               </Link>
             </View>
           </View>
-      {/* Password */}
-      <View style={styles.fieldContainer}>
-        <Text style={styles.label}>Password</Text>
-        <View style={styles.inputWrapper}>
-          <TextInput
-            value="••••••••••"
-            editable={false}
-            secureTextEntry
-            style={styles.input}
-          />
-          <Link href="/screens/ChangePassword" asChild>
-            <TouchableOpacity style={styles.iconContainer}>
-              <Feather name="edit-3" size={18} color="#5A8E93" />
-            </TouchableOpacity>
-          </Link>
-        </View>
-      </View>
 
           <TouchableOpacity
             testID="profile-sign-out"
@@ -414,19 +386,19 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: "#F0F0F0",
     width: "100%",
-
-
     marginBottom: 30,
   },
   avatarWrap: {
     alignSelf: "center",
-
     marginBottom: 30,
     position: "relative",
   },
-
   centerContent: {
-
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    marginTop: 40,
+  },
   avatar: {
     width: 110,
     height: 110,
@@ -448,15 +420,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingRow: {
-    paddingHorizontal: 24,
-    marginBottom: 18,
-
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    marginTop: 40,
-  },
   statusText: {
     marginTop: 12,
     fontSize: 16,
@@ -467,13 +430,6 @@ const styles = StyleSheet.create({
     color: "#B91C1C",
     marginBottom: 8,
     textAlign: "center",
-  },
-  avatar: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    alignSelf: "center",
-    marginBottom: 30,
   },
   successText: {
     fontSize: 14,
