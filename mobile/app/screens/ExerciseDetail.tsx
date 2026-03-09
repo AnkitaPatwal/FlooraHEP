@@ -23,9 +23,9 @@ const ExerciseDetail = () => {
   const { id, sessionName } = useLocalSearchParams<{
     id?: string;
     sessionName?: string;
+    fromApi?: string;
   }>();
   const router = useRouter();
-
   const [apiExercise, setApiExercise] = useState<ExerciseApiResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
