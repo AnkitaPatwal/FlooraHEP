@@ -1,24 +1,188 @@
-  .plan-dashboard-page {
-    display: flex;
-  }
-  
-  .plan-dashboard-content {
-    margin-left: var(--sidenav-width);
-    padding: 20px;
-  }
-  
-  .plan-dashboard-title {
-    color: #fff;
-    margin: 0 0 6px 0;
-    font-size: 2rem;
-    line-height: 1.2;
-  }
-  
-  .plan-dashboard-subtitle {
-    color: #fff;
-    margin: 0;
-    font-size: 1.25rem;
-    line-height: 1.35;
-    opacity: 0.95;
-  }
-  
+/* === Plan Page === */
+.plan-page {
+  padding-bottom: 48px;
+  box-sizing: border-box;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+/* === Header === */
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 28px;
+  margin-top: 20px;  
+}
+
+.plan-header-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-header-left h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.plan-header-left p {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+  margin-top: 0px;
+}
+
+/* === Button === */
+.plan-new-plan-btn {
+  background-color: #5a8e93;
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  width: fit-content;
+  transition: background-color 0.2s ease;
+  margin-top: 20px;
+}
+.plan-new-plan-btn:hover { 
+  background-color: #4f7d81; 
+}
+
+/* === Search === */
+.plan-header-right {
+  display: flex;
+  align-items: flex-end;
+}
+
+.plan-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.plan-search-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plan-search-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.plan-search-bar {
+  border: 1px solid #d1d5db;
+  border-radius: 25px;
+  padding: 10px 14px 10px 44px; 
+  width: 340px;
+  font-size: 15px;
+  color: #4b5563;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 1px 2px rgba(255,255,255,0.3);
+  transition: all 0.2s ease;
+}
+.plan-search-bar::placeholder { 
+  color: #9ca3af; 
+}
+.plan-search-bar:focus {
+  outline: none;
+  border-color: #bcd1d1;
+  box-shadow: 0 0 0 2px rgba(90,142,147,0.2);
+}
+
+/* === Divider === */
+.plan-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0 0 32px 0;
+}
+
+/* === Categories === */
+.plan-category-section { 
+  margin-bottom: 64px; 
+}
+
+.plan-category-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 24px;
+}
+.plan-category-title span {
+  font-size: 13px;
+  color: #999;
+  font-weight: 400;
+  margin-left: 8px; 
+}
+
+/* === Grid === */
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 28px;
+}
+
+/* === Cards === */
+.plan-card {
+  background-color: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+}
+.plan-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.plan-image {
+  display: none;
+}
+
+.plan-info { 
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-info h3 {
+  margin: 0;
+  font-size: 18px;
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.plan-info p {
+  margin: 0 0 8px 0;
+  color: #718096;
+  font-size: 14px;
+}
+
+.plan-tag {
+  display: inline-flex;
+  align-items: center;
+  background-color: #e6fffa;
+  color: #2c7a7b;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+  gap: 4px;
+}
+
+.plan-tag .material-symbols-outlined {
+  font-size: 14px;
+}

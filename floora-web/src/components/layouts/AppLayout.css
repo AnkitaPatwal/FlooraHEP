@@ -1,11 +1,13 @@
-:root { 
-  --sidenav-width: 260px; 
+:root {
+  --sidenav-width: 260px;
 }
 
-html, body, #root { 
-  height: 100%; 
-  margin: 0; 
-  padding: 0; 
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 /* App shell: SIDEBAR | CONTENT via grid */
@@ -14,7 +16,7 @@ html, body, #root {
   grid-template-columns: var(--sidenav-width) minmax(0, 1fr);
   min-height: 100vh;
   width: 100%;
-  background: #f8f9f9;
+  background: #ffffff; /* CHANGED: restore white background */
 }
 
 /* Sidebar column (participates in grid; not fixed) */
@@ -27,11 +29,21 @@ html, body, #root {
   justify-content: space-between;
 }
 
+/* keep  padding, but center the inner page on wide screens */
 .app-content {
   grid-column: 2;
   min-width: 0;
-  padding: 40px 24px 24px 50px;  /* Increased top padding to 40px */
+  padding: 40px 24px 24px 50px; /* keep your exact spacing */
   box-sizing: border-box;
   overflow: auto;
-  height: 100vh; /* Ensure it takes full viewport height */
+  height: 100vh;
+
+  /*  center page content area */
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start; /* keep at top */
+}
+/* THIS is the key line */
+.app-content > * {
+  width: 100%;
 }

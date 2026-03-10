@@ -124,6 +124,7 @@ async function main() {
   }
 
   await ensureBucket(bucketName);
+  await ensureBucket("avatars"); // ATH-411: profile picture uploads
 
   let successCount = 0;
   let failCount = 0;

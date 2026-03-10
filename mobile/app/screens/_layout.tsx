@@ -16,6 +16,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="RoadMap" />
       <Stack.Screen name="UpdateEmail" />
       <Stack.Screen name="UpdateName" />
+      <Stack.Screen name="ChangePassword" />
     </Stack>
   );
 }
