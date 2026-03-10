@@ -53,8 +53,8 @@ const mockFetch = (opts: MockFetchOpts) => {
       });
     }
 
-    // POST /assign-admin-role
-    if (url.includes("/api/admin/assign-admin-role")) {
+    // POST /api/admin/invite
+    if (url.includes("/api/admin/invite")) {
       if (assignStatus === 200) {
         return new Response(JSON.stringify({ ok: true }), {
           status: 200,

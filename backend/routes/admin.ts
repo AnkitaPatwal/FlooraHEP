@@ -707,9 +707,10 @@ router.get('/modules', async (req, res) => {
 });
 
 /**
- * List all plan categories (admin-only). No seed data; admins create names.
+ * ATH-413: Create a new module (admin-only)
+ * POST /api/admin/modules
  */
-router.get('/categories', async (req, res) => {
+router.post('/modules', async (req, res) => {
   try {
     const admin = (req as any).admin;
     if (!admin?.id) {
@@ -735,9 +736,11 @@ router.get('/categories', async (req, res) => {
 });
 
 /**
- * Delete a plan (admin-only)
+ * ATH-413: Update module exercises (admin-only)
+ * PUT /api/admin/modules/:id/exercises
+ * Body: { exercise_ids: number[] }
  */
-router.delete('/plans/:id', async (req, res) => {
+router.put('/modules/:id/exercises', async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
