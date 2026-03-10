@@ -22,6 +22,8 @@ import EditExercise from "./components/main/EditExercise";
 import ExerciseDetail from "./pages/main/ExerciseDetail";
 import AdminRegister from "./pages/AdminRegister";
 import CreateAdmin from "./pages/CreateAdmin";
+import AdminAcceptInvite from "./pages/AdminAcceptInvite";
+
 import CreatePlan from "./pages/main/CreatePlan";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 import { AdminRoute } from "./components/AdminRoute";
@@ -73,7 +75,12 @@ export default function App() {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/admin-register" element={<AdminRegister />} />
+
         <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
+
+        <Route path="/admin/accept-invite" element={<AdminAcceptInvite />} />
+        
+
 
         <Route
           path="/create-admin"
