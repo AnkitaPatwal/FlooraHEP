@@ -1,6 +1,7 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
@@ -168,12 +169,8 @@ router.use(requireAdminCookie);
 
 /**
  * ATH-253 List clients (admin only)
-
  */
-router.get('/clients', async (_req, res) => {
-
-*/
-router.get("/clients", async (req, res) => {
+router.get("/clients", async (_req, res) => {
 
   try {
     const { data, error } = await supabaseAdmin
@@ -942,13 +939,8 @@ router.delete('/plans/:id', async (req, res) => {
   } catch (error) {
     console.error('Failed to delete plan:', error);
     return res.status(500).json({ error: 'Internal server error.' });
-    console.error('Failed to delete plan:', error);
-    return res.status(500).json({ error: 'Internal server error.' });
   }
 });
-
-
-export default router;
 
 
 export default router;
