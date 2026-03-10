@@ -1,28 +1,4 @@
 import express from 'express';
-
-import multer from 'multer';
-import path from 'path';
-import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
-
-import { supabase } from '../supabase/config/client';
-import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
-
-
-import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
-import { supabaseServer } from '../lib/supabaseServer';
-import { uploadExerciseVideo, linkVideoToExercise } from '../services/videoService';
-
-import { getAllModulesWithExercises } from '../services/moduleService'
-import { supabaseServer } from '../lib/supabaseServer'
-
-import { getAllModulesWithExercises } from '../services/moduleService';
-import { supabaseServer } from '../lib/supabaseServer';
-
-import { createClient } from "@supabase/supabase-js";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-
 import { createClient } from '@supabase/supabase-js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -31,8 +7,6 @@ import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
-
-
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -80,11 +54,7 @@ function requireAdminCookie(
   try {
     const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
     (req as any).admin = payload;
-
-    next();
-
     return next();
-
   } catch (_err) {
     return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
   }
@@ -199,17 +169,8 @@ router.use(requireAdminCookie);
 
 /**
  * ATH-253 List clients (admin only)
-
-
- */
-router.get('/clients', async (_req, res) => {
-
-*/
-router.get("/clients", async (req, res) => {
-
  */
 router.get("/clients", async (_req, res) => {
-
 
   try {
     const { data, error } = await supabaseAdmin
@@ -236,133 +197,7 @@ router.get("/clients", async (_req, res) => {
   }
 });
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 200 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowedMime = ['video/mp4', 'video/quicktime'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    const allowedExt = ['.mp4', '.mov'];
-
-    if (!allowedMime.includes(file.mimetype) || !allowedExt.includes(ext)) {
-      return cb(new Error('Only .mp4 and .mov video files are allowed.'));
-    }
-
-    cb(null, true);
-  },
-});
-
-router.post('/exercises/:exerciseId/video', upload.single('file'), async (req, res) => {
-  try {
-    const exerciseId = Number(req.params.exerciseId);
-    if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
-      return res.status(400).json({ message: 'Invalid exerciseId' });
-    }
-
-    const file = req.file;
-    if (!file) {
-      return res.status(400).json({ message: 'Missing file' });
-    }
-
-    // take uploader id from header for local testing
-    const uploaderHeader = req.header('x-uploader-user-id');
-    const uploaderUserId = Number(uploaderHeader ?? 0);
-
-    if (!Number.isInteger(uploaderUserId) || uploaderUserId <= 0) {
-      return res.status(400).json({
-        message: 'Missing/invalid x-uploader-user-id header (must be an existing bigint user_id)',
-      });
-    }
-
-    const { video_id, publicUrl } = await uploadExerciseVideo(
-      supabaseServer,
-      file.buffer,
-      file.originalname,
-      file.mimetype,
-      file.size,
-      uploaderUserId
-    );
-
-    await linkVideoToExercise(supabaseServer, exerciseId, video_id);
-
-    return res.status(200).json({ ok: true, video_id, publicUrl });
-  } catch (err) {
-    console.error('Upload error:', err);
-    const msg = err instanceof Error ? err.message : 'Upload failed';
-    return res.status(500).json({ message: msg });
-  }
-});
-
 /**
-
- * Fetch all modules/plans with exercises (admin-only)
- */
-router.get('/modules', async (_req, res) => {
-  try {
-    const modules = await getAllModulesWithExercises(supabaseServer);
-    return res.status(200).json(modules);
-  } catch (error) {
-    console.error('Failed to fetch modules:', error);
-    return res.status(500).json({ error: 'Failed to fetch modules' });
-  }
-});
-
-/**
- * ATH-413: Create a new module (admin-only)
- */
-router.post('/modules', async (req, res) => {
-  try {
-    const admin = (req as any).admin;
-    if (!admin?.id) {
-      return res.status(401).json({ error: 'Admin ID not found' });
-    }
-
-    const { title, description, session_number } = req.body;
-    const sessionNum = session_number != null ? Number(session_number) : 1;
-
-    const moduleRow = await createModule(supabaseServer, {
-      title: title ?? '',
-      description: description ?? '',
-      session_number: Number.isInteger(sessionNum) && sessionNum > 0 ? sessionNum : 1,
-      created_by_admin_id: String(admin.id),
-    });
-
-    return res.status(201).json(moduleRow);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create module';
-    console.error('POST /api/admin/modules:', message);
-    return res.status(400).json({ error: message });
-  }
-});
-
-/**
- * ATH-413: Save module-to-exercise mapping (admin-only)
- * Body: { exercise_ids: number[] }
- */
-router.put('/modules/:id/exercises', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ error: 'Invalid module id' });
-    }
-
-    const { exercise_ids } = req.body;
-    const ids = Array.isArray(exercise_ids)
-      ? exercise_ids.map((x: unknown) => Number(x)).filter(Number.isInteger)
-      : [];
-
-    const result = await saveModuleExercises(supabaseServer, id, ids);
-    return res.status(200).json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save module exercises';
-    console.error('PUT /api/admin/modules/:id/exercises:', message);
-    return res.status(400).json({ error: message });
-  }
-});
-
-/**
-
-
  * Approve a client (admin-only)
  */
 router.post('/clients/:id/approve', async (req, res) => {
@@ -422,13 +257,7 @@ router.post('/clients/:id/deny', async (req, res) => {
     return res.status(200).json({ message: 'Client denied and email sent' });
   } catch (err) {
     console.error('Error denying client:', err);
-
-
-    return res.status(500).json({ message: 'Error denying client' })
-    res.status(500).json({ message: 'Error denying client' });
-
     return res.status(500).json({ message: 'Error denying client' });
-
   }
 });
 
@@ -703,61 +532,6 @@ router.get('/modules', async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch modules:', error)
     return res.status(500).json({ error: 'Failed to fetch modules' })
-  }
-});
-
-/**
- * ATH-413: Create a new module (admin-only)
- * POST /api/admin/modules
- */
-router.post('/modules', async (req, res) => {
-  try {
-    const admin = (req as any).admin;
-    if (!admin?.id) {
-      return res.status(401).json({ error: 'Admin ID not found' });
-    }
-
-    const { title, description, session_number } = req.body;
-    const sessionNum = session_number != null ? Number(session_number) : 1;
-
-    const moduleRow = await createModule(supabaseServer, {
-      title: title ?? '',
-      description: description ?? '',
-      session_number: Number.isInteger(sessionNum) && sessionNum > 0 ? sessionNum : 1,
-      created_by_admin_id: String(admin.id),
-    });
-
-    return res.status(201).json(moduleRow);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create module';
-    console.error('POST /api/admin/modules:', message);
-    return res.status(400).json({ error: message });
-  }
-});
-
-/**
- * ATH-413: Update module exercises (admin-only)
- * PUT /api/admin/modules/:id/exercises
- * Body: { exercise_ids: number[] }
- */
-router.put('/modules/:id/exercises', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ error: 'Invalid module id' });
-    }
-
-    const { exercise_ids } = req.body;
-    const ids = Array.isArray(exercise_ids)
-      ? exercise_ids.map((x: unknown) => Number(x)).filter(Number.isInteger)
-      : [];
-
-    const result = await saveModuleExercises(supabaseServer, id, ids);
-    return res.status(200).json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save module exercises';
-    console.error('PUT /api/admin/modules/:id/exercises:', message);
-    return res.status(400).json({ error: message });
   }
 });
 
