@@ -1,6 +1,7 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Plan.css";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface Module {
   module_id: number;
@@ -15,24 +16,38 @@ interface Plan {
   category: string;
   title: string;
   type: string;
+  sessionCount: number;
   image: string;
 }
 
-function mapModuleToPlan(module: Module): Plan {
+interface PlanData {
+  plan_id: number;
+  title: string;
+  description: string;
+  category_id: number | null;
+  plan_category: { category_id: number; name: string } | null;
+  plan_module: any[];
+}
+
+function mapDataToPlan(plan: PlanData): Plan {
+  const categoryName = plan.plan_category?.name ?? "Uncategorized";
+
   return {
-    id: module.module_id,
-    title: module.title,
-    category: 'Pelvic Floor', // default until category field is added to DB
-    type: module.description ?? 'Exercise',
-    image: '', // placeholder until thumbnail is implemented
+    id: plan.plan_id,
+    title: plan.title,
+    category: categoryName,
+    type: plan.description ?? 'Plan',
+    sessionCount: plan.plan_module ? plan.plan_module.length : 0,
+    image: '',
   };
 }
 
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/admin/modules")
+    fetch("http://localhost:3000/api/admin/plans", { credentials: "include" })
       .then(res => res.json())
       .then((data: unknown) => {
         console.log("RAW DATA:", data);
@@ -41,10 +56,10 @@ export default function Plan() {
           setPlans([]);
           return;
         }
-        setPlans((data as Module[]).map(mapModuleToPlan));
+        setPlans((data as PlanData[]).map(mapDataToPlan));
       })
       .catch(err => {
-        console.error("Failed to fetch modules:", err);
+        console.error("Failed to fetch plans:", err);
         setPlans([]);
       });
   }, []);
@@ -69,7 +84,7 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
           <div className="plan-header-left">
             <h1 className="plan-title">Plans</h1>
             <p className="plan-count">{plans.length} Plans</p>
-            <button className="plan-new-plan-btn">+ New Plan</button>
+            <button className="plan-new-plan-btn" onClick={() => navigate("/plan-dashboard/create")}>+ New Plan</button>
           </div>
 
           {/* SEARCH BAR SECTION */}
@@ -91,7 +106,7 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
                   />
                 </svg>
               </span>
-              <input type="text" className="plan-search-bar" placeholder="Search" />
+              <input type="text" className="plan-search-bar" placeholder="Search plans..." />
             </div>
           </div>
         </header>
@@ -102,19 +117,22 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
         {Object.entries(groupedPlans).map(([category, items]) => (
           <section className="plan-category-section" key={category}>
             <h2 className="plan-category-title">
-              {category} <span>{items.length} {items.length === 1 ? 'Exercise' : 'Sessions'}</span>
+              {category} <span>{items.length} {items.length === 1 ? 'Plan' : 'Plans'}</span>
             </h2>
 
             <div className="plan-grid">
               {items.map((plan) => (
-                <div className="plan-card" key={plan.id}>
-                  <img src={plan.image} alt={plan.title} className="plan-image" />
+                <div 
+                  className="plan-card" 
+                  key={plan.id}
+                  onClick={() => navigate(`/plan-dashboard/${plan.id}`)}
+                >
                   <div className="plan-info">
                     <h3>{plan.title}</h3>
                     <p>{plan.category}</p>
                     <span className="plan-tag">
                       <span className="material-symbols-outlined">vital_signs</span>
-                      {plan.type}
+                      {plan.sessionCount} {plan.sessionCount === 1 ? 'session' : 'sessions'}
                     </span>
                   </div>
                 </div>
