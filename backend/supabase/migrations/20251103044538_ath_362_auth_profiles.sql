@@ -27,6 +27,8 @@ CREATE TRIGGER trg_profiles_set_updated_at
 BEFORE UPDATE ON public.profiles
 FOR EACH ROW EXECUTE FUNCTION public.set_profiles_updated_at();
 
+-- Legacy sync from public."user" disabled (we are moving away from BIGINT user ids)
+
 CREATE OR REPLACE FUNCTION public.handle_new_user_from_public_user()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -34,11 +36,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  INSERT INTO public.profiles (id, email)
-  VALUES (NEW.user_id, NEW.email)
-  ON CONFLICT (id) DO UPDATE
-    SET email = EXCLUDED.email,
-        updated_at = now();
+  -- intentionally disabled
   RETURN NEW;
 END;
 $$;
@@ -47,10 +45,3 @@ DROP TRIGGER IF EXISTS trg_on_public_user_created ON public."user";
 CREATE TRIGGER trg_on_public_user_created
 AFTER INSERT ON public."user"
 FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_from_public_user();
-
-INSERT INTO public.profiles (id, email)
-SELECT u.user_id, u.email
-FROM public."user" u
-LEFT JOIN public.profiles p ON p.id = u.user_id
-WHERE p.id IS NULL
-ON CONFLICT (id) DO NOTHING;

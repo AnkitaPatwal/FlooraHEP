@@ -33,7 +33,7 @@ export default function CreateAdmin() {
     try {
       setIsSubmitting(true);
 
-      const res = await fetch(`${API_URL}/api/admin/assign-admin-role`, {
+      const res = await fetch("http://localhost:3000/api/admin/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include", // ✅ cookie auth
