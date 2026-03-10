@@ -1,4 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AdminVideoUpload from "./pages/AdminVideoUpload";
+
+//import Login from "./pages/Login";
 import { AuthProvider } from "./lib/auth";
 import "./App.css";
 
@@ -72,8 +75,12 @@ export default function App() {
         <Route path="/user-profile" element={<UserProfile />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/admin-register" element={<AdminRegister />} />
+
+        <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
+
         <Route path="/admin/accept-invite" element={<AdminAcceptInvite />} />
         
+
 
         <Route
           path="/create-admin"

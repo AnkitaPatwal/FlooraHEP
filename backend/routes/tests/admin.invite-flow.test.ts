@@ -28,6 +28,8 @@ function makeApp() {
 }
 
 describe("Admin invite flow", () => {
+  // The email invite path does some crypto + template work; give it extra time under Jest.
+  jest.setTimeout(15000);
   const ADMIN_JWT_SECRET = "test_admin_secret";
 
   beforeEach(() => {

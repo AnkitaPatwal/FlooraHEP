@@ -540,58 +540,6 @@ router.get('/modules', async (req, res) => {
  */
 router.get('/categories', async (req, res) => {
   try {
-    const admin = (req as any).admin;
-    if (!admin?.id) {
-      return res.status(401).json({ error: 'Admin ID not found' });
-    }
-
-    const { title, description, session_number } = req.body;
-    const sessionNum = session_number != null ? Number(session_number) : 1;
-
-    const moduleRow = await createModule(supabaseServer, {
-      title: title ?? '',
-      description: description ?? '',
-      session_number: Number.isInteger(sessionNum) && sessionNum > 0 ? sessionNum : 1,
-      created_by_admin_id: String(admin.id),
-    });
-
-    return res.status(201).json(moduleRow);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create module';
-    console.error('POST /api/admin/modules:', message);
-    return res.status(400).json({ error: message });
-  }
-});
-
-/**
- * Delete a plan (admin-only)
- */
-router.delete('/plans/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ error: 'Invalid module id' });
-    }
-
-    const { exercise_ids } = req.body;
-    const ids = Array.isArray(exercise_ids)
-      ? exercise_ids.map((x: unknown) => Number(x)).filter(Number.isInteger)
-      : [];
-
-    const result = await saveModuleExercises(supabaseServer, id, ids);
-    return res.status(200).json(result);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save module exercises';
-    console.error('PUT /api/admin/modules/:id/exercises:', message);
-    return res.status(400).json({ error: message });
-  }
-});
-
-/**
- * List all plan categories (admin-only). No seed data; admins create names.
- */
-router.get('/categories', async (req, res) => {
-  try {
     const { data, error } = await supabaseAdmin
       .from('plan_category')
       .select('category_id, name')

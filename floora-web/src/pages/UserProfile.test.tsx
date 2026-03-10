@@ -3,6 +3,10 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import UserProfile from "./UserProfile";
 import type { ActiveClient } from "../lib/admin-api";
+import { afterEach } from "vitest";
+import { cleanup } from "@testing-library/react";
+
+afterEach(() => cleanup());
 
 const mockDeleteClient = vi.fn();
 vi.mock("../lib/admin-api", async (importOriginal) => {
@@ -41,7 +45,7 @@ describe("UserProfile", () => {
   it("shows empty message when no user in state", () => {
     renderWithRouter("/user-profile");
     expect(
-      screen.getByText(/No user selected. Go back and click an active user./i)
+      screen.getByText(/No user selected\. Go back and click an active user\./i)
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
   });
@@ -54,14 +58,16 @@ describe("UserProfile", () => {
       lname: "Doe",
       status: true,
     };
+
     renderWithRouter("/user-profile", { user });
+
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("jane@example.com")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
   });
 
-  it("shows confirmation modal when Delete is clicked", () => {
+  it("shows confirmation modal when Delete is clicked", async () => {
     const user: ActiveClient = {
       user_id: 5,
       email: "jane@example.com",
@@ -69,21 +75,25 @@ describe("UserProfile", () => {
       lname: "Doe",
       status: true,
     };
+
     renderWithRouter("/user-profile", { user });
 
-    // Click the page delete button (unique BEFORE modal opens)
+    // Click the page Delete button once
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
+    // Wait for modal
+    const dialog = await screen.findByRole("dialog");
+
     expect(
-      screen.getByText(/Are you sure you want to delete this client\?/i)
+      within(dialog).getByText(/Are you sure you want to delete this client\?/i)
     ).toBeInTheDocument();
 
-    const dialog = screen.getByRole("dialog");
+    // Verify modal buttons (scoped within dialog to avoid "two Delete buttons" issue)
     expect(within(dialog).getByRole("button", { name: /cancel/i })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
   });
 
-  it("closes modal when Cancel is clicked", () => {
+  it("closes modal when Cancel is clicked", async () => {
     const user: ActiveClient = {
       user_id: 5,
       email: "jane@example.com",
@@ -91,19 +101,17 @@ describe("UserProfile", () => {
       lname: "Doe",
       status: true,
     };
+
     renderWithRouter("/user-profile", { user });
 
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
-    expect(
-      screen.getByText(/Are you sure you want to delete this client\?/i)
-    ).toBeInTheDocument();
 
-    const dialog = screen.getByRole("dialog");
+    const dialog = await screen.findByRole("dialog");
     fireEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
 
-    expect(
-      screen.queryByText(/Are you sure you want to delete this client\?/i)
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 
   it("calls deleteClient and navigates to users when Confirm Delete is clicked", async () => {
@@ -116,11 +124,14 @@ describe("UserProfile", () => {
       lname: "Doe",
       status: true,
     };
+
     renderWithRouter("/user-profile", { user });
 
     fireEvent.click(screen.getByRole("button", { name: /^delete$/i }));
 
-    const dialog = screen.getByRole("dialog");
+    const dialog = await screen.findByRole("dialog");
+
+    // Click the modal confirm delete (scoped)
     fireEvent.click(within(dialog).getByRole("button", { name: /^delete$/i }));
 
     await waitFor(() => {

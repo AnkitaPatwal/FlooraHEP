@@ -250,5 +250,8 @@ backend/testEmail.ts
 # Local scratch request bodies
 backend/body.json
 
+# Local scratch request bodies (repo root)
+body.json
+
 !backend/supabase/functions/
 !backend/supabase/functions/**/*
