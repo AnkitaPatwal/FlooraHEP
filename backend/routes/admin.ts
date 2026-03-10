@@ -165,6 +165,116 @@ router.get('/modules', async (req, res) => {
 });
 
 /**
+ * Fetch all modules/plans with exercises (admin-only)
+ */
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = await getAllModulesWithExercises(supabaseServer)
+    return res.status(200).json(modules)
+  } catch (error) {
+    console.error('Failed to fetch modules:', error)
+    return res.status(500).json({ error: 'Failed to fetch modules' })
+  }
+});
+
+/**
+ * List all plan categories (admin-only). No seed data; admins create names.
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('plan_category')
+      .select('category_id, name')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching categories:', error);
+      return res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+    return res.status(200).json(data ?? []);
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Create a plan category (admin-only)
+ */
+router.post('/categories', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required.' });
+    }
+    const { data, error } = await supabaseAdmin
+      .from('plan_category')
+      .insert({ name: name.trim() })
+      .select('category_id, name')
+      .single();
+
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'A category with this name already exists.' });
+      console.error('Error creating category:', error);
+      return res.status(500).json({ error: 'Failed to create category.' });
+    }
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Failed to create category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Update a plan category (admin-only)
+ */
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required.' });
+    }
+    const { error } = await supabaseAdmin
+      .from('plan_category')
+      .update({ name: name.trim() })
+      .eq('category_id', id);
+
+    if (error) {
+      if (error.code === '23505') return res.status(409).json({ error: 'A category with this name already exists.' });
+      console.error('Error updating category:', error);
+      return res.status(500).json({ error: 'Failed to update category.' });
+    }
+    return res.status(200).json({ message: 'Category updated successfully.' });
+  } catch (error) {
+    console.error('Failed to update category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Delete a plan category (admin-only). Plans using it will have category_id set to null.
+ */
+router.delete('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin
+      .from('plan_category')
+      .delete()
+      .eq('category_id', id);
+
+    if (error) {
+      console.error('Error deleting category:', error);
+      return res.status(500).json({ error: 'Failed to delete category.' });
+    }
+    return res.status(200).json({ message: 'Category deleted successfully.' });
+  } catch (error) {
+    console.error('Failed to delete category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
  * Fetch all plans (admin-only)
  */
 router.get('/plans', async (req, res) => {
@@ -175,6 +285,11 @@ router.get('/plans', async (req, res) => {
         plan_id,
         title,
         description,
+        category_id,
+        plan_category (
+          category_id,
+          name
+        ),
         plan_module (
           module_id
         )
@@ -199,7 +314,7 @@ router.get('/plans', async (req, res) => {
 router.post('/plans', async (req, res) => {
   try {
     const adminId = (req as any).admin?.id;
-    const { title, description, moduleIds } = req.body;
+    const { title, description, moduleIds, categoryId } = req.body;
 
     if (!title || typeof title !== 'string') {
       return res.status(400).json({ error: 'Title is required.' });
@@ -213,14 +328,19 @@ router.post('/plans', async (req, res) => {
       return res.status(400).json({ error: 'moduleIds must be an array.' });
     }
 
+    const planRow: any = {
+      title,
+      description,
+      created_by_admin_id: adminId
+    };
+    if (categoryId != null && categoryId !== '') {
+      planRow.category_id = categoryId;
+    }
+
     // Insert the plan
     const { data: planData, error: planError } = await supabaseAdmin
       .from('plan')
-      .insert({
-        title,
-        description,
-        created_by_admin_id: adminId
-      })
+      .insert(planRow)
       .select('plan_id')
       .single();
 
@@ -269,6 +389,11 @@ router.get('/plans/:id', async (req, res) => {
         plan_id,
         title,
         description,
+        category_id,
+        plan_category (
+          category_id,
+          name
+        ),
         plan_module (
           order_index,
           module_id,
@@ -306,7 +431,7 @@ router.put('/plans/:id', async (req, res) => {
   try {
     const adminId = (req as any).admin?.id;
     const { id } = req.params;
-    const { title, description, moduleIds } = req.body;
+    const { title, description, moduleIds, categoryId } = req.body;
 
     if (!title || typeof title !== 'string') {
       return res.status(400).json({ error: 'Title is required.' });
@@ -320,14 +445,19 @@ router.put('/plans/:id', async (req, res) => {
       return res.status(400).json({ error: 'moduleIds must be an array.' });
     }
 
+    const updatePayload: any = {
+      title,
+      description,
+      updated_at: new Date().toISOString()
+    };
+    if (categoryId !== undefined) {
+      updatePayload.category_id = categoryId === null || categoryId === '' ? null : categoryId;
+    }
+
     // Update the plan
     const { error: planError } = await supabaseAdmin
       .from('plan')
-      .update({
-        title,
-        description,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('plan_id', id);
 
     if (planError) {
