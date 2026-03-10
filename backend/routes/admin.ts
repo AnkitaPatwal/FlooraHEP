@@ -4,13 +4,8 @@ import jwt from 'jsonwebtoken';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
-
-import { getAllModulesWithExercises } from '../services/moduleService';
+import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
-import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService'
-import { supabaseServer } from '../lib/supabaseServer'
-import { createClient } from "@supabase/supabase-js";
-import jwt from "jsonwebtoken";
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -266,30 +261,31 @@ router.get('/clients/:userId/modules', async (req, res) => {
   }
 });
 
-
-export default router;
 /**
  * ATH-413: Create a new module (admin-only)
  */
 router.post('/modules', async (req, res) => {
   try {
-    const admin = (req as any).admin
+    const admin = (req as any).admin;
     if (!admin?.id) {
-      return res.status(401).json({ error: 'Admin ID not found' })
+      return res.status(401).json({ error: 'Admin ID not found' });
     }
-    const { title, description, session_number } = req.body
-    const sessionNum = session_number != null ? Number(session_number) : 1
+
+    const { title, description, session_number } = req.body;
+    const sessionNum = session_number != null ? Number(session_number) : 1;
+
     const moduleRow = await createModule(supabaseServer, {
       title: title ?? '',
       description: description ?? '',
       session_number: Number.isInteger(sessionNum) && sessionNum > 0 ? sessionNum : 1,
       created_by_admin_id: String(admin.id),
-    })
-    return res.status(201).json(moduleRow)
+    });
+
+    return res.status(201).json(moduleRow);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to create module'
-    console.error('POST /api/admin/modules:', message)
-    return res.status(400).json({ error: message })
+    const message = error instanceof Error ? error.message : 'Failed to create module';
+    console.error('POST /api/admin/modules:', message);
+    return res.status(400).json({ error: message });
   }
 });
 
@@ -299,20 +295,377 @@ router.post('/modules', async (req, res) => {
  */
 router.put('/modules/:id/exercises', async (req, res) => {
   try {
-    const id = Number(req.params.id)
+    const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ error: 'Invalid module id' })
+      return res.status(400).json({ error: 'Invalid module id' });
     }
-    const { exercise_ids } = req.body
+
+    const { exercise_ids } = req.body;
     const ids = Array.isArray(exercise_ids)
       ? exercise_ids.map((x: unknown) => Number(x)).filter(Number.isInteger)
-      : []
-    const result = await saveModuleExercises(supabaseServer, id, ids)
-    return res.status(200).json(result)
+      : [];
+
+    const result = await saveModuleExercises(supabaseServer, id, ids);
+    return res.status(200).json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to save module exercises'
-    console.error('PUT /api/admin/modules/:id/exercises:', message)
-    return res.status(400).json({ error: message })
+    const message = error instanceof Error ? error.message : 'Failed to save module exercises';
+    console.error('PUT /api/admin/modules/:id/exercises:', message);
+    return res.status(400).json({ error: message });
+  }
+});
+
+/**
+ * List all plan categories (admin-only). No seed data; admins create names.
+ */
+router.get('/categories', async (req, res) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('plan_category')
+      .select('category_id, name')
+      .order('name', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching categories:', error);
+      return res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+
+    return res.status(200).json(data ?? []);
+  } catch (error) {
+    console.error('Failed to fetch categories:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Create a plan category (admin-only)
+ */
+router.post('/categories', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('plan_category')
+      .insert({ name: name.trim() })
+      .select('category_id, name')
+      .single();
+
+    if (error) {
+      if ((error as any).code === '23505') {
+        return res.status(409).json({ error: 'A category with this name already exists.' });
+      }
+      console.error('Error creating category:', error);
+      return res.status(500).json({ error: 'Failed to create category.' });
+    }
+
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Failed to create category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Update a plan category (admin-only)
+ */
+router.put('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Name is required.' });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('plan_category')
+      .update({ name: name.trim() })
+      .eq('category_id', id);
+
+    if (error) {
+      if ((error as any).code === '23505') {
+        return res.status(409).json({ error: 'A category with this name already exists.' });
+      }
+      console.error('Error updating category:', error);
+      return res.status(500).json({ error: 'Failed to update category.' });
+    }
+
+    return res.status(200).json({ message: 'Category updated successfully.' });
+  } catch (error) {
+    console.error('Failed to update category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Delete a plan category (admin-only). Plans using it will have category_id set to null.
+ */
+router.delete('/categories/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { error } = await supabaseAdmin
+      .from('plan_category')
+      .delete()
+      .eq('category_id', id);
+
+    if (error) {
+      console.error('Error deleting category:', error);
+      return res.status(500).json({ error: 'Failed to delete category.' });
+    }
+
+    return res.status(200).json({ message: 'Category deleted successfully.' });
+  } catch (error) {
+    console.error('Failed to delete category:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Fetch all plans (admin-only)
+ */
+router.get('/plans', async (req, res) => {
+  try {
+    const { data: plans, error } = await supabaseAdmin
+      .from('plan')
+      .select(`
+        plan_id,
+        title,
+        description,
+        category_id,
+        plan_category (
+          category_id,
+          name
+        ),
+        plan_module (
+          module_id
+        )
+      `)
+      .order('plan_id', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching plans:', error);
+      return res.status(500).json({ error: 'Failed to fetch plans' });
+    }
+
+    return res.status(200).json(plans);
+  } catch (error) {
+    console.error('Failed to fetch plans:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Create a new plan (admin-only)
+ */
+router.post('/plans', async (req, res) => {
+  try {
+    const adminId = (req as any).admin?.id;
+    const { title, description, moduleIds, categoryId } = req.body;
+
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({ error: 'Title is required.' });
+    }
+
+    if (!description || typeof description !== 'string') {
+      return res.status(400).json({ error: 'Description is required.' });
+    }
+
+    if (!Array.isArray(moduleIds)) {
+      return res.status(400).json({ error: 'moduleIds must be an array.' });
+    }
+
+    const planRow: any = {
+      title,
+      description,
+      created_by_admin_id: adminId,
+    };
+    if (categoryId != null && categoryId !== '') {
+      planRow.category_id = categoryId;
+    }
+
+    const { data: planData, error: planError } = await supabaseAdmin
+      .from('plan')
+      .insert(planRow)
+      .select('plan_id')
+      .single();
+
+    if (planError || !planData) {
+      console.error('Error creating plan:', planError);
+      return res.status(500).json({ error: 'Failed to create plan.' });
+    }
+
+    const planId = planData.plan_id;
+
+    if (moduleIds.length > 0) {
+      const planModules = moduleIds.map((moduleId: number, index: number) => ({
+        plan_id: planId,
+        module_id: moduleId,
+        order_index: index + 1,
+      }));
+
+      const { error: modulesError } = await supabaseAdmin
+        .from('plan_module')
+        .insert(planModules);
+
+      if (modulesError) {
+        console.error('Error linking modules to plan:', modulesError);
+        return res.status(500).json({ error: 'Failed to link modules to plan.' });
+      }
+    }
+
+    return res.status(201).json({ message: 'Plan created successfully.', planId });
+  } catch (error) {
+    console.error('Failed to create plan:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Get a specific plan by ID (admin-only)
+ */
+router.get('/plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { data: plan, error: planError } = await supabaseAdmin
+      .from('plan')
+      .select(`
+        plan_id,
+        title,
+        description,
+        category_id,
+        plan_category (
+          category_id,
+          name
+        ),
+        plan_module (
+          order_index,
+          module_id,
+          module (
+            module_id,
+            title,
+            description,
+            session_number
+          )
+        )
+      `)
+      .eq('plan_id', id)
+      .single();
+
+    if (planError || !plan) {
+      return res.status(404).json({ error: 'Plan not found.' });
+    }
+
+    if ((plan as any).plan_module && Array.isArray((plan as any).plan_module)) {
+      (plan as any).plan_module.sort(
+        (a: any, b: any) => a.order_index - b.order_index
+      );
+    }
+
+    return res.status(200).json(plan);
+  } catch (error) {
+    console.error('Failed to fetch plan:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Update an existing plan (admin-only)
+ */
+router.put('/plans/:id', async (req, res) => {
+  try {
+    const adminId = (req as any).admin?.id;
+    const { id } = req.params;
+    const { title, description, moduleIds, categoryId } = req.body;
+
+    if (!title || typeof title !== 'string') {
+      return res.status(400).json({ error: 'Title is required.' });
+    }
+
+    if (!description || typeof description !== 'string') {
+      return res.status(400).json({ error: 'Description is required.' });
+    }
+
+    if (!Array.isArray(moduleIds)) {
+      return res.status(400).json({ error: 'moduleIds must be an array.' });
+    }
+
+    const updatePayload: any = {
+      title,
+      description,
+      updated_at: new Date().toISOString(),
+    };
+    if (categoryId !== undefined) {
+      updatePayload.category_id =
+        categoryId === null || categoryId === '' ? null : categoryId;
+    }
+
+    const { error: planError } = await supabaseAdmin
+      .from('plan')
+      .update(updatePayload)
+      .eq('plan_id', id);
+
+    if (planError) {
+      console.error('Error updating plan:', planError);
+      return res.status(500).json({ error: 'Failed to update plan.' });
+    }
+
+    const { error: deleteError } = await supabaseAdmin
+      .from('plan_module')
+      .delete()
+      .eq('plan_id', id);
+
+    if (deleteError) {
+      console.error('Error deleting old modules:', deleteError);
+      return res.status(500).json({ error: 'Failed to update plan modules.' });
+    }
+
+    if (moduleIds.length > 0) {
+      const planModules = moduleIds.map((moduleId: number, index: number) => ({
+        plan_id: id,
+        module_id: moduleId,
+        order_index: index + 1,
+      }));
+
+      const { error: modulesError } = await supabaseAdmin
+        .from('plan_module')
+        .insert(planModules);
+
+      if (modulesError) {
+        console.error('Error linking modules to plan:', modulesError);
+        return res.status(500).json({ error: 'Failed to link new modules to plan.' });
+      }
+    }
+
+    return res.status(200).json({ message: 'Plan updated successfully.' });
+  } catch (error) {
+    console.error('Failed to update plan:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Delete a plan (admin-only)
+ */
+router.delete('/plans/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const { error: deleteError } = await supabaseAdmin
+      .from('plan')
+      .delete()
+      .eq('plan_id', id);
+
+    if (deleteError) {
+      console.error('Error deleting plan:', deleteError);
+      return res.status(500).json({ error: 'Failed to delete plan.' });
+    }
+
+    return res.status(200).json({ message: 'Plan deleted successfully.' });
+  } catch (error) {
+    console.error('Failed to delete plan:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
   }
 });
 
