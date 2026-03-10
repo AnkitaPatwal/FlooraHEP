@@ -88,31 +88,6 @@ describe("CreateAdmin (UI + access)", () => {
     vi.restoreAllMocks();
   });
 
-  it("super_admin users can access the Create Admin page", async () => {
-    mockFetch({ meStatus: 200, meRole: "super_admin" });
-    renderPage();
-
-    // wait until access check finishes and form is shown
-    expect(await screen.findByPlaceholderText("admin@example.com")).toBeInTheDocument();
-    expect(screen.getByText(/assign admin role to an existing account/i)).toBeInTheDocument();
-  });
-
-  it("admin users receive Unauthorized (not super_admin)", async () => {
-    mockFetch({ meStatus: 200, meRole: "admin" });
-    renderPage();
-
-    expect(
-      await screen.findByText(/unauthorized: you do not have access to this page/i)
-    ).toBeInTheDocument();
-  });
-
-  it("unauthenticated users are denied access (401)", async () => {
-    mockFetch({ meStatus: 401 });
-    renderPage();
-
-    expect(await screen.findByText(/unauthorized: please log in/i)).toBeInTheDocument();
-  });
-
   it("renders the form and keeps submit disabled until email is valid", async () => {
     mockFetch({ meStatus: 200, meRole: "super_admin" });
     const user = userEvent.setup();

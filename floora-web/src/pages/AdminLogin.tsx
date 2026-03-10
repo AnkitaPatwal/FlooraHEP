@@ -1,9 +1,13 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { setAdminUser, useAuth } from "../lib/auth";
 import "../App.css";
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const { refreshAuth } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [locked, setLocked] = useState(false);
@@ -19,8 +23,7 @@ export default function AdminLogin() {
     await new Promise((r) => setTimeout(r, 250));
 
     try {
-      // Call your backend (JWT-based auth)
-      const res = await fetch("http://localhost:3000/api/admin/login", {
+      const res = await fetch(`${API_URL}/api/admin/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // do NOT log password; just send it in request body
@@ -50,17 +53,18 @@ export default function AdminLogin() {
         return;
       }
 
-      const data: { ok?: boolean; admin?: { id: string; email: string } } =
-        await res.json();
+      const data: {
+        ok?: boolean;
+        admin?: { id: string; email: string; role?: string | null; name?: string | null };
+      } = await res.json();
 
-      if (!data?.ok) {
+      if (!data?.ok || !data?.admin) {
         setLoginError("Login failed. Please try again.");
         return;
       }
 
-      // optional: store admin info for this session
-      (window as any).__adminUser = data.admin;
-
+      setAdminUser(data.admin);
+      await refreshAuth();
       navigate("/dashboard", { replace: true });
     } finally {
       setLoading(false);

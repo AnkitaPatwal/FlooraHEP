@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 
 import {
   View,
@@ -9,12 +9,14 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 
 import { Link, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
-import profilePic from "../../assets/images/profile-pic.png";
+import * as ImagePicker from "expo-image-picker";
+import defaultProfile from "../../assets/images/default-profile.png";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -23,12 +25,17 @@ export default function Profile() {
   const { session } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const hasLoadedOnce = useRef(false);
 
   const fetchProfile = useCallback(async () => {
     if (!session?.access_token) return;
-    setLoading(true);
+    // Only show loading on first load; keep current UI (including avatar) during refetch
+    if (!hasLoadedOnce.current) setLoading(true);
     setError(null);
     try {
       const url = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/update-profile`;
@@ -46,22 +53,21 @@ export default function Profile() {
         return;
       }
       if (data.success && data.profile) {
+        hasLoadedOnce.current = true;
         const fullName =
           data.profile.name ??
           [data.profile.fname, data.profile.lname].filter(Boolean).join(" ").trim();
         setName(fullName || "");
         setEmail(data.profile.email ?? "");
+        setAvatarUrl(data.profile.avatar_url ?? null);
       }
     } catch {
       setError("Something went wrong");
+      // Don't clear avatarUrl on error — preserve current state
     } finally {
       setLoading(false);
     }
   }, [session?.access_token]);
-
-  useEffect(() => {
-    if (session?.access_token) fetchProfile();
-  }, [session?.access_token, fetchProfile]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,6 +92,129 @@ export default function Profile() {
     );
   };
 
+  const confirmDeleteAvatar = () => {
+    Alert.alert(
+      "Delete photo",
+      "Are you sure you want to delete your profile picture?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete", style: "destructive", onPress: deleteAvatar },
+      ]
+    );
+  };
+
+  const showAvatarOptions = () => {
+    const hasAvatar = Boolean(avatarUrl && avatarUrl.trim());
+    const options: { text: string; onPress?: () => void; style?: "cancel" | "destructive" }[] = [
+      { text: "Change photo", onPress: pickAndUploadAvatar },
+      ...(hasAvatar ? [{ text: "Delete photo", onPress: confirmDeleteAvatar, style: "destructive" as const }] : []),
+      { text: "Cancel", style: "cancel" },
+    ];
+    Alert.alert("Profile picture", "Choose an option", options);
+  };
+
+  const pickAndUploadAvatar = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      setError("Permission to access photos is required");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset?.uri) return;
+
+    setAvatarLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const uri = asset.uri;
+      const ext = uri.split(".").pop()?.toLowerCase() || "jpg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : ext === "gif" ? "image/gif" : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("file", {
+        uri: Platform.OS === "ios" ? uri.replace("file://", "") : uri,
+        name: `avatar.${ext}`,
+        type: mimeType,
+      } as any);
+
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/upload-avatar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            // Do not set Content-Type; fetch sets it with boundary for FormData
+          },
+          body: formData,
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Failed to upload photo");
+        return;
+      }
+      if (data.success) {
+        const url = data.avatar_url ?? data.publicUrl ?? null;
+        if (url) setAvatarUrl(url);
+        setSuccessMessage("Profile picture updated");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch {
+      setError("Failed to upload photo");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  const deleteAvatar = async () => {
+    setAvatarLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const res = await fetch(
+        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/upload-avatar`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${session?.access_token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "delete" }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Failed to delete photo");
+        return;
+      }
+      if (data.success) {
+        setAvatarUrl(null);
+        setSuccessMessage("Profile picture removed");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      }
+    } catch {
+      setError("Failed to delete photo");
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -93,7 +222,36 @@ export default function Profile() {
       <View style={styles.headerLine} />
 
       {/* Profile Image */}
-      <Image source={profilePic} style={styles.avatar} />
+      <TouchableOpacity
+        testID="profile-avatar"
+        onPress={avatarLoading ? undefined : showAvatarOptions}
+        style={styles.avatarWrap}
+        disabled={avatarLoading}
+      >
+        {avatarLoading ? (
+          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+            <ActivityIndicator size="large" color="#5A8E93" />
+          </View>
+        ) : avatarUrl ? (
+          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+        ) : (
+          <Image source={defaultProfile} style={styles.avatar} />
+        )}
+        <View style={styles.avatarEditBadge}>
+          <Feather name="camera" size={16} color="#fff" />
+        </View>
+      </TouchableOpacity>
+
+      {successMessage ? (
+        <View style={[styles.fieldContainer, styles.messageContainer]}>
+          <Text style={styles.successText}>{successMessage}</Text>
+        </View>
+      ) : null}
+      {error ? (
+        <View style={[styles.fieldContainer, styles.messageContainer]}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
 
       {loading ? (
         <View style={styles.loadingRow}>
@@ -101,11 +259,6 @@ export default function Profile() {
         </View>
       ) : (
         <>
-          {error ? (
-            <View style={styles.fieldContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : null}
 
           {/* Name */}
           <View style={styles.fieldContainer}>
@@ -157,7 +310,7 @@ export default function Profile() {
             secureTextEntry
             style={styles.input}
           />
-          <Link href="/screens/ResetPassword" asChild>
+          <Link href="/screens/ChangePassword" asChild>
             <TouchableOpacity style={styles.iconContainer}>
               <Feather name="edit-3" size={18} color="#5A8E93" />
             </TouchableOpacity>
@@ -181,8 +334,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#fff",
-    paddingHorizontal: 0, 
-    paddingTop: 60, 
+    paddingHorizontal: 0,
+    paddingTop: 60,
   },
   header: {
     fontSize: 22,
@@ -193,15 +346,34 @@ const styles = StyleSheet.create({
   headerLine: {
     height: 1,
     backgroundColor: "#F0F0F0",
-    width: "100%", 
+    width: "100%",
     marginBottom: 30,
+  },
+  avatarWrap: {
+    alignSelf: "center",
+    marginBottom: 30,
+    position: "relative",
   },
   avatar: {
     width: 110,
     height: 110,
     borderRadius: 55,
-    alignSelf: "center",
-    marginBottom: 30,
+  },
+  avatarPlaceholder: {
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarEditBadge: {
+    position: "absolute",
+    bottom: 0,
+    right: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#5A8E93",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingRow: {
     paddingHorizontal: 24,
@@ -213,13 +385,22 @@ const styles = StyleSheet.create({
     color: "#B91C1C",
     marginBottom: 8,
   },
+  successText: {
+    fontSize: 14,
+    color: "#059669",
+    marginBottom: 8,
+    textAlign: "center",
+  },
   fieldContainer: {
     marginBottom: 18,
     paddingHorizontal: 24,
   },
+  messageContainer: {
+    marginBottom: 8,
+  },
   label: {
     fontSize: 14,
-    fontWeight: "600", 
+    fontWeight: "600",
     color: "#333",
     marginBottom: 6,
   },

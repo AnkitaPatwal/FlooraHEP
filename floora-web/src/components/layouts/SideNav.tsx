@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "../../lib/auth";
 import "../layouts/SideNav.css";
 import logo from "../../assets/flooraLogo.png";
 import {
@@ -14,6 +15,7 @@ import {
 
 const SideNav = () => {
   const location = useLocation();
+  const { isSuperAdmin, isAuthLoading } = useAuth();
 
   const usersActive =
     location.pathname === "/users" ||
@@ -52,17 +54,19 @@ const SideNav = () => {
     <FaClipboardList className="icon" /> Assign Package
   </NavLink>
 </li>
-        <li>
-          <NavLink
-            to="/create-admin"
-            end
-            className={({ isActive }) =>
-              `nav-item ${isActive ? "active" : ""}`
-            }
-          >
-            <FaUserPlus className="icon" /> Create Admin
-          </NavLink>
-        </li>
+        {!isAuthLoading && isSuperAdmin && (
+          <li>
+            <NavLink
+              to="/create-admin"
+              end
+              className={({ isActive }) =>
+                `nav-item ${isActive ? "active" : ""}`
+              }
+            >
+              <FaUserPlus className="icon" /> Create Admin
+            </NavLink>
+          </li>
+        )}
 
         <li>
           <NavLink

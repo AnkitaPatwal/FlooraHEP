@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
       default_reps,
       body_part,
       thumbnail_url,
+      tags,
       created_at,
       updated_at,
       video_id,
@@ -51,8 +52,16 @@ router.get('/', async (req, res) => {
     let query = supabaseServer.from('exercise').select(select, { count: 'exact' });
 
     if (search) {
-      const encoded = search.replace(/,/g, '');
-      query = query.or(`title.ilike.%${encoded}%,description.ilike.%${encoded}%`);
+      const encoded = search.replace(/[,\\{\}\"]/g, '').trim();
+      if (encoded) {
+        const orParts = [
+          `title.ilike.%${encoded}%`,
+          `description.ilike.%${encoded}%`,
+          `body_part.ilike.%${encoded}%`,
+        ];
+        orParts.push(`tags.cs.{"${encoded}"}`);
+        query = query.or(orParts.join(','));
+      }
     }
 
     const sortColumn = ['created_at', 'title', 'updated_at'].includes(sort) ? sort : 'created_at';
@@ -105,6 +114,7 @@ router.get('/:id', async (req, res) => {
         default_reps,
         body_part,
         thumbnail_url,
+        tags,
         created_at,
         updated_at,
         video_id,
@@ -130,9 +140,21 @@ router.get('/:id', async (req, res) => {
 
     const video_url = await createSignedUrl(data.video);
 
+    let assigned_user_count = 0;
+    try {
+      const { count } = await supabaseServer
+        .from('user_exercise')
+        .select('*', { count: 'exact', head: true })
+        .eq('exercise_id', id);
+      assigned_user_count = count ?? 0;
+    } catch {
+      /* mock 0 if table missing */
+    }
+
     const result = {
       ...data,
       video_url,
+      assigned_user_count,
     };
 
     res.json(result);
@@ -152,7 +174,7 @@ router.patch(
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
-      const { title, description, default_sets, default_reps, category } = req.body;
+      const { title, description, default_sets, default_reps, category, tags } = req.body;
 
       const payload: any = {};
       if (title !== undefined) payload.title = String(title).trim();
@@ -160,19 +182,38 @@ router.patch(
       if (default_sets !== undefined) payload.default_sets = Number(default_sets) || null;
       if (default_reps !== undefined) payload.default_reps = Number(default_reps) || null;
       if (category !== undefined) payload.body_part = String(category).trim() || null;
+      if (tags !== undefined) {
+        payload.tags = Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string' && t.trim()) : [];
+      }
 
       if (Object.keys(payload).length === 0) {
         return res.status(400).json({ error: 'No fields to update' });
+      }
+
+      if (payload.title !== undefined) {
+        const { data: existing } = await supabaseServer
+          .from('exercise')
+          .select('exercise_id')
+          .ilike('title', String(payload.title).trim())
+          .neq('exercise_id', id)
+          .limit(1)
+          .maybeSingle();
+        if (existing) {
+          return res.status(409).json({ error: 'Exercise name already exists' });
+        }
       }
 
       const { data, error } = await supabaseServer
         .from('exercise')
         .update(payload)
         .eq('exercise_id', id)
-        .select('exercise_id, title, description, default_sets, default_reps, body_part, updated_at')
+        .select('exercise_id, title, description, default_sets, default_reps, body_part, tags, updated_at')
         .single();
 
       if (error) {
+        if (error.code === '23505') {
+          return res.status(409).json({ error: 'Exercise name already exists' });
+        }
         console.error('PATCH /api/exercises error:', error);
         return res.status(500).json({ error: 'Failed to update exercise', detail: error.message });
       }
@@ -187,6 +228,7 @@ router.patch(
 );
 
 // DELETE /api/exercises/:id - Delete exercise (super_admin only)
+// Must delete module_exercise and user_exercise first due to FK RESTRICT
 router.delete(
   '/:id',
   requireSuperAdmin as express.RequestHandler,
@@ -195,6 +237,24 @@ router.delete(
       const id = Number(req.params.id);
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ error: 'Invalid exercise id' });
+      }
+
+      const { error: userExErr } = await supabaseServer
+        .from('user_exercise')
+        .delete()
+        .eq('exercise_id', id);
+      if (userExErr) {
+        console.error('DELETE user_exercise error:', userExErr);
+        return res.status(500).json({ error: 'Failed to delete exercise', detail: userExErr.message });
+      }
+
+      const { error: modExErr } = await supabaseServer
+        .from('module_exercise')
+        .delete()
+        .eq('exercise_id', id);
+      if (modExErr) {
+        console.error('DELETE module_exercise error:', modExErr);
+        return res.status(500).json({ error: 'Failed to delete exercise', detail: modExErr.message });
       }
 
       const { error } = await supabaseServer
@@ -221,28 +281,52 @@ router.post(
   requireSuperAdmin as express.RequestHandler,
   async (req: Request, res: Response) => {
     try {
-      const { title, description, default_sets, default_reps, category } = req.body;
+      const { title, description, default_sets, default_reps, category, tags } = req.body;
 
       if (!title || typeof title !== 'string' || !title.trim()) {
         return res.status(400).json({ error: 'Title is required' });
       }
+      if (!description || typeof description !== 'string' || !description.trim()) {
+        return res.status(400).json({ error: 'Description is required' });
+      }
+      const sets = default_sets != null ? Number(default_sets) : null;
+      const reps = default_reps != null ? Number(default_reps) : null;
+      if (sets == null || !Number.isInteger(sets) || sets < 1) {
+        return res.status(400).json({ error: 'Sets must be a positive integer' });
+      }
+      if (reps == null || !Number.isInteger(reps) || reps < 1) {
+        return res.status(400).json({ error: 'Reps must be a positive integer' });
+      }
+      if (!category || typeof category !== 'string' || !category.trim()) {
+        return res.status(400).json({ error: 'Category is required' });
+      }
 
-      // Get admin ID from the authenticated admin
       const admin = (req as any).admin;
       if (!admin?.id) {
         return res.status(401).json({ error: 'Admin ID not found in request' });
       }
 
+      const { data: existing } = await supabaseServer
+        .from('exercise')
+        .select('exercise_id')
+        .ilike('title', title.trim())
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        return res.status(409).json({ error: 'Exercise name already exists' });
+      }
+
       const payload: any = {
         title: title.trim(),
-        description: description?.trim() || '',
-        default_sets: default_sets ? Number(default_sets) : null,
-        default_reps: default_reps ? Number(default_reps) : null,
+        description: description.trim(),
+        default_sets: sets,
+        default_reps: reps,
+        body_part: category.trim(),
         created_by_admin_id: admin.id,
       };
 
-      if (category) {
-        payload.body_part = category;
+      if (tags !== undefined && Array.isArray(tags)) {
+        payload.tags = tags.filter((t: unknown) => typeof t === 'string' && t.trim());
       }
 
       const { data, error } = await supabaseServer
@@ -252,6 +336,9 @@ router.post(
         .single();
 
       if (error) {
+        if (error.code === '23505') {
+          return res.status(409).json({ error: 'Exercise name already exists' });
+        }
         console.error('POST /api/exercises error:', error);
         return res.status(500).json({ error: 'Failed to create exercise', detail: error.message });
       }
@@ -311,7 +398,7 @@ router.post(
   requireSuperAdmin as express.RequestHandler,
   ((req: Request, res: Response, next: NextFunction) => {
     videoUpload.single('file')(req as any, res as any, (err: any) => {
-      if (err) return res.status(400).json({ error: '400 Invalid file type' });
+      if (err) return res.status(400).json({ error: 'Video must be .mp4 or .mov' });
       next();
     });
   }) as express.RequestHandler,
@@ -410,7 +497,7 @@ router.post(
   requireSuperAdmin as express.RequestHandler,
   ((req: Request, res: Response, next: NextFunction) => {
     thumbnailUpload.single('file')(req as any, res as any, (err: any) => {
-      if (err) return res.status(400).json({ error: 'Invalid image type' });
+      if (err) return res.status(400).json({ error: 'Thumbnail must be .png, .jpg, .jpeg, or .webp' });
       next();
     });
   }) as express.RequestHandler,
