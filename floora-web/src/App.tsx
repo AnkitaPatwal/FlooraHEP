@@ -21,7 +21,7 @@ import AdminRegister from "./pages/AdminRegister";
 import CreateAdmin from "./pages/CreateAdmin";
 import CreatePlan from "./pages/main/CreatePlan";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
-
+import { AdminRoute } from "./components/AdminRoute";
 import AppLayout from "./components/layouts/AppLayout";
 
 export default function App() {
@@ -36,14 +36,14 @@ export default function App() {
         <Route path="/users" element={<Users />} />
         <Route path="/plan-dashboard" element={<PlanDashboard />} />
         <Route path="/plan-dashboard/create" element={
-          <SuperAdminRoute fallbackTo="/plan-dashboard">
+          <AdminRoute>
             <CreatePlan />
-          </SuperAdminRoute>
+          </AdminRoute>
         } />
         <Route path="/plan-dashboard/:id" element={
-          <SuperAdminRoute fallbackTo="/plan-dashboard">
+          <AdminRoute>
             <CreatePlan />
-          </SuperAdminRoute>
+          </AdminRoute>
         } />
         <Route path="/sessions" element={<SessionDashboard />} />
         <Route path="/sessions/create" element={<CreateSession />} />

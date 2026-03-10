@@ -8,28 +8,20 @@ interface Module {
   title: string;
   description: string;
   session_number: number;
-  category?: string;
   type?: string;
   image?: string;
 }
 
-// map backend "module" terminology to frontend "Session" terminology used in Session.tsx
+// map backend "module" terminology to frontend "Session" terminology.
+// Session number is used for display to match the Sessions page; no inferred category tags.
 function mapModuleToSession(module: any) {
-  // Use category if present or try to extract from title/description
-  let category = module.category || "Uncategorized";
-  
-  const searchStr = `${module.title} ${module.description}`.toLowerCase();
-  if (searchStr.includes("back pain")) category = "Back Pain";
-  if (searchStr.includes("core") || searchStr.includes("pelvic")) category = "DRA";
-  
   return {
     module_id: module.module_id,
-    category: category,
     title: module.title,
     type: module.description,
-    image: "", // Use image once available in API
+    image: "",
     description: module.description,
-    session_number: module.session_number
+    session_number: module.session_number ?? 0
   };
 }
 
@@ -41,7 +33,12 @@ export default function CreatePlan() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [categoryId, setCategoryId] = useState<number | "">("");
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [addingCategory, setAddingCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState<number | null>(null);
   
+  const [categories, setCategories] = useState<{ category_id: number; name: string }[]>([]);
   const [availableModules, setAvailableModules] = useState<Module[]>([]);
   const [selectedModules, setSelectedModules] = useState<Module[]>([]);
   
@@ -52,11 +49,68 @@ export default function CreatePlan() {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchCategories();
     fetchModules();
     if (isEditMode) {
       fetchPlan(id!);
     }
   }, [id]);
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch("http://localhost:3000/api/admin/categories", { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setCategories(Array.isArray(data) ? data : []);
+    } catch {
+      // non-blocking
+    }
+  };
+
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newCategoryName.trim();
+    if (!name) return;
+    setAddingCategory(true);
+    setError(null);
+    try {
+      const res = await fetch("http://localhost:3000/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add category");
+      setCategories(prev => [...prev, data]);
+      setCategoryId(data.category_id);
+      setNewCategoryName("");
+    } catch (err: any) {
+      setError(err.message || "Failed to add category.");
+    } finally {
+      setAddingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (categoryIdToDelete: number) => {
+    if (!window.confirm("Delete this category? Plans using it will become Uncategorized.")) return;
+    setDeletingCategoryId(categoryIdToDelete);
+    setError(null);
+    try {
+      const res = await fetch(`http://localhost:3000/api/admin/categories/${categoryIdToDelete}`, {
+        method: "DELETE",
+        credentials: "include"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete category");
+      setCategories(prev => prev.filter(c => c.category_id !== categoryIdToDelete));
+      if (categoryId === categoryIdToDelete) setCategoryId("");
+    } catch (err: any) {
+      setError(err.message || "Failed to delete category.");
+    } finally {
+      setDeletingCategoryId(null);
+    }
+  };
 
   const fetchModules = async () => {
     try {
@@ -78,6 +132,7 @@ export default function CreatePlan() {
       const data = await res.json();
       setTitle(data.title || "");
       setDescription(data.description || "");
+      setCategoryId(data.category_id ?? "");
       
       if (data.plan_module) {
         const loadedModules = data.plan_module.map((pm: any) => mapModuleToSession(pm.module));
@@ -114,6 +169,7 @@ export default function CreatePlan() {
     const payload = {
       title,
       description,
+      categoryId: categoryId === "" ? null : categoryId,
       moduleIds: selectedModules.map(m => m.module_id)
     };
 
@@ -206,6 +262,65 @@ export default function CreatePlan() {
             />
           </div>
 
+          <div className="form-group">
+            <label>Category</label>
+            <select
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value === "" ? "" : Number(e.target.value))}
+              className="form-group input"
+              style={{ padding: "10px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px", width: "100%" }}
+            >
+              <option value="">Uncategorized</option>
+              {categories.map(c => (
+                <option key={c.category_id} value={c.category_id}>{c.name}</option>
+              ))}
+            </select>
+            <div className="form-group add-category-row" style={{ display: "flex", gap: "8px", marginTop: "8px", alignItems: "center" }}>
+              <input
+                type="text"
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                placeholder="New category name"
+                className="module-search"
+                style={{ flex: 1 }}
+                disabled={addingCategory}
+              />
+              <button
+                type="button"
+                className="add-module-btn"
+                onClick={handleAddCategory}
+                disabled={addingCategory || !newCategoryName.trim()}
+              >
+                {addingCategory ? "Adding..." : "Add category"}
+              </button>
+            </div>
+            {categories.length > 0 && (
+              <div className="existing-categories" style={{ marginTop: "12px" }}>
+                <span style={{ fontSize: "13px", color: "#64748b", marginRight: "8px" }}>Existing categories:</span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+                  {categories.map(c => (
+                    <span
+                      key={c.category_id}
+                      className="module-category-tag"
+                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 8px" }}
+                    >
+                      {c.name}
+                      <button
+                        type="button"
+                        aria-label={`Delete ${c.name}`}
+                        onClick={() => handleDeleteCategory(c.category_id)}
+                        disabled={deletingCategoryId === c.category_id}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", fontSize: "14px", lineHeight: 1, color: "#64748b" }}
+                      >
+                        {deletingCategoryId === c.category_id ? "…" : "×"}
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="modules-section">
             <div className="modules-left">
               <h3>Available Sessions</h3>
@@ -222,7 +337,7 @@ export default function CreatePlan() {
                     <div className="module-item-content">
                       <div className="module-item-header">
                         <strong>{m.title}</strong>
-                        {m.category && <span className="module-category-tag">{m.category}</span>}
+                        <span className="module-category-tag">Session {m.session_number}</span>
                       </div>
                       <p>{m.description}</p>
                     </div>
@@ -250,7 +365,7 @@ export default function CreatePlan() {
                       <div className="module-item-content">
                         <div className="module-item-header">
                           <strong>{index + 1}. {m.title}</strong>
-                          {m.category && <span className="module-category-tag">{m.category}</span>}
+                          <span className="module-category-tag">Session {m.session_number}</span>
                         </div>
                         <p>{m.description}</p>
                       </div>

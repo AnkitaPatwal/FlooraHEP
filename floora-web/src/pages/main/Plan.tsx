@@ -24,23 +24,21 @@ interface PlanData {
   plan_id: number;
   title: string;
   description: string;
+  category_id: number | null;
+  plan_category: { category_id: number; name: string } | null;
   plan_module: any[];
 }
 
 function mapDataToPlan(plan: PlanData): Plan {
-  // Try to figure out a category for grouping on the Plan page, default to Uncategorized
-  let category = "Uncategorized";
-  const searchStr = `${plan.title} ${plan.description}`.toLowerCase();
-  if (searchStr.includes("back pain")) category = "Back Pain";
-  if (searchStr.includes("core") || searchStr.includes("pelvic")) category = "DRA";
+  const categoryName = plan.plan_category?.name ?? "Uncategorized";
 
   return {
     id: plan.plan_id,
     title: plan.title,
-    category: category,
+    category: categoryName,
     type: plan.description ?? 'Plan',
     sessionCount: plan.plan_module ? plan.plan_module.length : 0,
-    image: '', // placeholder until thumbnail is implemented
+    image: '',
   };
 }
 
@@ -108,7 +106,7 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
                   />
                 </svg>
               </span>
-              <input type="text" className="plan-search-bar" placeholder="Search" />
+              <input type="text" className="plan-search-bar" placeholder="Search plans..." />
             </div>
           </div>
         </header>
