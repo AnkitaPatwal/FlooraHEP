@@ -5,6 +5,18 @@ import React from "react";
 import { render, fireEvent, waitFor } from "@testing-library/react-native";
 import Profile from "../profile";
 
+type ProfileRow = {
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+};
+
+let mockCurrentProfile: ProfileRow = {
+  email: "jane@example.com",
+  display_name: "Jane Doe",
+  avatar_url: null,
+};
+
 const mockReplace = jest.fn();
 
 jest.mock("expo-router", () => ({
@@ -34,6 +46,11 @@ jest.mock("../../../providers/AuthProvider", () => ({
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
+    from: jest.fn(() => ({
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn(async () => ({ data: mockCurrentProfile, error: null })),
+    })),
     auth: {
       signOut: jest.fn().mockResolvedValue(undefined),
     },
@@ -55,11 +72,9 @@ jest.spyOn(require("react-native").Alert, "alert").mockImplementation(
 const goodProfile = {
   success: true,
   profile: {
-    user_id: 1,
-    name: "Jane Doe",
-    fname: "Jane",
-    lname: "Doe",
     email: "jane@example.com",
+    display_name: "Jane Doe",
+    avatar_url: null,
   },
 };
 
@@ -75,20 +90,23 @@ const uploadSuccess = {
 };
 
 function createFetchMock(overrides: {
-  profile?: object;
+  profile?: ProfileRow;
   uploadResponse?: { ok: boolean; json: () => Promise<object> };
 } = {}) {
-  const profile = overrides.profile ?? goodProfile;
+  if (overrides.profile) {
+    mockCurrentProfile = overrides.profile;
+  }
+
   const uploadRes = overrides.uploadResponse ?? {
     ok: true,
     json: async () => uploadSuccess,
   };
 
-  return jest.fn().mockImplementation((url: string, opts?: { method?: string }) => {
+  return jest.fn().mockImplementation((url: string) => {
     if (url.includes("upload-avatar")) {
       return Promise.resolve(uploadRes);
     }
-    return Promise.resolve({ ok: true, json: async () => profile });
+    return Promise.resolve({ ok: true, json: async () => ({}) });
   });
 }
 
@@ -107,9 +125,9 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCurrentProfile = goodProfile.profile as any;
     const picker = require("expo-image-picker");
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true });
-    (global as any).userEmail = "user@example.com";
     (global as any).fetch = createFetchMock();
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
   });
@@ -139,7 +157,6 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
 
     await waitFor(() => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
-      expect((global as any).userEmail).toBe("");
       expect(mockReplace).toHaveBeenCalledWith("/screens/LoginScreen");
     });
   });
@@ -160,9 +177,9 @@ describe("Profile avatar (ATH-411)", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCurrentProfile = goodProfile.profile as any;
     const picker = require("expo-image-picker");
     picker.launchImageLibraryAsync.mockResolvedValue({ canceled: true });
-    (global as any).userEmail = "user@example.com";
     process.env.EXPO_PUBLIC_SUPABASE_URL = "https://test.supabase.co";
   });
 
@@ -216,7 +233,7 @@ describe("Profile avatar (ATH-411)", () => {
   });
 
   it("Delete photo option appears when avatarUrl exists", async () => {
-    (global as any).fetch = createFetchMock({ profile: goodProfileWithAvatar });
+    (global as any).fetch = createFetchMock({ profile: goodProfileWithAvatar.profile as any });
 
     const { getByTestId } = render(<Profile />);
     await waitFor(() => {
@@ -230,7 +247,7 @@ describe("Profile avatar (ATH-411)", () => {
   });
 
   it("delete sets avatarUrl to null → placeholder shown", async () => {
-    (global as any).fetch = createFetchMock({ profile: goodProfileWithAvatar });
+    (global as any).fetch = createFetchMock({ profile: goodProfileWithAvatar.profile as any });
 
     const { getByTestId, getByText } = render(<Profile />);
     await waitFor(() => {
