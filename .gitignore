@@ -247,5 +247,8 @@ backend/.env
 # Ignore testEmail.ts
 backend/testEmail.ts
 
+# Local scratch request bodies
+backend/body.json
+
 !backend/supabase/functions/
 !backend/supabase/functions/**/*

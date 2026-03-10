@@ -26,10 +26,9 @@ export default function AssignPackage() {
         setMessage("");
 
         const [usersRes, plansRes] = await Promise.all([
-           fetch(`${API_BASE}/api/assign-package/users`),
-  fetch(`${API_BASE}/api/assign-package/plans`),
-  fetch(`${API_BASE}/api/assign-package/assign-package`)
-]);
+          fetch(`${API_BASE}/api/assign-package/users`),
+          fetch(`${API_BASE}/api/assign-package/plans`),
+        ]);
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
 
@@ -64,7 +63,7 @@ export default function AssignPackage() {
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_BASE}/api/admin/assign-package`, {
+      const res = await fetch(`${API_BASE}/api/assign-package/assign-package`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
