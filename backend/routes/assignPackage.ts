@@ -46,7 +46,7 @@ router.post("/assign-package", async (req, res) => {
       Number(package_id)
     );
 
-    return res.json(result);
+    return res.status(200).json(result);
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Failed to assign package",
