@@ -210,22 +210,51 @@ export interface AssignablePlan {
   title: string;
 }
 
+/**
+ * Returns assignable users with auth.users.id (UUID).
+ * Only includes approved users (public.user.status = true) who have auth accounts.
+ * UUID alignment: user_packages.user_id references auth.users.id.
+ */
 export async function getAssignableUsers(
   supabase: SupabaseClient,
 ): Promise<AssignableUser[]> {
-  const { data, error } = await supabase
+  // Get approved user emails from public.user (status = true)
+  const { data: approvedUsers, error: userError } = await supabase
     .from("user")
-    .select("user_id, email")
+    .select("email")
+    .eq("status", true)
     .order("email", { ascending: true });
 
-  if (error) {
-    throw new Error(`Failed to fetch users: ${error.message}`);
+  if (userError) {
+    throw new Error(`Failed to fetch approved users: ${userError.message}`);
   }
 
-  return (data ?? []).map((u: any) => ({
-    id: String(u.user_id),
-    email: u.email ?? null,
-  }));
+  const approvedEmails = new Set(
+    (approvedUsers ?? []).map((u: { email: string }) => (u.email ?? "").toLowerCase().trim()).filter(Boolean)
+  );
+
+  if (approvedEmails.size === 0) {
+    return [];
+  }
+
+  // Fetch auth users (auth.users.id = UUID) and filter to approved only
+  const { data: authData, error: authError } = await supabase.auth.admin.listUsers({
+    perPage: 1000,
+  });
+
+  if (authError) {
+    throw new Error(`Failed to fetch auth users: ${authError.message}`);
+  }
+
+  const users = (authData?.users ?? [])
+    .filter((u) => u.email && approvedEmails.has(u.email.toLowerCase().trim()))
+    .map((u) => ({
+      id: u.id,
+      email: u.email ?? null,
+    }))
+    .sort((a, b) => (a.email ?? "").localeCompare(b.email ?? ""));
+
+  return users;
 }
 
 export async function getAssignablePlans(

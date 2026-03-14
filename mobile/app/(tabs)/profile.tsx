@@ -20,9 +20,11 @@ import { supabase } from "../../lib/supabaseClient";
 import defaultProfile from "../../assets/images/default-profile.png";
 
 type ProfileRecord = {
-  email: string;
+  email: string | null;
   display_name: string | null;
   avatar_url: string | null;
+  fname?: string | null;
+  lname?: string | null;
 };
 
 export default function Profile() {
@@ -38,9 +40,10 @@ export default function Profile() {
   const hasLoadedOnce = useRef(false);
 
   const fetchProfile = useCallback(async () => {
+    const userId = session?.user?.id;
     const userEmail = session?.user?.email;
 
-    if (!userEmail) {
+    if (!userId) {
       setError("No authenticated user found.");
       setLoading(false);
       return;
@@ -53,24 +56,42 @@ export default function Profile() {
     setError(null);
 
     try {
-      const { data, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("profiles")
         .select("display_name, email, avatar_url")
-        .eq("email", userEmail)
-        .single();
+        .eq("id", userId)
+        .maybeSingle();
 
       if (profileError) {
         throw new Error(profileError.message);
       }
 
-      setProfile(data);
+      let merged: ProfileRecord = profileData ?? {
+        email: userEmail ?? null,
+        display_name: null,
+        avatar_url: null,
+      };
+
+      if (!merged.display_name?.trim() && userEmail) {
+        const { data: userRow } = await supabase
+          .from("user")
+          .select("fname, lname")
+          .eq("email", userEmail)
+          .maybeSingle();
+
+        if (userRow) {
+          merged = { ...merged, fname: userRow.fname, lname: userRow.lname };
+        }
+      }
+
+      setProfile(merged);
       hasLoadedOnce.current = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile.");
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.email]);
+  }, [session?.user?.id, session?.user?.email]);
 
   useEffect(() => {
     void fetchProfile();
@@ -94,7 +115,11 @@ export default function Profile() {
     ]);
   };
 
-  const name = profile?.display_name?.trim() || session?.user?.email || "—";
+  const name =
+    profile?.display_name?.trim() ||
+    [profile?.fname, profile?.lname].filter(Boolean).join(" ").trim() ||
+    session?.user?.email ||
+    "—";
   const email = profile?.email || session?.user?.email || "—";
   const avatarUrl = profile?.avatar_url || null;
 

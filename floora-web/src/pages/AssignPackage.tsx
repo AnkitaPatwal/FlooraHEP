@@ -26,8 +26,8 @@ export default function AssignPackage() {
         setMessage("");
 
         const [usersRes, plansRes] = await Promise.all([
-          fetch(`${API_BASE}/api/assign-package/users`),
-          fetch(`${API_BASE}/api/assign-package/plans`),
+          fetch(`${API_BASE}/api/assign-package/users`, { credentials: "include" }),
+          fetch(`${API_BASE}/api/assign-package/plans`, { credentials: "include" }),
         ]);
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
@@ -65,6 +65,7 @@ export default function AssignPackage() {
 
       const res = await fetch(`${API_BASE}/api/assign-package/assign-package`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
