@@ -14,6 +14,7 @@ import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { fetchExercises, type ExerciseFromApi } from "../../lib/api";
 import colors from "../../constants/colors";
+import { useAuth } from "../../providers/AuthProvider";
 
 type SessionItem = {
   module_id: number | string;
@@ -166,6 +167,7 @@ const styles = StyleSheet.create({
 
 const HomeScreen = () => {
   const router = useRouter();
+  const { session, loading: authLoading } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(true);
@@ -180,29 +182,41 @@ const HomeScreen = () => {
         setLoading(true);
         setError("");
 
-        const email = (global as any)?.userEmail || "keshwa@example.com";
-
-        const { data: userRow, error: userError } = await supabase
-          .from("user")
-          .select("user_id, fname")
-          .eq("email", email)
-          .maybeSingle();
-
-        if (userError || !userRow) {
-          setError("Unable to load user.");
-          setSessions([]);
+        if (authLoading) {
           return;
         }
 
-        const firstName = (userRow as { fname?: string }).fname?.trim();
-        if (firstName) {
-          setDisplayName(firstName.charAt(0).toUpperCase() + firstName.slice(1));
+        if (!session?.user?.id) {
+          setError("Unable to load user.");
+          setSessions([]);
+          setLoading(false);
+          return;
+        }
+
+        const authUserId = session.user.id;
+        const email = session.user.email ?? (global as any)?.userEmail ?? "";
+
+        if (email) {
+          const { data: userRow, error: userError } = await supabase
+            .from("user")
+            .select("fname")
+            .eq("email", email)
+            .maybeSingle();
+
+          if (!userError && userRow) {
+            const firstName = (userRow as { fname?: string }).fname?.trim();
+            if (firstName) {
+              setDisplayName(firstName.charAt(0).toUpperCase() + firstName.slice(1));
+            }
+          }
         }
 
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
           .select("package_id")
-          .eq("user_id", userRow.user_id)
+          .eq("user_id", authUserId)
+          .order("created_at", { ascending: false })
+          .limit(1)
           .maybeSingle();
 
         if (packageError || !packageRow) {
@@ -245,7 +259,7 @@ const HomeScreen = () => {
     };
 
     fetchAssignedSessions();
-  }, []);
+  }, [session?.user?.id, authLoading]);
 
   useEffect(() => {
     const mapRowToExercise = (r: Record<string, unknown>): ExerciseFromApi => ({
@@ -305,7 +319,7 @@ const HomeScreen = () => {
 
   const currentSession = sessions[0];
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <View style={styles.stateContainer}>
         <ActivityIndicator size="large" color="#0F9AA8" />
