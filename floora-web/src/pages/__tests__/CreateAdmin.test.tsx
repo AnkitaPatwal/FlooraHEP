@@ -1,139 +1,207 @@
-import React from "react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 import CreateAdmin from "../CreateAdmin";
 
-// keep tests isolated from layout/sidebar
-vi.mock("../../components/layouts/AppLayout", () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="app-layout">{children}</div>
-  ),
+vi.mock("../../lib/supabase-client", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      }),
+    },
+  },
 }));
 
-const renderPage = () => {
-  return render(
-    <MemoryRouter initialEntries={["/create-admin"]}>
+import { supabase } from "../../lib/supabase-client";
+
+const mockFetch = vi.fn();
+global.fetch = mockFetch;
+
+const renderWithRouter = () =>
+  render(
+    <MemoryRouter>
       <CreateAdmin />
     </MemoryRouter>
   );
+
+const mockSuperAdminSession = {
+  data: {
+    session: {
+      access_token: "mock-token",
+      user: {
+        id: "uuid-super",
+        email: "super@floora.com",
+        user_metadata: { role: "super_admin" },
+      },
+    },
+  },
 };
 
-type MockFetchOpts = {
-  meStatus?: number;
-  meRole?: "super_admin" | "admin" | null;
-  assignStatus?: number;
+const mockAdminSession = {
+  data: {
+    session: {
+      access_token: "mock-token",
+      user: {
+        id: "uuid-admin",
+        email: "admin@floora.com",
+        user_metadata: { role: "admin" },
+      },
+    },
+  },
 };
 
-const mockFetch = (opts: MockFetchOpts) => {
-  const meStatus = opts.meStatus ?? 200;
-  const meRole = opts.meRole ?? "super_admin";
-  const assignStatus = opts.assignStatus ?? 200;
+describe("CreateAdmin component", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+  });
 
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = String(input);
+  // it("old tests from previous sprint can be commented out here if needed");
 
-    // GET /me
-    if (url.includes("/api/admin/me")) {
-      if (meStatus === 200) {
-        return new Response(
-          JSON.stringify({
-            ok: true,
-            admin: { id: 1, email: "sa@example.com", role: meRole, name: "SA" },
-          }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
-        );
-      }
+  it("shows loading state while checking access", () => {
+    (supabase.auth.getSession as any).mockImplementation(
+      () => new Promise(() => {})
+    );
+    renderWithRouter();
+    expect(screen.getByText("Loading...")).toBeInTheDocument();
+  });
 
-      // 401 / 403 / etc
-      return new Response(JSON.stringify({ message: "Unauthorized" }), {
-        status: meStatus,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+  it("shows unauthorized when no session", async () => {
+    (supabase.auth.getSession as any).mockResolvedValueOnce({
+      data: { session: null },
+    });
 
-    // POST /api/admin/invite
-    if (url.includes("/api/admin/invite")) {
-      if (assignStatus === 200) {
-        return new Response(JSON.stringify({ ok: true }), {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
-        });
-      }
+    renderWithRouter();
 
-      return new Response(JSON.stringify({ message: "Backend failure" }), {
-        status: assignStatus,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ message: "Not mocked" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
+    await waitFor(() => {
+      expect(
+        screen.getByText("Unauthorized: please log in")
+      ).toBeInTheDocument();
     });
   });
 
-  vi.stubGlobal("fetch", fetchMock);
-  return fetchMock;
-};
+  it("shows forbidden when role is admin not super_admin", async () => {
+    (supabase.auth.getSession as any).mockResolvedValueOnce(mockAdminSession);
 
-describe("CreateAdmin (UI + access)", () => {
-  beforeEach(() => {
-    vi.useRealTimers();
-  });
+    renderWithRouter();
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
-  });
-
-  it("renders the form and keeps submit disabled until email is valid", async () => {
-    mockFetch({ meStatus: 200, meRole: "super_admin" });
-    const user = userEvent.setup();
-    renderPage();
-
-    const emailInput = await screen.findByPlaceholderText("admin@example.com");
-    const submitBtn = screen.getByRole("button", { name: /submit/i });
-
-    // empty -> disabled
-    expect(submitBtn).toBeDisabled();
-
-    // invalid -> still disabled
-    await user.type(emailInput, "kk");
-    expect(screen.getByText(/enter a valid email address/i)).toBeInTheDocument();
-    expect(submitBtn).toBeDisabled();
-
-    // valid -> enabled
-    await user.clear(emailInput);
-    await user.type(emailInput, "admin@example.com");
-    expect(submitBtn).toBeEnabled();
-  });
-
-  it("submits and shows success message", async () => {
-    mockFetch({ meStatus: 200, meRole: "super_admin", assignStatus: 200 });
-    const user = userEvent.setup();
-    renderPage();
-
-    const emailInput = await screen.findByPlaceholderText("admin@example.com");
-    const nameInput = screen.getByPlaceholderText("Admin Name");
-    const submitBtn = screen.getByRole("button", { name: /submit/i });
-
-    await user.type(emailInput, "admin@example.com");
-    await user.type(nameInput, "Test Admin");
-    expect(submitBtn).toBeEnabled();
-
-    await user.click(submitBtn);
-
-    // "Saving..." might be too fast to catch; just assert final success
-    expect(
-      await screen.findByText(/admin role assigned successfully\./i, {}, { timeout: 2000 })
-    ).toBeInTheDocument();
-
-    // fields cleared after success
     await waitFor(() => {
-      expect(emailInput).toHaveValue("");
-      expect(nameInput).toHaveValue("");
+      expect(
+        screen.getByText("Unauthorized: you do not have access to this page")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("renders invite form for super_admin", async () => {
+    (supabase.auth.getSession as any).mockResolvedValueOnce(mockSuperAdminSession);
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("admin@example.com")).toBeInTheDocument();
+      expect(screen.getByText("Submit")).toBeInTheDocument();
+    });
+  });
+
+  it("shows email validation error when email is empty", async () => {
+    (supabase.auth.getSession as any).mockResolvedValueOnce(mockSuperAdminSession);
+
+    renderWithRouter();
+
+    await waitFor(() => {
+      expect(screen.getByText("Submit")).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText("Submit"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Email is required.")).toBeInTheDocument();
+    });
+  });
+
+  it("calls invite API with correct email on submit", async () => {
+    (supabase.auth.getSession as any)
+      .mockResolvedValueOnce(mockSuperAdminSession) // access check
+      .mockResolvedValueOnce(mockSuperAdminSession); // handleSubmit
+  
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ ok: true }),
+    });
+  
+    renderWithRouter();
+  
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("admin@example.com")).toBeInTheDocument();
+    });
+  
+    fireEvent.change(screen.getByPlaceholderText("admin@example.com"), {
+      target: { value: "newadmin@floora.com" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+  
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining("/api/admin/invite"),
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining("newadmin@floora.com"),
+        })
+      );
+    });
+  });
+  
+  it("shows success message after invite is sent", async () => {
+    (supabase.auth.getSession as any)
+      .mockResolvedValueOnce(mockSuperAdminSession)
+      .mockResolvedValueOnce(mockSuperAdminSession);
+  
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ ok: true }),
+    });
+  
+    renderWithRouter();
+  
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("admin@example.com")).toBeInTheDocument();
+    });
+  
+    fireEvent.change(screen.getByPlaceholderText("admin@example.com"), {
+      target: { value: "newadmin@floora.com" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+  
+    await waitFor(() => {
+      expect(screen.getByText("Invite sent successfully.")).toBeInTheDocument();
+    });
+  });
+  
+  it("shows error message when invite fails", async () => {
+    (supabase.auth.getSession as any)
+      .mockResolvedValueOnce(mockSuperAdminSession)
+      .mockResolvedValueOnce(mockSuperAdminSession);
+  
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: () => Promise.resolve({ message: "Email rate limit exceeded" }),
+    });
+  
+    renderWithRouter();
+  
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("admin@example.com")).toBeInTheDocument();
+    });
+  
+    fireEvent.change(screen.getByPlaceholderText("admin@example.com"), {
+      target: { value: "newadmin@floora.com" },
+    });
+    fireEvent.click(screen.getByText("Submit"));
+  
+    await waitFor(() => {
+      expect(screen.getByText("Email rate limit exceeded")).toBeInTheDocument();
     });
   });
 });

@@ -322,7 +322,7 @@ router.post(
         default_sets: sets,
         default_reps: reps,
         body_part: category.trim(),
-        created_by_admin_id: admin.id,
+        created_by_admin_id: null,
       };
 
       if (tags !== undefined && Array.isArray(tags)) {

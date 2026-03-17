@@ -3,15 +3,19 @@ import "../../components/main/Session.css";
 import { useEffect, useState } from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase-client";
 
 const API_BASE = "http://localhost:3000";
 
-const fetchOptions = (method: string, body?: object) => ({
-  method,
-  headers: { "Content-Type": "application/json" },
-  credentials: "include" as RequestCredentials,
-  ...(body ? { body: JSON.stringify(body) } : {}),
-});
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 type Exercise = {
   exercise_id: number;
@@ -44,7 +48,8 @@ function Session() {
     setLoadingModules(true);
     setError("");
     try {
-      const res = await fetch(`${API_BASE}/api/admin/modules`, fetchOptions("GET"));
+      const headers = await authHeaders();
+      const res = await fetch(`${API_BASE}/api/admin/modules`, { method: "GET", headers });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load sessions");
       setModules(Array.isArray(data) ? data : []);

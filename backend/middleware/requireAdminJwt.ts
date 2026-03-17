@@ -1,16 +1,19 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { createClient } from "@supabase/supabase-js";
 
 export interface AdminJwtPayload {
-  sub: string;
+  id: string;
   email?: string;
   role?: string;
-  iat?: number;
-  exp?: number;
 }
 
-export function requireAdminJwt(req: Request, res: Response, next: NextFunction) {
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL || process.env.LOCAL_SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY || "",
+  { auth: { persistSession: false } }
+);
 
+export async function requireAdminJwt(req: Request, res: Response, next: NextFunction) {
   const authHeader = String(req.header("Authorization") || "");
   const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
@@ -19,7 +22,15 @@ export function requireAdminJwt(req: Request, res: Response, next: NextFunction)
   }
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string);
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
+    if (error || !data?.user) {
+      return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+    }
+    (req as any).admin = {
+      id: data.user.id,
+      email: data.user.email,
+      role: data.user.user_metadata?.role ?? null,
+    };
     next();
   } catch (err) {
     return res.status(401).json({ ok: false, error: "Invalid or expired token" });
