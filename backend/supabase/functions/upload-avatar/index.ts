@@ -1,6 +1,6 @@
 // @ts-nocheck — Deno Edge Function; use Deno extension or supabase functions serve for type-checking
 // ATH-411: Profile Picture Upload — upload, replace, delete avatar
-// Path format: avatars/{user_id}/{timestamp}.jpg
+// Path format: avatars/{auth_user_uuid}/{timestamp}.jpg
 // Only authenticated users can manage their own avatar
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
@@ -47,24 +47,13 @@ serve(async (req) => {
   const token = authHeader.replace("Bearer ", "");
   const { data: { user: authUser }, error: authError } = await supabaseAuth.auth.getUser(token);
 
-  if (authError || !authUser?.email) {
+  if (authError || !authUser?.id) {
     return jsonResponse({ success: false, message: "Invalid or expired session" }, 401);
   }
 
+  // profiles.id is UUID (auth.users.id); use auth user id directly
+  const user_id = authUser.id;
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
-  const currentEmail = authUser.email.trim().toLowerCase();
-
-  const { data: userRow, error: fetchErr } = await supabase
-    .from("user")
-    .select("user_id")
-    .eq("email", currentEmail)
-    .maybeSingle();
-
-  if (fetchErr || !userRow) {
-    return jsonResponse({ success: false, message: "User not found" }, 404);
-  }
-
-  const user_id = userRow.user_id;
   const contentType = req.headers.get("content-type") || "";
 
   // DELETE: body { action: "delete" }
@@ -153,14 +142,21 @@ serve(async (req) => {
     const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(objectPath);
     const avatarUrl = urlData.publicUrl;
 
-    // Upsert ensures profiles row exists (create if missing, update if exists)
+    // Upsert: include email so insert works when profile is missing (trigger may not have run)
+    const profilePayload = {
+      id: user_id,
+      email: authUser.email ?? null,
+      avatar_url: avatarUrl,
+    };
+
     const { error: upsertErr } = await supabase
       .from("profiles")
-      .upsert({ id: user_id, avatar_url: avatarUrl }, { onConflict: "id" });
+      .upsert(profilePayload, { onConflict: "id" });
 
     if (upsertErr) {
       console.error("profiles upsert error:", upsertErr);
-      return jsonResponse({ success: false, message: "Failed to save avatar" }, 500);
+      const msg = upsertErr.message || "Failed to save avatar";
+      return jsonResponse({ success: false, message: msg }, 500);
     }
 
     return jsonResponse({ success: true, message: "Avatar updated", avatar_url: avatarUrl }, 200);

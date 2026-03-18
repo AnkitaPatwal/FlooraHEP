@@ -82,7 +82,7 @@ serve(async (req) => {
     const { data: profileRow } = await supabase
       .from("profiles")
       .select("avatar_url")
-      .eq("id", userRow.user_id)
+      .eq("id", authUser.id)
       .maybeSingle();
 
     const name = [userRow.fname, userRow.lname].filter(Boolean).join(" ").trim() || null;
@@ -186,7 +186,7 @@ serve(async (req) => {
     const { error: profileUpdateErr } = await supabase
       .from("profiles")
       .update({ email: newEmail })
-      .eq("id", user_id);
+      .eq("id", authUser.id);
 
     if (profileUpdateErr) {
       console.error("profiles email update error:", profileUpdateErr);
@@ -235,7 +235,7 @@ serve(async (req) => {
     }
 
     const displayName = [newFname.trim(), newLname.trim()].filter(Boolean).join(" ");
-    await supabase.from("profiles").update({ display_name: displayName || null }).eq("id", user_id);
+    await supabase.from("profiles").update({ display_name: displayName || null }).eq("id", authUser.id);
   }
 
   return new Response(
