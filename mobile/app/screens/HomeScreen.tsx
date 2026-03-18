@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Video, ResizeMode } from "expo-av";
 import { useRouter } from "expo-router";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "../../lib/supabaseClient";
 import { fetchExercises, type ExerciseFromApi } from "../../lib/api";
 import colors from "../../constants/colors";
 import { useAuth } from "../../providers/AuthProvider";
@@ -299,10 +299,10 @@ const HomeScreen = () => {
     loadExercises();
   }, []);
 
-  const goToSession = (id: string, sessionName: string) => {
+  const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
-      pathname: "/screens/ExerciseDetail",
-      params: { id, sessionName },
+      pathname: "/screens/ExerciseGrid",
+      params: { sessionId: moduleId, sessionName },
     });
   };
 

@@ -12,6 +12,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
 import { fetchExerciseList, isExerciseApiConfigured } from "../../lib/exerciseApi";
+import { supabase } from "../../lib/supabaseClient";
 import session1Img from "../../assets/images/prev-1.jpg";
 
 type Params = {
@@ -26,26 +27,71 @@ const ExerciseGrid = () => {
   const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
-  const [apiLoading, setApiLoading] = useState(false);
+  const [apiLoading, setApiLoading] = useState(true);
 
   useEffect(() => {
-    if (!isExerciseApiConfigured()) return;
-    setApiLoading(true);
-    fetchExerciseList()
-      .then((data) => {
-        setApiExercises(
-          data.map((ex) => ({
-            id: String(ex.exercise_id),
-            title: ex.title,
-            description: ex.description ?? "",
-            tags: [],
-            videoSignedUrl: ex.video_url ?? "",
-          }))
-        );
-      })
-      .catch(() => setApiExercises([]))
-      .finally(() => setApiLoading(false));
-  }, []);
+    const loadExercises = async () => {
+      const moduleId = sessionId ? parseInt(String(sessionId), 10) : null;
+      if (moduleId && Number.isInteger(moduleId)) {
+        const { data: meRows, error: meError } = await supabase
+          .from("module_exercise")
+          .select("exercise_id, order_index")
+          .eq("module_id", moduleId)
+          .order("order_index", { ascending: true });
+        if (!meError && meRows?.length) {
+          const exIds = meRows.map((r) => r.exercise_id);
+          const { data: exRows, error: exError } = await supabase
+            .from("exercise")
+            .select("exercise_id, title, description, thumbnail_url, video_url, video:video_id(bucket, object_key)")
+            .in("exercise_id", exIds)
+            .order("exercise_id", { ascending: true });
+          if (!exError && exRows?.length) {
+            const ordered = meRows
+              .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
+              .filter(Boolean) as { exercise_id: number; title: string; description: string | null; thumbnail_url: string | null; video_url: string | null; video: { bucket: string; object_key: string } | null }[];
+            setApiExercises(
+              ordered.map((ex) => {
+                let videoUrl = ex.video_url ?? "";
+                if (!videoUrl && ex.video?.bucket && ex.video?.object_key) {
+                  const { data } = supabase.storage.from(ex.video.bucket).getPublicUrl(ex.video.object_key);
+                  videoUrl = data?.publicUrl ?? "";
+                }
+                return {
+                  id: String(ex.exercise_id),
+                  title: ex.title,
+                  description: ex.description ?? "",
+                  tags: [],
+                  videoSignedUrl: videoUrl,
+                  thumbnail: ex.thumbnail_url ?? undefined,
+                };
+              })
+            );
+            setApiLoading(false);
+            return;
+          }
+        }
+      }
+      if (isExerciseApiConfigured()) {
+        fetchExerciseList()
+          .then((data) => {
+            setApiExercises(
+              data.map((ex) => ({
+                id: String(ex.exercise_id),
+                title: ex.title,
+                description: ex.description ?? "",
+                tags: [],
+                videoSignedUrl: ex.video_url ?? "",
+              }))
+            );
+          })
+          .catch(() => setApiExercises([]))
+          .finally(() => setApiLoading(false));
+      } else {
+        setApiLoading(false);
+      }
+    };
+    loadExercises();
+  }, [sessionId]);
 
   const exercises: Exercise[] = useMemo(() => {
     if (apiExercises.length > 0) return apiExercises;
@@ -59,9 +105,16 @@ const ExerciseGrid = () => {
   }, [apiExercises, sessionId]);
 
   const handleExercisePress = (exercise: Exercise) => {
+    const videoUrl = (exercise as any).videoSignedUrl;
     router.push({
       pathname: "/screens/ExerciseDetail",
-      params: { id: String(exercise.id), sessionId, sessionName, planName },
+      params: {
+        id: String(exercise.id),
+        sessionId,
+        sessionName,
+        planName,
+        ...(videoUrl ? { videoUrl } : {}),
+      },
     });
   };
 
@@ -92,8 +145,11 @@ const ExerciseGrid = () => {
           </View>
         ) : (
           exercises.map((exercise) => {
+            const thumb = (exercise as any).thumbnail ?? (exercise as any).image ?? (exercise as any).img;
             const exerciseImage =
-              (exercise as any).image ?? (exercise as any).thumbnail ?? (exercise as any).img ?? session1Img;
+              typeof thumb === "string" && thumb.startsWith("http")
+                ? { uri: thumb }
+                : thumb ?? session1Img;
             return (
               <TouchableOpacity
                 key={exercise.id}
