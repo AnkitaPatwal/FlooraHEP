@@ -39,8 +39,7 @@ jest.mock("../../../providers/AuthProvider", () => ({
   useAuth: () => ({
     session: {
       access_token: "test-token",
-      user: { id: "test-user-uuid",
-        email: "user@example.com" },
+      user: { id: "test-auth-uuid", email: "user@example.com" },
     },
   }),
 }));

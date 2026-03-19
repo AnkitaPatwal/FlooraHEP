@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { Video, AVPlaybackStatus } from "expo-av";
+import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
@@ -20,17 +21,20 @@ import {
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
 
 const ExerciseDetail = () => {
-  const { id, sessionName } = useLocalSearchParams<{
+  const { id, sessionName, videoUrl: paramVideoUrl } = useLocalSearchParams<{
     id?: string;
     sessionName?: string;
     fromApi?: string;
+    videoUrl?: string;
   }>();
   const router = useRouter();
+  const videoRef = useRef<Video>(null);
   const [apiExercise, setApiExercise] = useState<ExerciseApiResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [videoRetryKey, setVideoRetryKey] = useState(0);
 
   const exerciseId = id ?? "1";
   const tryBackend = isExerciseApiConfigured();
@@ -79,7 +83,11 @@ const ExerciseDetail = () => {
     return localExercise;
   }, [apiExercise, localExercise]);
 
-  const videoUrl = apiExercise?.video_url ?? displayExercise?.videoSignedUrl ?? null;
+  const videoUrl =
+    apiExercise?.video_url ??
+    (typeof paramVideoUrl === "string" && paramVideoUrl.startsWith("http") ? paramVideoUrl : null) ??
+    displayExercise?.videoSignedUrl ??
+    null;
   const videoUi = getVideoUiState(playbackState, videoError, Boolean(videoUrl));
 
   useEffect(() => {
@@ -103,9 +111,31 @@ const ExerciseDetail = () => {
     setVideoError(error);
   }, []);
 
+  const handleVideoRetry = useCallback(() => {
+    setVideoError(null);
+    setPlaybackState("idle");
+    setVideoRetryKey((k) => k + 1);
+    if (tryBackend) {
+      setFetchLoading(true);
+      fetchExerciseById(exerciseId)
+        .then((data) => {
+          setApiExercise(data ?? null);
+          if (data?.video_url) setPlaybackState("loading");
+        })
+        .catch(() => {})
+        .finally(() => setFetchLoading(false));
+    }
+  }, [tryBackend, exerciseId]);
+
+  const handleVideoPress = useCallback(() => {
+    if (videoRef.current && videoUrl) {
+      videoRef.current.playAsync().catch(() => {});
+    }
+  }, [videoUrl]);
+
   const handleBack = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace("/(tabs)");
+    // Navigate back to main app (Home tab)
+    router.replace("/(tabs)");
   };
 
   if (fetchLoading && !displayExercise) {
@@ -142,9 +172,10 @@ const ExerciseDetail = () => {
       <View style={styles.screen}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Text style={styles.backArrow}>‹</Text>
+            <Ionicons name="chevron-back" size={28} color={COLORS.textDark} />
+            <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
-          <Text style={styles.topTitle}>Leakage</Text>
+          <Text style={styles.topTitle}>{sessionLabel}</Text>
           <View style={{ width: 24 }} />
         </View>
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
@@ -164,9 +195,18 @@ const ExerciseDetail = () => {
           </View>
 
           <View style={styles.heroWrapper}>
+            {videoUi.showVideo && !videoUi.showErrorFallback ? (
+              <TouchableOpacity
+                style={StyleSheet.absoluteFill}
+                onPress={handleVideoPress}
+                activeOpacity={1}
+              />
+            ) : null}
             {videoUi.showVideo ? (
               <>
                 <Video
+                  key={videoRetryKey}
+                  ref={videoRef}
                   source={{ uri: videoUrl! }}
                   style={styles.heroImage}
                   useNativeControls
@@ -176,7 +216,7 @@ const ExerciseDetail = () => {
                   onLoad={() => setPlaybackState("loading")}
                 />
                 {videoUi.showLoadingIndicator && (
-                  <View style={styles.videoOverlay}>
+                  <View style={styles.videoOverlay} pointerEvents="none">
                     <ActivityIndicator size="large" color="#FFFFFF" />
                     <Text style={styles.videoOverlayText}>Loading video…</Text>
                   </View>
@@ -189,10 +229,17 @@ const ExerciseDetail = () => {
               <View style={styles.videoErrorOverlay}>
                 <Text style={styles.videoErrorText}>{videoUi.errorMessage || "Video failed to load"}</Text>
                 <Text style={styles.videoErrorHint}>You can still read the instructions below.</Text>
+                <TouchableOpacity
+                  onPress={handleVideoRetry}
+                  style={styles.retryButton}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
               </View>
             )}
             {!videoUi.showVideo && !videoUi.showErrorFallback && (
-              <View style={styles.playButton}>
+              <View style={styles.playButton} pointerEvents="none">
                 <View style={styles.playTriangle} />
               </View>
             )}
@@ -227,8 +274,8 @@ const styles = StyleSheet.create({
     flexDirection: "row", alignItems: "center",
     borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg,
   },
-  backButton: { paddingRight: 6 },
-  backArrow: { fontSize: 24, color: COLORS.textDark },
+  backButton: { flexDirection: "row", alignItems: "center", paddingRight: 12, minWidth: 80 },
+  backText: { fontSize: 16, color: COLORS.textDark, marginLeft: 2 },
   topTitle: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "600", color: COLORS.textDark },
   container: { paddingHorizontal: 16, paddingBottom: 32 },
   sessionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingTop: 24, paddingBottom: 16 },
@@ -250,6 +297,8 @@ const styles = StyleSheet.create({
   videoErrorOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.8)", padding: 12 },
   videoErrorText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
   videoErrorHint: { color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 4 },
+  retryButton: { marginTop: 8, alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 12, backgroundColor: COLORS.teal, borderRadius: 8 },
+  retryButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
   playButton: {
     position: "absolute", top: "50%", left: "50%", marginLeft: -32, marginTop: -32,
     width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(255,255,255,0.92)",
