@@ -9,6 +9,7 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-native": "^0.75.5",
+    "react-native-web": "^0.21.0",
     "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
