@@ -1,0 +1,6 @@
+# Expo app lives in mobile/ - Netlify must build from there
+# so Metro can resolve expo-router/entry and app structure
+[build]
+  base = "mobile"
+  command = "npx expo export -p web"
+  publish = "dist"
