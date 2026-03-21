@@ -11,7 +11,7 @@ export default function ScreensLayout() {
       <Stack.Screen name="ForgotPassword" />
       <Stack.Screen name="ResetPassword" />
       <Stack.Screen name="HomeScreen" />
-      <Stack.Screen name="ExerciseGrid" />
+      <Stack.Screen name="SessionExerciseList" />
       <Stack.Screen name="ExerciseDetail" />
       <Stack.Screen name="RoadMap" />
       <Stack.Screen name="UpdateEmail" />

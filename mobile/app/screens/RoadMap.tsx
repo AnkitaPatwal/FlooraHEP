@@ -45,11 +45,11 @@ export default function RoadMap() {
         <Text style={styles.sectionTitle}>Restore</Text>
         <Text style={styles.sectionSub}>Sessions 1-4</Text>
 
-        {/* Session 1 card -> opens ExerciseGrid */}
+        {/* Session 1 card -> session exercise list */}
         <Pressable
           onPress={() =>
             router.push({
-              pathname: "/screens/ExerciseGrid",
+              pathname: "/screens/SessionExerciseList",
               params: {
                 sessionId: "1",
                 sessionName: "Session 1",

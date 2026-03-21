@@ -164,6 +164,82 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// GET /api/exercises/by-module/:moduleId - Fetch exercises assigned to a module/session
+router.get('/by-module/:moduleId', async (req, res) => {
+  try {
+    const moduleId = Number(req.params.moduleId);
+    if (!Number.isInteger(moduleId) || moduleId <= 0) {
+      return res.status(400).json({ message: 'Invalid module id' });
+    }
+
+    const { data: meRows, error: meError } = await supabaseServer
+      .from('module_exercise')
+      .select('exercise_id, order_index')
+      .eq('module_id', moduleId)
+      .order('order_index', { ascending: true });
+
+    if (meError) {
+      console.error('GET /api/exercises/by-module/:moduleId module_exercise error:', meError);
+      return res.status(500).json({ message: 'Failed to fetch module exercises' });
+    }
+
+    if (!meRows?.length) {
+      return res.json({ data: [] });
+    }
+
+    const exIds = meRows.map((r: any) => r.exercise_id);
+    const { data: exRows, error: exError } = await supabaseServer
+      .from('exercise')
+      .select(`
+        exercise_id,
+        title,
+        description,
+        default_sets,
+        default_reps,
+        body_part,
+        thumbnail_url,
+        video_url,
+        tags,
+        video:video_id(
+          bucket,
+          object_key,
+          original_filename,
+          mime_type,
+          byte_size,
+          duration_seconds,
+          width,
+          height
+        )
+      `)
+      .in('exercise_id', exIds);
+
+    if (exError) {
+      console.error('GET /api/exercises/by-module/:moduleId exercise error:', exError);
+      return res.status(500).json({ message: 'Failed to fetch exercises' });
+    }
+
+    const byId = new Map((exRows ?? []).map((row: any) => [row.exercise_id, row]));
+    const orderedRaw = meRows
+      .map((me: any) => byId.get(me.exercise_id))
+      .filter(Boolean);
+
+    const withSigned = await Promise.all(
+      orderedRaw.map(async (row: any) => {
+        const signed = await createSignedUrl(row.video);
+        return {
+          ...row,
+          video_url: row.video_url || signed || null,
+        };
+      })
+    );
+
+    return res.json({ data: withSigned });
+  } catch (err) {
+    console.error('GET /api/exercises/by-module/:moduleId unexpected error:', err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // PATCH /api/exercises/:id - Update exercise (super_admin only)
 router.patch(
   '/:id',
