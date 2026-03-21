@@ -163,6 +163,21 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#1F2937",
   },
+  retryButton: {
+    marginTop: 16,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: "#0D2C2C",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
 });
 
 const HomeScreen = () => {
@@ -332,6 +347,12 @@ const HomeScreen = () => {
     return (
       <View style={styles.stateContainer}>
         <Text style={styles.stateText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => router.replace("/(tabs)")}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -348,85 +369,91 @@ const HomeScreen = () => {
       </View>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>Your Current Session</Text>
 
         {currentSession ? (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() =>
-            goToSession(
-              String(currentSession.module_id),
-              currentSession.title || "Session 1"
-            )
-          }
-        >
-          <View style={styles.card}>
-            <Image
-              source={require("../../assets/images/current-session.jpg")}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={styles.cardCaption}>
-            <Text style={styles.cardCaptionStrong}>{currentSession.title || "Session 1"}</Text>
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() =>
+              goToSession(
+                String(currentSession.module_id),
+                currentSession.title || "Session 1"
+              )
+            }
+            style={{ minHeight: 44 }}
+          >
+            <View style={styles.card}>
+              <Image
+                source={require("../../assets/images/current-session.jpg")}
+                style={styles.cardImage}
+                resizeMode="cover"
+              />
+            </View>
+            <Text style={styles.cardCaption}>
+              <Text style={styles.cardCaptionStrong}>
+                {currentSession.title || "Session 1"}
+              </Text>
+            </Text>
+          </TouchableOpacity>
         ) : (
           <Text style={styles.emptyText}>No assigned sessions yet.</Text>
         )}
 
         <View style={styles.accentLine} />
 
-        <Text style={[styles.sectionTitle, { marginTop: 28, marginBottom: 12 }]}>Exercises</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 28, marginBottom: 12 }]}>
+          Exercises
+        </Text>
         {exercisesLoading ? (
-        <View style={styles.exercisesLoader}>
-          <ActivityIndicator size="small" color="#0F9AA8" />
-          <Text style={styles.exercisesLoaderText}>Loading exercises...</Text>
-        </View>
+          <View style={styles.exercisesLoader}>
+            <ActivityIndicator size="small" color="#0F9AA8" />
+            <Text style={styles.exercisesLoaderText}>Loading exercises...</Text>
+          </View>
         ) : exercises.length > 0 ? (
           exercises.map((ex) => (
-          <TouchableOpacity
-            key={ex.exercise_id}
-            activeOpacity={0.9}
-            onPress={() => goToExercise(ex)}
-          >
-            <View style={styles.exerciseCard}>
-              {ex.video_url ? (
-                <Video
-                  key={`video-${ex.exercise_id}-${ex.video_url?.slice(-20)}`}
-                  source={{ uri: ex.video_url }}
-                  style={styles.exerciseCardImage}
-                  resizeMode={ResizeMode.COVER}
-                  isMuted
-                  isLooping
-                  shouldPlay
-                  useNativeControls={false}
-                  onError={(e) => {
-                    if (__DEV__) console.warn("Exercise video playback error:", e);
-                  }}
-                />
-              ) : ex.thumbnail_url ? (
-                <Image
-                  source={{ uri: ex.thumbnail_url }}
-                  style={styles.exerciseCardImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.exerciseCardImage, styles.exerciseCardImagePlaceholder]}>
-                  <Text style={styles.exerciseCardPlaceholderText}>No video</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.exerciseCardCaption} numberOfLines={1}>
-              <Text style={styles.exerciseCardCaptionStrong}>{ex.title}</Text>
-              {[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).length > 0
-                ? ` | ${[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).join(" · ")}`
-                : ""}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              key={ex.exercise_id}
+              activeOpacity={0.9}
+              onPress={() => goToExercise(ex)}
+              style={{ minHeight: 44 }}
+            >
+              <View style={styles.exerciseCard}>
+                {ex.video_url ? (
+                  <Video
+                    key={`video-${ex.exercise_id}-${ex.video_url?.slice(-20)}`}
+                    source={{ uri: ex.video_url }}
+                    style={styles.exerciseCardImage}
+                    resizeMode={ResizeMode.COVER}
+                    isMuted
+                    isLooping
+                    shouldPlay
+                    useNativeControls={false}
+                    onError={(e) => {
+                      if (__DEV__) console.warn("Exercise video playback error:", e);
+                    }}
+                  />
+                ) : ex.thumbnail_url ? (
+                  <Image
+                    source={{ uri: ex.thumbnail_url }}
+                    style={styles.exerciseCardImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.exerciseCardImage, styles.exerciseCardImagePlaceholder]}>
+                    <Text style={styles.exerciseCardPlaceholderText}>No video</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.exerciseCardCaption} numberOfLines={1}>
+                <Text style={styles.exerciseCardCaptionStrong}>{ex.title}</Text>
+                {[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).length > 0
+                  ? ` | ${[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).join(" · ")}`
+                  : ""}
+              </Text>
+            </TouchableOpacity>
           ))
         ) : (
           <Text style={styles.emptyText}>No exercises yet. Add some from the admin site.</Text>

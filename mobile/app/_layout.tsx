@@ -1,20 +1,20 @@
 import React from "react";
 import { Stack } from "expo-router";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider } from "../providers/AuthProvider";
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        {/* Entry */}
-        <Stack.Screen name="index" />
+    <SafeAreaProvider>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
 
-        {/* Auth flow (everything under /screens/*) */}
-        <Stack.Screen name="screens" />
+          <Stack.Screen name="screens" />
 
-        {/* Main app */}
-        <Stack.Screen name="(tabs)" />
-      </Stack>
-    </AuthProvider>
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -12,7 +12,7 @@ jest.mock("expo-router", () => ({
 
 const mockFrom = jest.fn();
 
-jest.mock("../../../lib/supabase", () => ({
+jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
   },
