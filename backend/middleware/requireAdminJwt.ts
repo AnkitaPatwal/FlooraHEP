@@ -1,38 +1,116 @@
 import { Request, Response, NextFunction } from "express";
-import { createClient } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
+import { supabaseServer } from "../lib/supabaseServer";
 
-export interface AdminJwtPayload {
-  id: string;
-  email?: string;
-  role?: string;
+export type AdminAuthedRequest = Request & {
+  user?: User;
+  accessToken?: string;
+  adminUser?: {
+    id: string;
+    email: string;
+    role: string;
+    is_active?: boolean;
+    name?: string | null;
+  };
+};
+
+function getBearerToken(req: Request): string | null {
+  const header = req.headers.authorization;
+  if (!header) return null;
+
+  const [scheme, token] = header.split(" ");
+  if (scheme !== "Bearer" || !token) return null;
+
+  return token;
 }
 
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL || process.env.LOCAL_SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY || "",
-  { auth: { persistSession: false } }
-);
-
-export async function requireAdminJwt(req: Request, res: Response, next: NextFunction) {
-  const authHeader = String(req.header("Authorization") || "");
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
-
-  if (!token) {
-    return res.status(401).json({ ok: false, error: "Missing authorization token" });
-  }
-
+export async function requireAdminJwt(
+  req: AdminAuthedRequest,
+  res: Response,
+  next: NextFunction
+) {
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token);
-    if (error || !data?.user) {
-      return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+    const token = getBearerToken(req);
+
+    if (!token) {
+      return res.status(401).json({
+        ok: false,
+        error: "Missing authorization token",
+      });
     }
-    (req as any).admin = {
-      id: data.user.id,
-      email: data.user.email,
-      role: data.user.user_metadata?.role ?? null,
+
+    // Validate Supabase JWT and get authenticated user
+    const { data, error } = await supabaseServer.auth.getUser(token);
+
+    if (error || !data?.user) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid or expired token",
+      });
+    }
+
+    const user = data.user;
+    const email = user.email?.toLowerCase().trim();
+
+    if (!email) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid token payload",
+      });
+    }
+
+    // Link authenticated user to admin_users table
+    const { data: adminUser, error: adminError } = await supabaseServer
+      .from("admin_users")
+      .select("id, email, role, is_active, name")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (adminError) {
+      console.error("admin_users lookup error:", adminError);
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden",
+      });
+    }
+
+    if (!adminUser) {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden",
+      });
+    }
+
+    if (!adminUser.is_active) {
+      return res.status(403).json({
+        ok: false,
+        error: "Admin account is disabled",
+      });
+    }
+
+    if (adminUser.role !== "admin" && adminUser.role !== "super_admin") {
+      return res.status(403).json({
+        ok: false,
+        error: "Forbidden",
+      });
+    }
+
+    req.user = user;
+    req.accessToken = token;
+    req.adminUser = {
+      id: adminUser.id,
+      email: adminUser.email,
+      role: adminUser.role,
+      is_active: adminUser.is_active,
+      name: adminUser.name ?? null,
     };
-    next();
+
+    return next();
   } catch (err) {
-    return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+    console.error("requireAdminJwt error:", err);
+    return res.status(401).json({
+      ok: false,
+      error: "Invalid or expired token",
+    });
   }
 }

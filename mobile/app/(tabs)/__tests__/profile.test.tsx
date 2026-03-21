@@ -39,7 +39,7 @@ jest.mock("../../../providers/AuthProvider", () => ({
   useAuth: () => ({
     session: {
       access_token: "test-token",
-      user: { email: "user@example.com" },
+      user: { id: "test-auth-uuid", email: "user@example.com" },
     },
   }),
 }));
@@ -50,6 +50,7 @@ jest.mock("../../../lib/supabaseClient", () => ({
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
       single: jest.fn(async () => ({ data: mockCurrentProfile, error: null })),
+      maybeSingle: jest.fn(async () => ({ data: mockCurrentProfile, error: null })),
     })),
     auth: {
       signOut: jest.fn().mockResolvedValue(undefined),
@@ -64,8 +65,8 @@ jest.mock("expo-image-picker", () => ({
 
 let alertButtons: Array<{ text: string; onPress?: () => void }> = [];
 jest.spyOn(require("react-native").Alert, "alert").mockImplementation(
-  (_title: string, _message: string, buttons?: Array<{ text: string; onPress?: () => void }>) => {
-    alertButtons = buttons ?? [];
+  (...args: unknown[]) => {
+    alertButtons = (args[2] as Array<{ text: string; onPress?: () => void }>) ?? [];
   }
 );
 
@@ -170,9 +171,11 @@ describe("Profile avatar (ATH-411)", () => {
       if (msg.includes("not wrapped in act(...)")) return;
       originalError.apply(console, args);
     };
+    jest.useFakeTimers();
   });
   afterAll(() => {
     console.error = originalError;
+    jest.useRealTimers();
   });
 
   beforeEach(() => {
@@ -324,6 +327,37 @@ describe("Profile avatar (ATH-411)", () => {
     await waitFor(
       () => {
         expect(getByText("Failed to save avatar")).toBeTruthy();
+      },
+      { timeout: 2000 }
+    );
+  });
+
+  it("unsupported file type → error message shown", async () => {
+    require("expo-image-picker").launchImageLibraryAsync.mockResolvedValue({
+      canceled: false,
+      assets: [{ uri: "file:///photo.bmp" }],
+    });
+    (global as any).fetch = createFetchMock({
+      uploadResponse: {
+        ok: false,
+        json: async () => ({
+          message: "Invalid file type. Use JPEG, PNG, WebP, or GIF",
+        }),
+      },
+    });
+
+    const { getByTestId, getByText } = render(<Profile />);
+    await waitFor(() => {
+      expect(getByTestId("profile-avatar")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("profile-avatar"));
+    const changeBtn = alertButtons.find((b) => b.text === "Change photo");
+    await changeBtn?.onPress?.();
+
+    await waitFor(
+      () => {
+        expect(getByText("Invalid file type. Use JPEG, PNG, WebP, or GIF")).toBeTruthy();
       },
       { timeout: 2000 }
     );

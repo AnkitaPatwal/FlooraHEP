@@ -1,4 +1,9 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+
+// Load .env from backend directory (works when run from project root or backend/)
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config(); // fallback to cwd .env
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";

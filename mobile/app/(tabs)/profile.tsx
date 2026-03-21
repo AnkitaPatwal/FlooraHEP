@@ -243,14 +243,16 @@ export default function Profile() {
         const url = data.avatar_url ?? data.publicUrl ?? null;
         setProfile((prev) =>
           prev
-            ? {
-                ...prev,
+            ? { ...prev, avatar_url: url }
+            : {
+                email: session?.user?.email ?? null,
+                display_name: null,
                 avatar_url: url,
               }
-            : prev
         );
         setSuccessMessage("Profile picture updated");
         setTimeout(() => setSuccessMessage(null), 3000);
+        void fetchProfile();
       }
     } catch {
       setError("Failed to upload photo");
@@ -299,7 +301,11 @@ export default function Profile() {
             <ActivityIndicator size="large" color="#5A8E93" />
           </View>
         ) : avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+          <Image
+            key={avatarUrl}
+            source={{ uri: avatarUrl }}
+            style={styles.avatar}
+          />
         ) : (
           <Image source={defaultProfile} style={styles.avatar} />
         )}
