@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
+  RefreshControl,
 } from "react-native";
 import { Link, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
@@ -36,6 +38,7 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const hasLoadedOnce = useRef(false);
 
@@ -102,6 +105,12 @@ export default function Profile() {
       void fetchProfile();
     }, [fetchProfile])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, [fetchProfile]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -286,7 +295,14 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView
+      style={styles.scrollContainer}
+      contentContainerStyle={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A8E93" />
+      }
+    >
       <Text style={styles.header}>Profile Settings</Text>
       <View style={styles.headerLine} />
 
@@ -396,16 +412,19 @@ export default function Profile() {
           </TouchableOpacity>
         </>
       )}
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollContainer: {
     flex: 1,
     backgroundColor: "#fff",
+  },
+  container: {
     paddingHorizontal: 0,
     paddingTop: 60,
+    paddingBottom: 40,
   },
   header: {
     fontSize: 22,

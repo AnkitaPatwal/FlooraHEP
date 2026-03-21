@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,19 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
 import { fetchExerciseList, isExerciseApiConfigured } from "../../lib/exerciseApi";
 import { supabase } from "../../lib/supabaseClient";
+import { completeSession } from "../../lib/sessionProgress";
 import session1Img from "../../assets/images/prev-1.jpg";
 
 type Params = {
   sessionId?: string;
+  moduleId?: string;
   sessionName?: string;
   planName?: string;
   subtitle?: string;
@@ -24,13 +27,15 @@ type Params = {
 
 const ExerciseGrid = () => {
   const router = useRouter();
-  const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
+  const { sessionId, moduleId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [sessionCompleted, setSessionCompleted] = useState(false);
 
-  useEffect(() => {
-    const loadExercises = async () => {
+  const loadExercises = useCallback(async () => {
       const moduleId = sessionId ? parseInt(String(sessionId), 10) : null;
       if (moduleId && Number.isInteger(moduleId)) {
         const { data: meRows, error: meError } = await supabase
@@ -89,20 +94,61 @@ const ExerciseGrid = () => {
       } else {
         setApiLoading(false);
       }
-    };
+    },
+  [sessionId]);
+
+  useEffect(() => {
     loadExercises();
-  }, [sessionId]);
+  }, [loadExercises]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadExercises();
+    setRefreshing(false);
+  }, [loadExercises]);
+
+  // Check if this session is already completed (e.g. from a previous visit)
+  useEffect(() => {
+    const checkCompleted = async () => {
+      const mid = moduleId ? parseInt(moduleId, 10) : null;
+      if (!mid || isNaN(mid)) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.id) return;
+      const { data } = await supabase
+        .from("user_session_completion")
+        .select("module_id")
+        .eq("user_id", user.id)
+        .eq("module_id", mid)
+        .maybeSingle();
+      setSessionCompleted(!!data);
+    };
+    checkCompleted();
+  }, [moduleId]);
+
+  const effectiveSessionId = sessionId ?? moduleId;
 
   const exercises: Exercise[] = useMemo(() => {
     if (apiExercises.length > 0) return apiExercises;
     const all = EXERCISES as any[];
-    if (!sessionId) return all;
+    if (!effectiveSessionId) return all;
     const filtered = all.filter((ex) => {
       const exSessionId = ex.sessionId ?? ex.session_id ?? ex.session?.id ?? null;
-      return exSessionId != null && String(exSessionId) === String(sessionId);
+      return exSessionId != null && String(exSessionId) === String(effectiveSessionId);
     });
     return filtered.length ? filtered : all;
-  }, [apiExercises, sessionId]);
+  }, [apiExercises, effectiveSessionId]);
+
+  const handleMarkComplete = async () => {
+    const mid = moduleId ? parseInt(moduleId, 10) : null;
+    if (mid == null || isNaN(mid)) return;
+    setCompleting(true);
+    try {
+      await completeSession(mid);
+      setSessionCompleted(true);
+    } finally {
+      setCompleting(false);
+    }
+  };
 
   const handleExercisePress = (exercise: Exercise) => {
     const videoUrl = (exercise as any).videoSignedUrl;
@@ -110,7 +156,7 @@ const ExerciseGrid = () => {
       pathname: "/screens/ExerciseDetail",
       params: {
         id: String(exercise.id),
-        sessionId,
+        sessionId: effectiveSessionId ?? sessionId,
         sessionName,
         planName,
         ...(videoUrl ? { videoUrl } : {}),
@@ -126,14 +172,31 @@ const ExerciseGrid = () => {
           headerShown: true,
           headerTitleAlign: "center",
           headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 12 }} hitSlop={10}>
-              <Text style={{ fontSize: 24, color: "#111827" }}>‹</Text>
+            <TouchableOpacity
+              onPress={() => router.back()}
+              style={styles.headerBackButton}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.headerBackChevron}>‹</Text>
             </TouchableOpacity>
           ),
         }}
       />
-      <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+        }
+      >
         <View style={styles.headerBlock}>
+          {sessionCompleted && (
+            <View style={styles.completeBanner}>
+              <Text style={styles.completeBannerText}>✓ This session is complete</Text>
+            </View>
+          )}
           <Text style={styles.sessionLabel}>{sessionName || "Session 1"}</Text>
           <Text style={styles.subtitle}>{subtitle || "Restore"}</Text>
           <View style={styles.accentLine} />
@@ -144,7 +207,27 @@ const ExerciseGrid = () => {
             <Text style={styles.loadingText}>Loading exercises…</Text>
           </View>
         ) : (
-          exercises.map((exercise) => {
+          <>
+          {moduleId && (
+            sessionCompleted ? (
+              <View style={[styles.completeButton, styles.completeButtonDone]}>
+                <Text style={styles.completeButtonText}>✓ Session completed!</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.completeButton}
+                onPress={handleMarkComplete}
+                disabled={completing}
+              >
+                {completing ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.completeButtonText}>Mark session complete</Text>
+                )}
+              </TouchableOpacity>
+            )
+          )}
+          {exercises.map((exercise) => {
             const thumb = (exercise as any).thumbnail ?? (exercise as any).image ?? (exercise as any).img;
             const exerciseImage =
               typeof thumb === "string" && thumb.startsWith("http")
@@ -174,9 +257,10 @@ const ExerciseGrid = () => {
                     <Text style={styles.description} numberOfLines={2}>{exercise.description}</Text>
                   )}
                 </View>
-              </TouchableOpacity>
-            );
-          })
+            </TouchableOpacity>
+          );
+          })}
+          </>
         )}
       </ScrollView>
     </>
@@ -186,6 +270,16 @@ const ExerciseGrid = () => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#FFFFFF" },
   contentContainer: { paddingHorizontal: 20, paddingBottom: 32 },
+  headerBackButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    marginLeft: -4,
+  },
+  headerBackChevron: {
+    fontSize: 28,
+    lineHeight: 28,
+    color: "#111827",
+  },
   headerBlock: { paddingTop: 16, paddingBottom: 12 },
   sessionLabel: { fontSize: 26, fontWeight: "700", color: "#111827" },
   subtitle: { fontSize: 16, fontWeight: "600", color: "#0F766E", marginTop: 2 },
@@ -209,6 +303,36 @@ const styles = StyleSheet.create({
   exerciseTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
   category: { fontSize: 15, color: "#0F766E", marginTop: 2, marginBottom: 4 },
   description: { fontSize: 13, color: "#6B7280" },
+  completeButton: {
+    marginTop: 16,
+    marginBottom: 8,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: "#0F766E",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completeButtonDone: {
+    backgroundColor: "#059669",
+  },
+  completeBanner: {
+    backgroundColor: "#D1FAE5",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  completeBannerText: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#047857",
+  },
+  completeButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
 });
 
 export default ExerciseGrid;

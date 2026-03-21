@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 
 // Email regex for validation
@@ -22,6 +23,13 @@ export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise((r) => setTimeout(r, 400));
+    setRefreshing(false);
+  }, []);
 
   // Call the forgot password API
   const callForgotPasswordApi = async () => {
@@ -75,7 +83,12 @@ export default function ForgotPassword() {
 
   // Return the JSX
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+      }
+    >
       <TouchableOpacity
         onPress={() => router.back()}
         style={styles.backButtonContainer}

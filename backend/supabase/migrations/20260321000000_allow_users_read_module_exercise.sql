@@ -2,6 +2,7 @@
 begin;
 
 drop policy if exists "admin_full_access_module_exercise" on public.module_exercise;
+drop policy if exists "users_read_assigned_module_exercise" on public.module_exercise;
 
 create policy "users_read_assigned_module_exercise"
   on public.module_exercise
