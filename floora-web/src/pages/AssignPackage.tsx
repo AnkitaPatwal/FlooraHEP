@@ -12,11 +12,20 @@ type Plan = {
 
 const API_BASE = "http://localhost:3000";
 
+function todayLocalIsoDate(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export default function AssignPackage() {
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userId, setUserId] = useState("");
   const [packageId, setPackageId] = useState("");
+  const [startDate, setStartDate] = useState(todayLocalIsoDate);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -55,8 +64,8 @@ export default function AssignPackage() {
   const handleAssign = async () => {
     setMessage("");
 
-    if (!userId || !packageId) {
-      setMessage("Please select both user and package.");
+    if (!userId || !packageId || !startDate) {
+      setMessage("Please select user, package, and start date.");
       return;
     }
 
@@ -72,6 +81,7 @@ export default function AssignPackage() {
         body: JSON.stringify({
           user_id: userId,
           package_id: Number(packageId),
+          start_date: startDate,
         }),
       });
 
@@ -85,6 +95,7 @@ export default function AssignPackage() {
       setMessage("Package assigned successfully.");
       setUserId("");
       setPackageId("");
+      setStartDate(todayLocalIsoDate());
     } catch {
       setMessage("Something went wrong.");
     } finally {
@@ -120,6 +131,17 @@ export default function AssignPackage() {
             </option>
           ))}
         </select>
+      </div>
+
+      <div style={{ marginBottom: "16px" }}>
+        <label htmlFor="start-date">Start date</label>
+        <br />
+        <input
+          id="start-date"
+          type="date"
+          value={startDate}
+          onChange={(e) => setStartDate(e.target.value)}
+        />
       </div>
 
       <button onClick={handleAssign} disabled={loading}>

@@ -17,11 +17,17 @@ jest.mock("../../lib/supabaseServer", () => ({
   },
 }));
 
-jest.mock("../../services/relationshipService", () => ({
-  getAssignableUsers: jest.fn(),
-  getAssignablePlans: jest.fn(),
-  assignPackageToUser: jest.fn(),
-}));
+jest.mock("../../services/relationshipService", () => {
+  const actual = jest.requireActual<typeof import("../../services/relationshipService")>(
+    "../../services/relationshipService"
+  );
+  return {
+    ...actual,
+    getAssignableUsers: jest.fn(),
+    getAssignablePlans: jest.fn(),
+    assignPackageToUser: jest.fn(),
+  };
+});
 
 const mockedSupabaseServer = supabaseServer as jest.Mocked<typeof supabaseServer>;
 const mockedGetAssignableUsers = getAssignableUsers as jest.MockedFunction<typeof getAssignableUsers>;
@@ -271,10 +277,7 @@ describe("assignPackage auth protection", () => {
       name: "Admin User",
     });
 
-    mockedAssignPackageToUser.mockResolvedValue({
-      success: true,
-      message: "Package assigned successfully",
-    } as any);
+    mockedAssignPackageToUser.mockResolvedValue({ success: true } as any);
 
     const res = await request(app)
       .post("/api/assign-package/assign-package")
@@ -282,17 +285,16 @@ describe("assignPackage auth protection", () => {
       .send({
         user_id: "19",
         package_id: 2,
+        start_date: "2026-03-21",
       });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      success: true,
-      message: "Package assigned successfully",
-    });
+    expect(res.body).toEqual({ success: true });
     expect(mockedAssignPackageToUser).toHaveBeenCalledWith(
       mockedSupabaseServer,
       "19",
-      2
+      2,
+      "2026-03-21"
     );
   });
 });
