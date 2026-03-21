@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { supabaseServer } from "../lib/supabaseServer";
-import { requireAdminJwt } from "../middleware/requireAdminJwt";
+import { requireAdminCookie } from "../middleware/requireAdminCookie";
 import {
   getAssignableUsers,
   getAssignablePlans,
@@ -10,7 +10,7 @@ import {
 
 const router = Router();
 
-router.use(requireAdminJwt);
+router.use(requireAdminCookie);
 
 router.get("/users", async (_req, res) => {
   try {

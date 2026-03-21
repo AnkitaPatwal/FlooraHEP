@@ -51,7 +51,7 @@ const SideNav = () => {
       `nav-item ${isActive ? "active" : ""}`
     }
   >
-    <FaClipboardList className="icon" /> Assign Package
+    <FaClipboardList className="icon" /> Assign plan
   </NavLink>
 </li>
         {!isAuthLoading && isSuperAdmin && (

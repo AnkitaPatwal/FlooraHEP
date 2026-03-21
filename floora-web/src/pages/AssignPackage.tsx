@@ -10,7 +10,7 @@ type Plan = {
   title: string;
 };
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 function todayLocalIsoDate(): string {
   const d = new Date();
@@ -20,23 +20,34 @@ function todayLocalIsoDate(): string {
   return `${y}-${m}-${day}`;
 }
 
+const fetchWithAdminCookie = (url: string, init?: RequestInit) =>
+  fetch(url, {
+    ...init,
+    credentials: "include",
+    headers: {
+      ...(init?.headers ?? {}),
+    },
+  });
+
 export default function AssignPackage() {
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userId, setUserId] = useState("");
-  const [packageId, setPackageId] = useState("");
+  const [planId, setPlanId] = useState("");
   const [startDate, setStartDate] = useState(todayLocalIsoDate);
   const [message, setMessage] = useState("");
+  const [loadingLists, setLoadingLists] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setMessage("");
+        setLoadingLists(true);
 
         const [usersRes, plansRes] = await Promise.all([
-          fetch(`${API_BASE}/api/assign-package/users`, { credentials: "include" }),
-          fetch(`${API_BASE}/api/assign-package/plans`, { credentials: "include" }),
+          fetchWithAdminCookie(`${API_BASE}/api/assign-package/users`),
+          fetchWithAdminCookie(`${API_BASE}/api/assign-package/plans`),
         ]);
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
@@ -53,8 +64,10 @@ export default function AssignPackage() {
         setPlans(Array.isArray(plansData) ? plansData : []);
       } catch (err) {
         setMessage(
-          err instanceof Error ? err.message : "Failed to load users or packages."
+          err instanceof Error ? err.message : "Failed to load users or plans."
         );
+      } finally {
+        setLoadingLists(false);
       }
     };
 
@@ -64,37 +77,39 @@ export default function AssignPackage() {
   const handleAssign = async () => {
     setMessage("");
 
-    if (!userId || !packageId || !startDate) {
-      setMessage("Please select user, package, and start date.");
+    if (!userId || !planId || !startDate) {
+      setMessage("Please select user, plan, and start date.");
       return;
     }
 
     try {
       setLoading(true);
 
-      const res = await fetch(`${API_BASE}/api/assign-package/assign-package`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          package_id: Number(packageId),
-          start_date: startDate,
-        }),
-      });
+      const res = await fetchWithAdminCookie(
+        `${API_BASE}/api/assign-package/assign-package`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            package_id: Number(planId),
+            start_date: startDate,
+          }),
+        }
+      );
 
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage(data.error || "Failed to assign package.");
+        setMessage(data.error || "Failed to assign plan.");
         return;
       }
 
-      setMessage("Package assigned successfully.");
+      setMessage("Plan assigned successfully.");
       setUserId("");
-      setPackageId("");
+      setPlanId("");
       setStartDate(todayLocalIsoDate());
     } catch {
       setMessage("Something went wrong.");
@@ -104,33 +119,60 @@ export default function AssignPackage() {
   };
 
   return (
-    <div style={{ padding: "24px" }}>
-      <h1>Assign Package</h1>
+    <div style={{ padding: "24px", maxWidth: 480 }}>
+      <h1>Assign plan</h1>
 
       <div style={{ marginBottom: "16px" }}>
-        <label>User</label>
+        <label htmlFor="assign-user">User</label>
         <br />
-        <select value={userId} onChange={(e) => setUserId(e.target.value)}>
-          <option value="">Select user</option>
+        <select
+          id="assign-user"
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          disabled={loadingLists}
+          style={{ width: "100%", maxWidth: 400, minHeight: 36 }}
+        >
+          <option value="">
+            {loadingLists ? "Loading users…" : "Select user"}
+          </option>
           {users.map((user) => (
             <option key={user.id} value={user.id}>
               {user.email || user.id}
             </option>
           ))}
         </select>
+        {!loadingLists && users.length === 0 && (
+          <p style={{ marginTop: 8, fontSize: 14, opacity: 0.85 }}>
+            No approved users with accounts found. Approve users in the database
+            first, then refresh this page.
+          </p>
+        )}
       </div>
 
       <div style={{ marginBottom: "16px" }}>
-        <label>Package</label>
+        <label htmlFor="assign-plan">Plan</label>
         <br />
-        <select value={packageId} onChange={(e) => setPackageId(e.target.value)}>
-          <option value="">Select package</option>
+        <select
+          id="assign-plan"
+          value={planId}
+          onChange={(e) => setPlanId(e.target.value)}
+          disabled={loadingLists}
+          style={{ width: "100%", maxWidth: 400, minHeight: 36 }}
+        >
+          <option value="">
+            {loadingLists ? "Loading plans…" : "Select plan"}
+          </option>
           {plans.map((plan) => (
-            <option key={plan.plan_id} value={plan.plan_id}>
+            <option key={plan.plan_id} value={String(plan.plan_id)}>
               {plan.title}
             </option>
           ))}
         </select>
+        {!loadingLists && plans.length === 0 && (
+          <p style={{ marginTop: 8, fontSize: 14, opacity: 0.85 }}>
+            No plans found. Create a plan in the plan dashboard first.
+          </p>
+        )}
       </div>
 
       <div style={{ marginBottom: "16px" }}>
@@ -141,14 +183,16 @@ export default function AssignPackage() {
           type="date"
           value={startDate}
           onChange={(e) => setStartDate(e.target.value)}
+          disabled={loadingLists}
+          style={{ minHeight: 36 }}
         />
       </div>
 
-      <button onClick={handleAssign} disabled={loading}>
-        {loading ? "Assigning..." : "Assign Package"}
+      <button type="button" onClick={handleAssign} disabled={loading || loadingLists}>
+        {loading ? "Assigning…" : "Assign plan"}
       </button>
 
-      {message && <p>{message}</p>}
+      {message && <p role="status">{message}</p>}
     </div>
   );
 }

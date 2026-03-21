@@ -7,6 +7,7 @@ import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
+import { requireAdminCookie } from '../middleware/requireAdminCookie';
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -38,27 +39,6 @@ const supabaseAdmin = createClient(
 );
 
 const router = express.Router();
-
-// Cookie-based admin authentication middleware
-function requireAdminCookie(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) {
-  const token = (req as any).cookies?.admin_token;
-
-  if (!token) {
-    return res.status(401).json({ ok: false, error: 'Missing authorization token' });
-  }
-
-  try {
-    const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
-    (req as any).admin = payload;
-    return next();
-  } catch (_err) {
-    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
-  }
-}
 
 function requireSuperAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const admin = (req as any).admin;
