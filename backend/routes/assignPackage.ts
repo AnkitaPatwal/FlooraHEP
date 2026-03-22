@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { supabaseServer } from "../lib/supabaseServer";
+import { requireAdminJwt } from "../middleware/requireAdminJwt";
 import {
   getAssignableUsers,
   getAssignablePlans,
@@ -7,6 +8,8 @@ import {
 } from "../services/relationshipService";
 
 const router = Router();
+
+router.use(requireAdminJwt);
 
 router.get("/users", async (_req, res) => {
   try {
