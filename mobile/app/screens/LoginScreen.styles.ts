@@ -8,7 +8,7 @@ export default StyleSheet.create({
   justifyContent: "center",
   paddingHorizontal: 32,
   paddingVertical: 40,
-  paddingBottom: 60, // (prevents bottom crowding)
+  paddingBottom: 160, // (prevents bottom crowding)
 },
   logoContainer: {
     alignItems: "center",

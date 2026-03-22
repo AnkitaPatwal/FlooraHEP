@@ -5,10 +5,10 @@ import LoginScreen from "./screens/LoginScreen";
 
 export default function Index() {
   return (
-    <SafeAreaView style={{ flex: 1 }}>
+   <SafeAreaView style={{ flex: 1, backgroundColor: "#437C7D" }}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+       behavior={Platform.OS === "ios" ? "height" : undefined}
       >
         <LoginScreen />
       </KeyboardAvoidingView>
