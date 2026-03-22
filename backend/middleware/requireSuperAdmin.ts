@@ -1,5 +1,4 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 
 export interface AdminJwtPayload {
@@ -18,16 +17,12 @@ const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
-
 if (!SUPABASE_URL) {
   throw new Error("SUPABASE_URL is required in backend/.env");
 }
+
 if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error("SUPABASE_SERVICE_ROLE_KEY is required in backend/.env");
-}
-if (!ADMIN_JWT_SECRET) {
-  throw new Error("ADMIN_JWT_SECRET is required in backend/.env");
 }
 
 const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -39,45 +34,38 @@ export async function requireSuperAdmin(
   res: Response,
   next: NextFunction
 ) {
-  // Read token from cookie (not Authorization header)
-  const token = (req as any).cookies?.admin_token;
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith("Bearer ")) {
+    return res.status(401).json({ ok: false, error: "Missing authorization token" });
+  }
 
+  const token = authHeader.split(" ")[1];
   if (!token) {
     return res.status(401).json({ ok: false, error: "Missing authorization token" });
   }
 
-  const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
-  if (!ADMIN_JWT_SECRET) {
-    console.error("ADMIN_JWT_SECRET is not set");
-    return res.status(500).json({ ok: false, error: "Server configuration error" });
-  }
-
   try {
-    const payload = jwt.verify(token, ADMIN_JWT_SECRET) as AdminJwtPayload;
+    // Verify token with Supabase Auth
+    const { data, error } = await supabaseAdmin.auth.getUser(token);
 
-    // Verify role from database (not just token claim)
-    const { data, error } = await supabaseAdmin
-      .from("admin_users")
-      .select("id, email, role, is_active")
-      .eq("id", payload.id)
-      .maybeSingle();
-
-    if (error || !data) {
+    if (error || !data?.user) {
       return res.status(401).json({ ok: false, error: "Invalid or expired token" });
     }
 
-    if (!data.is_active) {
-      return res.status(403).json({ ok: false, error: "Admin account is disabled" });
+    const user = data.user;
+    const role = user.user_metadata?.role ?? null;
+
+    if (role !== "super_admin") {
+      return res.status(403).json({ ok: false, error: "Forbidden: super_admin role required" });
     }
 
-    if (data.role !== "super_admin") {
-      return res.status(403).json({
-        ok: false,
-        error: "Forbidden: super_admin role required",
-      });
-    }
+    (req as any).admin = {
+      id: user.id,
+      email: user.email ?? "",
+      role,
+      name: user.user_metadata?.name ?? null,
+    };
 
-    (req as any).admin = payload;
     next();
   } catch (err) {
     console.error("Error in requireSuperAdmin:", err);

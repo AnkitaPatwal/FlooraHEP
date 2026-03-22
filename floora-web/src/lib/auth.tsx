@@ -1,8 +1,6 @@
 // Auth utilities for admin users
-
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+import { supabase } from "../lib/supabase-client";
 
 export interface AdminUser {
   id: string;
@@ -12,76 +10,50 @@ export interface AdminUser {
 }
 
 /**
- * Get current admin user from session storage
+ * Get current admin user from Supabase session
  */
-export function getAdminUser(): AdminUser | null {
-  try {
-    const stored = sessionStorage.getItem("adminUser");
-    if (!stored) return null;
-    return JSON.parse(stored) as AdminUser;
-  } catch {
-    return null;
-  }
+export async function getAdminUser(): Promise<AdminUser | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return null;
+
+  const user = session.user;
+  return {
+    id: user.id,
+    email: user.email ?? "",
+    role: user.user_metadata?.role ?? null,
+    name: user.user_metadata?.name ?? null,
+  };
 }
 
 /**
- * Store admin user in session storage
+ * Check if current user is super admin
  */
-export function setAdminUser(user: AdminUser): void {
-  sessionStorage.setItem("adminUser", JSON.stringify(user));
-  (window as any).__adminUser = user;
-}
-
-/**
- * Check if current user is super admin (role from DB via /api/admin/me).
- * Normalizes role to handle casing/whitespace.
- */
-export function isSuperAdmin(): boolean {
-  const user = getAdminUser();
+export async function isSuperAdmin(): Promise<boolean> {
+  const user = await getAdminUser();
   const role = String(user?.role ?? "").trim().toLowerCase();
   return role === "super_admin";
 }
 
 /**
- * Check if user is authenticated (any admin role)
+ * Check if user is authenticated
  */
-export function isAuthenticated(): boolean {
-  return getAdminUser() !== null;
+export async function isAuthenticated(): Promise<boolean> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session !== null;
 }
 
 /**
- * Clear admin session
+ * Clear admin session via Supabase signOut
  */
-export function clearAdminSession(): void {
-  sessionStorage.removeItem("adminUser");
-  delete (window as any).__adminUser;
+export async function clearAdminSession(): Promise<void> {
+  await supabase.auth.signOut();
 }
 
 /**
- * Refresh admin user from backend
+ * Refresh admin user from Supabase session
  */
 export async function refreshAdminUser(): Promise<AdminUser | null> {
-  try {
-    const res = await fetch(`${API_URL}/api/admin/me`, {
-      method: "GET",
-      credentials: "include",
-    });
-
-    if (!res.ok) {
-      if (res.status === 401) clearAdminSession();
-      return getAdminUser();
-    }
-
-    const data = await res.json();
-    if (data?.ok && data?.admin) {
-      setAdminUser(data.admin);
-      return data.admin;
-    }
-
-    return getAdminUser();
-  } catch {
-    return getAdminUser();
-  }
+  return await getAdminUser();
 }
 
 /* -------------------- React Context -------------------- */
@@ -90,7 +62,6 @@ type AuthContextValue = {
   admin: AdminUser | null;
   isSuperAdmin: boolean;
   loading: boolean;
-  /** True until auth/role is loaded from backend. Gate protected UI on !loading. */
   isAuthLoading: boolean;
   refreshAuth: () => Promise<void>;
 };
@@ -104,25 +75,43 @@ const AuthContext = createContext<AuthContextValue>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [admin, setAdmin] = useState<AdminUser | null>(() => getAdminUser());
+  const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
-    const a = await refreshAdminUser();
-    setAdmin(a ?? getAdminUser());
+    const a = await getAdminUser();
+    setAdmin(a);
     setLoading(false);
   }, []);
 
   useEffect(() => {
+    // Initial load
     refreshAuth();
+
+    // Keep auth state in sync (handles refresh, tab focus, signOut, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!session?.user) {
+        setAdmin(null);
+      } else {
+        setAdmin({
+          id: session.user.id,
+          email: session.user.email ?? "",
+          role: session.user.user_metadata?.role ?? null,
+          name: session.user.user_metadata?.name ?? null,
+        });
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, [refreshAuth]);
 
   const role = String(admin?.role ?? "").trim().toLowerCase();
-  const isSuperAdmin = role === "super_admin";
+  const superAdmin = role === "super_admin";
 
   return (
-    <AuthContext.Provider value={{ admin, isSuperAdmin, loading, isAuthLoading: loading, refreshAuth }}>
+    <AuthContext.Provider value={{ admin, isSuperAdmin: superAdmin, loading, isAuthLoading: loading, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );

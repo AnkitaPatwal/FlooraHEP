@@ -1,9 +1,29 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { supabase } from "../../lib/supabase-client";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
+
+async function authHeadersJson(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 const EditExercise: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -30,9 +50,8 @@ const EditExercise: React.FC = () => {
       if (!id) return;
       try {
         setLoadingExercise(true);
-        const res = await fetch(`${API_URL}/api/exercises/${id}`, {
-          credentials: "include",
-        });
+        const headers = await authHeaders();
+        const res = await fetch(`${API_URL}/api/exercises/${id}`, { headers });
         if (!res.ok) throw new Error("Failed to load exercise");
         const data = await res.json();
         const tagsStr = Array.isArray(data.tags) ? data.tags.join(", ") : "";
@@ -103,12 +122,8 @@ const EditExercise: React.FC = () => {
       const patchPayload: Record<string, unknown> = {};
       const init = initialExercise;
       if (init) {
-        if (exercise.title.trim() !== (String(init.title || ""))) {
-          patchPayload.title = exercise.title.trim();
-        }
-        if (exercise.description !== (String(init.description || ""))) {
-          patchPayload.description = exercise.description.trim();
-        }
+        if (exercise.title.trim() !== String(init.title || "")) patchPayload.title = exercise.title.trim();
+        if (exercise.description !== String(init.description || "")) patchPayload.description = exercise.description.trim();
         const newSets = exercise.setCount ? Number(exercise.setCount) : null;
         if (newSets !== (init.default_sets ?? null)) patchPayload.default_sets = newSets;
         const newReps = exercise.repCount ? Number(exercise.repCount) : null;
@@ -119,9 +134,7 @@ const EditExercise: React.FC = () => {
           ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
           : [];
         const initTags = Array.isArray(init.tags) ? init.tags : [];
-        if (JSON.stringify(newTags) !== JSON.stringify(initTags)) {
-          patchPayload.tags = newTags;
-        }
+        if (JSON.stringify(newTags) !== JSON.stringify(initTags)) patchPayload.tags = newTags;
       } else {
         patchPayload.title = exercise.title.trim();
         patchPayload.description = exercise.description.trim();
@@ -132,6 +145,7 @@ const EditExercise: React.FC = () => {
           ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
           : [];
       }
+
       if (Object.keys(patchPayload).length === 0 && !exercise.video && !exercise.thumbnail) {
         setErrorMessage("No changes to save");
         setIsSubmitting(false);
@@ -139,13 +153,12 @@ const EditExercise: React.FC = () => {
       }
 
       if (Object.keys(patchPayload).length > 0) {
+        const headers = await authHeadersJson();
         const patchRes = await fetch(`${API_URL}/api/exercises/${id}`, {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
+          headers,
           body: JSON.stringify(patchPayload),
         });
-
         if (!patchRes.ok) {
           const errData = await patchRes.json().catch(() => ({}));
           if (patchRes.status === 409) {
@@ -160,9 +173,10 @@ const EditExercise: React.FC = () => {
       if (exercise.video) {
         const formData = new FormData();
         formData.append("file", exercise.video);
+        const headers = await authHeaders();
         const videoRes = await fetch(`${API_URL}/api/exercises/${id}/video`, {
           method: "POST",
-          credentials: "include",
+          headers,
           body: formData,
         });
         if (!videoRes.ok) {
@@ -174,9 +188,10 @@ const EditExercise: React.FC = () => {
       if (exercise.thumbnail) {
         const formData = new FormData();
         formData.append("file", exercise.thumbnail);
+        const headers = await authHeaders();
         const thumbRes = await fetch(`${API_URL}/api/exercises/${id}/thumbnail`, {
           method: "POST",
-          credentials: "include",
+          headers,
           body: formData,
         });
         if (!thumbRes.ok) {
@@ -249,12 +264,8 @@ const EditExercise: React.FC = () => {
                 accept=".mp4,.mov,video/mp4,video/quicktime"
                 onChange={handleFileChange}
               />
-              {exercise.video && (
-                <div className="file-selected">{exercise.video.name}</div>
-              )}
-              {fieldErrors.video && (
-                <div className="field-error">{fieldErrors.video}</div>
-              )}
+              {exercise.video && <div className="file-selected">{exercise.video.name}</div>}
+              {fieldErrors.video && <div className="field-error">{fieldErrors.video}</div>}
             </div>
 
             <div className={`upload-box ${fieldErrors.thumbnail ? "error" : ""}`}>
@@ -266,12 +277,8 @@ const EditExercise: React.FC = () => {
                 accept=".png,.jpg,.jpeg,.webp,image/*"
                 onChange={handleFileChange}
               />
-              {exercise.thumbnail && (
-                <div className="file-selected">{exercise.thumbnail.name}</div>
-              )}
-              {fieldErrors.thumbnail && (
-                <div className="field-error">{fieldErrors.thumbnail}</div>
-              )}
+              {exercise.thumbnail && <div className="file-selected">{exercise.thumbnail.name}</div>}
+              {fieldErrors.thumbnail && <div className="field-error">{fieldErrors.thumbnail}</div>}
             </div>
           </div>
 
@@ -285,9 +292,7 @@ const EditExercise: React.FC = () => {
               onChange={handleChange}
               placeholder="Enter exercise title"
             />
-            {fieldErrors.title && (
-              <div className="field-error">{fieldErrors.title}</div>
-            )}
+            {fieldErrors.title && <div className="field-error">{fieldErrors.title}</div>}
           </div>
 
           <div className="input-group">
@@ -315,7 +320,6 @@ const EditExercise: React.FC = () => {
                 min={1}
               />
             </div>
-
             <div className="input-group half">
               <label htmlFor="repCount">Rep Count</label>
               <input
@@ -339,9 +343,7 @@ const EditExercise: React.FC = () => {
               onChange={handleChange}
               placeholder="Describe how to perform this exercise..."
             />
-            {fieldErrors.description && (
-              <div className="field-error">{fieldErrors.description}</div>
-            )}
+            {fieldErrors.description && <div className="field-error">{fieldErrors.description}</div>}
           </div>
 
           <div className="input-group">

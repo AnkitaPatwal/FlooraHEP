@@ -1,3 +1,5 @@
+import { supabase } from "../lib/supabase-client";
+
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -30,7 +32,6 @@ async function invoke(body: Record<string, unknown>): Promise<unknown> {
     },
     body: JSON.stringify(body),
   });
-
   const text = await res.text();
   let data: unknown;
   try {
@@ -38,13 +39,11 @@ async function invoke(body: Record<string, unknown>): Promise<unknown> {
   } catch {
     data = text;
   }
-
   if (!res.ok) {
     const msg =
       (data as { error?: string })?.error ?? `Request failed (${res.status})`;
     throw new Error(msg);
   }
-
   return data;
 }
 
@@ -67,9 +66,7 @@ export async function fetchActiveClients(): Promise<ActiveClient[]> {
 }
 
 /**
- * Approves a pending client. Updates the client's status to true in the database.
- * @param adminId - Admin user_id (e.g. from session; use 1 if not yet wired to auth).
- * @param userId - Client user_id to approve.
+ * Approves a pending client.
  */
 export async function approveClient(
   adminId: number,
@@ -89,9 +86,7 @@ export async function approveClient(
 }
 
 /**
- * Denies a pending client. Logs the action; client remains or is set to not approved.
- * @param adminId - Admin user_id.
- * @param userId - Client user_id to deny.
+ * Denies a pending client.
  */
 export async function denyClient(
   adminId: number,
@@ -101,9 +96,7 @@ export async function denyClient(
 }
 
 /**
- * Deletes an active client. Removes the user from public.user and from auth.
- * @param adminId - Admin user_id.
- * @param userId - Client user_id to delete.
+ * Deletes an active client.
  */
 export async function deleteClient(
   adminId: number,
@@ -112,29 +105,35 @@ export async function deleteClient(
   await invoke({ action: "delete", admin_id: adminId, user_id: userId });
 }
 
+/**
+ * Uploads an exercise video. Uses Supabase session token for auth.
+ */
 export async function uploadExerciseVideo(
   exerciseId: number,
   file: File
 ): Promise<{ ok: true; video_id: number; publicUrl: string }> {
+  const { data: { session } } = await supabase.auth.getSession();
+
   const form = new FormData();
   form.append("file", file);
-   
+
   const res = await fetch(
-  `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
-  {
-    method: "POST",
-    body: form,
-    credentials: "include",
-    headers: {
-      "x-uploader-user-id": "56",
-    },
-  }
-);
-  
+    `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
+    {
+      method: "POST",
+      body: form,
+      headers: {
+        "x-uploader-user-id": "56",
+        ...(session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {}),
+      },
+    }
+  );
+
   const text = await res.text();
   let body: any = {};
   try { body = text ? JSON.parse(text) : {}; } catch { body = {}; }
-
   if (!res.ok) throw new Error(body?.message || `Upload failed (${res.status})`);
   return body;
 }
