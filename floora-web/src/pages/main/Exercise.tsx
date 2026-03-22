@@ -4,8 +4,18 @@ import { useState, useEffect } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
+import { supabase } from "../../lib/supabase-client";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 export interface Exercise {
   exercise_id: number;
@@ -37,13 +47,10 @@ function ExerciseDashboard() {
         setLoading(true);
         const params = new URLSearchParams({ pageSize: "100" });
         if (searchQuery.trim()) params.set("search", searchQuery.trim());
-        const res = await fetch(`${API_URL}/api/exercises?${params}`, {
-          credentials: "include",
-        });
+        const headers = await authHeaders();
+        const res = await fetch(`${API_URL}/api/exercises?${params}`, { headers });
 
-        if (!res.ok) {
-          throw new Error(`Failed to fetch exercises (${res.status})`);
-        }
+        if (!res.ok) throw new Error(`Failed to fetch exercises (${res.status})`);
 
         const json = await res.json();
         setExercises(json.data || []);
@@ -115,39 +122,23 @@ function ExerciseDashboard() {
         <hr className="divider" />
 
         {error && (
-          <div
-            style={{
-              padding: "20px",
-              color: "#b91c1c",
-              backgroundColor: "#fee",
-              borderRadius: "8px",
-              margin: "20px 0",
-            }}
-          >
+          <div style={{ padding: "20px", color: "#b91c1c", backgroundColor: "#fee", borderRadius: "8px", margin: "20px 0" }}>
             {error}
           </div>
         )}
 
         {loading && (
-          <div
-            style={{
-              padding: "40px",
-              textAlign: "center",
-              color: "#6b7280",
-            }}
-          >
+          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
             Loading exercises...
           </div>
         )}
 
-        {!loading &&
-          !error &&
+        {!loading && !error &&
           Object.entries(groupedExercises).map(([category, items]) => (
             <section className="category-section" key={category}>
               <h2 className="category-title">
                 {category} <span>{items.length} Exercises</span>
               </h2>
-
               <div className="exercise-grid">
                 {items.map((exercise) => (
                   <div
@@ -155,13 +146,8 @@ function ExerciseDashboard() {
                     key={exercise.exercise_id}
                     role="button"
                     tabIndex={0}
-                    onClick={() =>
-                      navigate(`/exercises/${exercise.exercise_id}`)
-                    }
-                    onKeyDown={(e) =>
-                      e.key === "Enter" &&
-                      navigate(`/exercises/${exercise.exercise_id}`)
-                    }
+                    onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
+                    onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
                   >
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
@@ -179,11 +165,8 @@ function ExerciseDashboard() {
                         </div>
                       )}
                       <span className="exercise-tag">
-                        <span className="material-symbols-outlined">
-                          vital_signs
-                        </span>
-                        {exercise.default_sets != null &&
-                        exercise.default_reps != null
+                        <span className="material-symbols-outlined">vital_signs</span>
+                        {exercise.default_sets != null && exercise.default_reps != null
                           ? `${exercise.default_sets} sets × ${exercise.default_reps} reps`
                           : "Varies"}
                       </span>
@@ -193,7 +176,6 @@ function ExerciseDashboard() {
               </div>
             </section>
           ))}
-
       </div>
     </AppLayout>
   );

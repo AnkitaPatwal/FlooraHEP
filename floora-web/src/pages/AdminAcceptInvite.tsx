@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase-client";
 
 function useQuery() {
   const { search } = useLocation();
@@ -8,15 +9,21 @@ function useQuery() {
 
 export default function AdminAcceptInvite() {
   const q = useQuery();
-  const token = q.get("token") || "";
   const navigate = useNavigate();
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Supabase puts the access_token in the URL hash after clicking invite link
+  const hashParams = useMemo(() => new URLSearchParams(window.location.hash.slice(1)), []);
+  const accessToken = hashParams.get("access_token");
+  const refreshToken = hashParams.get("refresh_token");
+  const type = hashParams.get("type"); // should be "invite"
+
+  const isValidInvite = !!accessToken && type === "invite";
 
   const styles: Record<string, React.CSSProperties> = {
     container: {
@@ -129,10 +136,6 @@ export default function AdminAcceptInvite() {
     setError(null);
     setSuccess(null);
 
-    if (!token) {
-      setError("Invalid invite link: missing token.");
-      return;
-    }
     if (!password || password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -144,26 +147,31 @@ export default function AdminAcceptInvite() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3000/api/admin/accept-invite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, password }),
+      // Step 1: Set the session from the invite tokens in the URL hash
+      const { error: sessionError } = await supabase.auth.setSession({
+        access_token: accessToken!,
+        refresh_token: refreshToken!,
       });
 
-      const data = await res.json().catch(() => ({}));
+      if (sessionError) {
+        setError("Invite link is invalid or expired.");
+        return;
+      }
 
-      if (!res.ok) {
-        setError(data?.error || "Invite link is invalid or expired.");
+      // Step 2: Set the user's password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password,
+      });
+
+      if (updateError) {
+        setError(updateError.message || "Failed to set password.");
         return;
       }
 
       setSuccess("Account created. Redirecting to login...");
-
-      setTimeout(() => {
-        navigate("/", { replace: true });
-      }, 900);
+      setTimeout(() => navigate("/admin-login", { replace: true }), 900);
     } catch {
-      setError("Network error. Is the backend running on localhost:3000?");
+      setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -176,7 +184,7 @@ export default function AdminAcceptInvite() {
           <button
             type="button"
             style={styles.backBtn}
-            onClick={() => navigate("/admin/login")}
+            onClick={() => navigate("/admin-login")}
             aria-label="Back"
             title="Back"
           >
@@ -185,9 +193,9 @@ export default function AdminAcceptInvite() {
           <h2 style={styles.h2}>Accept admin invite</h2>
         </div>
 
-        {!token ? (
+        {!isValidInvite ? (
           <div style={{ ...styles.alert, ...styles.alertError }}>
-            Invalid invite link: missing token.
+            Invalid invite link. Please ask a super admin to send a new invite.
           </div>
         ) : (
           <>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
+import { supabase } from "../../lib/supabase-client";
 import "./CreatePlan.css";
 
 interface Module {
@@ -12,8 +13,6 @@ interface Module {
   image?: string;
 }
 
-// map backend "module" terminology to frontend "Session" terminology.
-// Session number is used for display to match the Sessions page; no inferred category tags.
 function mapModuleToSession(module: any) {
   return {
     module_id: module.module_id,
@@ -22,6 +21,16 @@ function mapModuleToSession(module: any) {
     image: "",
     description: module.description,
     session_number: module.session_number ?? 0
+  };
+}
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
   };
 }
 
@@ -58,7 +67,8 @@ export default function CreatePlan() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/admin/categories", { credentials: "include" });
+      const headers = await authHeaders();
+      const res = await fetch("http://localhost:3000/api/admin/categories", { headers });
       if (!res.ok) return;
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -74,10 +84,10 @@ export default function CreatePlan() {
     setAddingCategory(true);
     setError(null);
     try {
+      const headers = await authHeaders();
       const res = await fetch("http://localhost:3000/api/admin/categories", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers,
         body: JSON.stringify({ name })
       });
       const data = await res.json();
@@ -97,9 +107,10 @@ export default function CreatePlan() {
     setDeletingCategoryId(categoryIdToDelete);
     setError(null);
     try {
+      const headers = await authHeaders();
       const res = await fetch(`http://localhost:3000/api/admin/categories/${categoryIdToDelete}`, {
         method: "DELETE",
-        credentials: "include"
+        headers
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to delete category");
@@ -114,7 +125,8 @@ export default function CreatePlan() {
 
   const fetchModules = async () => {
     try {
-      const res = await fetch("http://localhost:3000/api/admin/modules", { credentials: "include" });
+      const headers = await authHeaders();
+      const res = await fetch("http://localhost:3000/api/admin/modules", { headers });
       if (!res.ok) throw new Error("Failed to fetch modules");
       const data = await res.json();
       setAvailableModules(data.map(mapModuleToSession));
@@ -127,7 +139,8 @@ export default function CreatePlan() {
   const fetchPlan = async (planId: string) => {
     try {
       setIsLoading(true);
-      const res = await fetch(`http://localhost:3000/api/admin/plans/${planId}`, { credentials: "include" });
+      const headers = await authHeaders();
+      const res = await fetch(`http://localhost:3000/api/admin/plans/${planId}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch plan");
       const data = await res.json();
       setTitle(data.title || "");
@@ -174,19 +187,16 @@ export default function CreatePlan() {
     };
 
     try {
-      let url = "http://localhost:3000/api/admin/plans";
-      let method = "POST";
-      
-      if (isEditMode) {
-        url = `http://localhost:3000/api/admin/plans/${id}`;
-        method = "PUT";
-      }
+      const headers = await authHeaders();
+      const url = isEditMode
+        ? `http://localhost:3000/api/admin/plans/${id}`
+        : "http://localhost:3000/api/admin/plans";
+      const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(payload),
-        credentials: "include"
       });
 
       const data = await res.json();
@@ -207,13 +217,13 @@ export default function CreatePlan() {
     
     try {
       setIsSaving(true);
+      const headers = await authHeaders();
       const res = await fetch(`http://localhost:3000/api/admin/plans/${id}`, {
         method: "DELETE",
-        credentials: "include"
+        headers
       });
 
       if (!res.ok) throw new Error("Failed to delete plan");
-      
       navigate("/plan-dashboard");
     } catch (err: any) {
       console.error(err);
