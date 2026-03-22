@@ -120,7 +120,7 @@ export default function AssignPackage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: 480 }}>
-      <h1>Assign plan</h1>
+      <h1>Assign Plan</h1>
 
       <div style={{ marginBottom: "16px" }}>
         <label htmlFor="assign-user">User</label>
@@ -189,7 +189,7 @@ export default function AssignPackage() {
       </div>
 
       <button type="button" onClick={handleAssign} disabled={loading || loadingLists}>
-        {loading ? "Assigning…" : "Assign plan"}
+        {loading ? "Assigning…" : "Assign Plan"}
       </button>
 
       {message && <p role="status">{message}</p>}
