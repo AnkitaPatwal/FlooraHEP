@@ -1,8 +1,17 @@
 import React from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAvoidingView, Platform } from "react-native";
 import LoginScreen from "./screens/LoginScreen";
 
 export default function Index() {
-  // Entry screen of the app: show Login.
-  // After a successful login, navigate to /(tabs)/home from inside LoginScreen.
-  return <LoginScreen />;
+  return (
+   <SafeAreaView style={{ flex: 1, backgroundColor: "#437C7D" }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+       behavior={Platform.OS === "ios" ? "height" : undefined}
+      >
+        <LoginScreen />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
 }
