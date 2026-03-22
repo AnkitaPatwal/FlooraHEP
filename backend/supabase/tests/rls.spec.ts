@@ -37,8 +37,8 @@ async function seedUserPackages(userAId: string, userBId: string) {
     if (!planId) throw new Error("No plan found to attach user_packages");
 
     await client.query(
-      `insert into public.user_packages (user_id, package_id)
-       values ($1, $3), ($2, $3)
+      `insert into public.user_packages (user_id, package_id, start_date)
+       values ($1, $3, current_date), ($2, $3, current_date)
        on conflict do nothing;`,
       [userAId, userBId, planId]
     );

@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  ScrollView,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -286,132 +288,144 @@ export default function Profile() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Profile Settings</Text>
-      <View style={styles.headerLine} />
-
-      <TouchableOpacity
-        testID="profile-avatar"
-        onPress={avatarLoading ? undefined : showAvatarOptions}
-        style={styles.avatarWrap}
-        disabled={avatarLoading}
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false}
       >
-        {avatarLoading ? (
-          <View style={[styles.avatar, styles.avatarPlaceholder]}>
+        <Text style={styles.header}>Profile Settings</Text>
+        <View style={styles.headerLine} />
+
+        <TouchableOpacity
+          testID="profile-avatar"
+          onPress={avatarLoading ? undefined : showAvatarOptions}
+          style={[styles.avatarWrap, { minHeight: 44 }]}
+          disabled={avatarLoading}
+        >
+          {avatarLoading ? (
+            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <ActivityIndicator size="large" color="#5A8E93" />
+            </View>
+          ) : avatarUrl ? (
+            <Image
+              key={avatarUrl}
+              source={{ uri: avatarUrl }}
+              style={styles.avatar}
+            />
+          ) : (
+            <Image source={defaultProfile} style={styles.avatar} />
+          )}
+
+          <View style={styles.avatarEditBadge}>
+            <Feather name="camera" size={16} color="#fff" />
+          </View>
+        </TouchableOpacity>
+
+        {successMessage ? (
+          <View style={[styles.fieldContainer, styles.messageContainer]}>
+            <Text style={styles.successText}>{successMessage}</Text>
+          </View>
+        ) : null}
+
+        {error && !loading ? (
+          <View style={[styles.fieldContainer, styles.messageContainer]}>
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={() => void fetchProfile()}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {loading ? (
+          <View style={styles.centerContent}>
             <ActivityIndicator size="large" color="#5A8E93" />
+            <Text style={styles.statusText}>Loading profile...</Text>
           </View>
-        ) : avatarUrl ? (
-          <Image
-            key={avatarUrl}
-            source={{ uri: avatarUrl }}
-            style={styles.avatar}
-          />
         ) : (
-          <Image source={defaultProfile} style={styles.avatar} />
+          <>
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Name</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value={name}
+                  editable={false}
+                  style={styles.input}
+                  placeholder="Your name"
+                  placeholderTextColor="#999"
+                />
+                <Link href="/screens/UpdateName" asChild>
+                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
+                    <Feather name="edit-3" size={18} color="#5A8E93" />
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value={email}
+                  editable={false}
+                  style={styles.input}
+                  placeholder="your@email.com"
+                  placeholderTextColor="#999"
+                />
+                <Link href="/screens/UpdateEmail" asChild>
+                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
+                    <Feather name="edit-3" size={18} color="#5A8E93" />
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+
+            <View style={styles.fieldContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  value="••••••••••"
+                  editable={false}
+                  secureTextEntry
+                  style={styles.input}
+                />
+                <Link href="/screens/ChangePassword" asChild>
+                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
+                    <Feather name="edit-3" size={18} color="#5A8E93" />
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              testID="profile-sign-out"
+              style={styles.signOutButton}
+              onPress={onSignOutPress}
+            >
+              <Text style={styles.signOutText}>Sign out</Text>
+            </TouchableOpacity>
+          </>
         )}
-
-        <View style={styles.avatarEditBadge}>
-          <Feather name="camera" size={16} color="#fff" />
-        </View>
-      </TouchableOpacity>
-
-      {successMessage ? (
-        <View style={[styles.fieldContainer, styles.messageContainer]}>
-          <Text style={styles.successText}>{successMessage}</Text>
-        </View>
-      ) : null}
-
-      {error && !loading ? (
-        <View style={[styles.fieldContainer, styles.messageContainer]}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      ) : null}
-
-      {loading ? (
-        <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#5A8E93" />
-          <Text style={styles.statusText}>Loading profile...</Text>
-        </View>
-      ) : (
-        <>
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Name</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                value={name}
-                editable={false}
-                style={styles.input}
-                placeholder="Your name"
-                placeholderTextColor="#999"
-              />
-              <Link href="/screens/UpdateName" asChild>
-                <TouchableOpacity style={styles.iconContainer}>
-                  <Feather name="edit-3" size={18} color="#5A8E93" />
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                value={email}
-                editable={false}
-                style={styles.input}
-                placeholder="your@email.com"
-                placeholderTextColor="#999"
-              />
-              <Link href="/screens/UpdateEmail" asChild>
-                <TouchableOpacity style={styles.iconContainer}>
-                  <Feather name="edit-3" size={18} color="#5A8E93" />
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputWrapper}>
-              <TextInput
-                value="••••••••••"
-                editable={false}
-                secureTextEntry
-                style={styles.input}
-              />
-              <Link href="/screens/ChangePassword" asChild>
-                <TouchableOpacity style={styles.iconContainer}>
-                  <Feather name="edit-3" size={18} color="#5A8E93" />
-                </TouchableOpacity>
-              </Link>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            testID="profile-sign-out"
-            style={styles.signOutButton}
-            onPress={onSignOutPress}
-          >
-            <Text style={styles.signOutText}>Sign out</Text>
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingHorizontal: 0,
-    paddingTop: 60,
-  },
+  paddingHorizontal: 0,
+  paddingTop: 20,
+  paddingBottom: 20,
+  flexGrow: 1,
+},
   header: {
     fontSize: 22,
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 12,
+    marginTop: 20,
   },
   headerLine: {
     height: 1,
@@ -482,23 +496,24 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   inputWrapper: {
-    position: "relative",
-    justifyContent: "center",
-  },
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: "#F5F5F5",
+  borderRadius: 8,
+  paddingRight: 14,
+},
   input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: "#333",
-  },
+  flex: 1,
+  paddingVertical: 12,
+  paddingHorizontal: 14,
+  fontSize: 15,
+  color: "#333",
+},
   iconContainer: {
-    position: "absolute",
-    right: 14,
-    top: "50%",
-    transform: [{ translateY: -9 }],
-  },
+  justifyContent: "center",
+  alignItems: "center",
+  marginLeft: 8,
+},
   signOutButton: {
     marginTop: 40,
     alignSelf: "center",
@@ -511,10 +526,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3,
     elevation: 4,
+    minHeight: 44,
+    justifyContent: "center",
   },
   signOutText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "500",
+  },
+  retryButton: {
+    marginTop: 12,
+    alignSelf: "center",
+    backgroundColor: "#5A8E93",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
+    minHeight: 44,
+    justifyContent: "center",
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
   },
 });

@@ -1,9 +1,29 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase-client";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
+
+async function authHeadersJson(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 const CreateExercise: React.FC = () => {
   const navigate = useNavigate();
@@ -76,10 +96,10 @@ const CreateExercise: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      const jsonHeaders = await authHeadersJson();
       const createRes = await fetch(`${API_URL}/api/exercises`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: jsonHeaders,
         body: JSON.stringify({
           title: exercise.title.trim(),
           description: exercise.exerciseCopy.trim(),
@@ -109,9 +129,10 @@ const CreateExercise: React.FC = () => {
       if (exercise.video) {
         const formData = new FormData();
         formData.append("file", exercise.video);
+        const fileHeaders = await authHeaders();
         const videoRes = await fetch(`${API_URL}/api/exercises/${exerciseId}/video`, {
           method: "POST",
-          credentials: "include",
+          headers: fileHeaders,
           body: formData,
         });
         if (!videoRes.ok) {
@@ -123,9 +144,10 @@ const CreateExercise: React.FC = () => {
       if (exercise.thumbnail) {
         const formData = new FormData();
         formData.append("file", exercise.thumbnail);
+        const fileHeaders = await authHeaders();
         const thumbRes = await fetch(`${API_URL}/api/exercises/${exerciseId}/thumbnail`, {
           method: "POST",
-          credentials: "include",
+          headers: fileHeaders,
           body: formData,
         });
         if (!thumbRes.ok) {
@@ -188,12 +210,8 @@ const CreateExercise: React.FC = () => {
                 accept=".mp4,.mov,video/mp4,video/quicktime"
                 onChange={handleFileChange}
               />
-              {exercise.video && (
-                <div className="file-selected">{exercise.video.name}</div>
-              )}
-              {fieldErrors.video && (
-                <div className="field-error">{fieldErrors.video}</div>
-              )}
+              {exercise.video && <div className="file-selected">{exercise.video.name}</div>}
+              {fieldErrors.video && <div className="field-error">{fieldErrors.video}</div>}
             </div>
 
             <div className={`upload-box ${fieldErrors.thumbnail ? "error" : ""}`}>
@@ -205,12 +223,8 @@ const CreateExercise: React.FC = () => {
                 accept=".png,.jpg,.jpeg,.webp,image/*"
                 onChange={handleFileChange}
               />
-              {exercise.thumbnail && (
-                <div className="file-selected">{exercise.thumbnail.name}</div>
-              )}
-              {fieldErrors.thumbnail && (
-                <div className="field-error">{fieldErrors.thumbnail}</div>
-              )}
+              {exercise.thumbnail && <div className="file-selected">{exercise.thumbnail.name}</div>}
+              {fieldErrors.thumbnail && <div className="field-error">{fieldErrors.thumbnail}</div>}
             </div>
           </div>
 
@@ -224,9 +238,7 @@ const CreateExercise: React.FC = () => {
               onChange={handleChange}
               placeholder="Enter exercise title"
             />
-            {fieldErrors.title && (
-              <div className="field-error">{fieldErrors.title}</div>
-            )}
+            {fieldErrors.title && <div className="field-error">{fieldErrors.title}</div>}
           </div>
 
           <div className={`input-group ${fieldErrors.category ? "error" : ""}`}>
@@ -239,9 +251,7 @@ const CreateExercise: React.FC = () => {
               onChange={handleChange}
               placeholder="Enter exercise category"
             />
-            {fieldErrors.category && (
-              <div className="field-error">{fieldErrors.category}</div>
-            )}
+            {fieldErrors.category && <div className="field-error">{fieldErrors.category}</div>}
           </div>
 
           <div className="input-row">
@@ -256,9 +266,7 @@ const CreateExercise: React.FC = () => {
                 placeholder="3"
                 min={1}
               />
-              {fieldErrors.setCount && (
-                <div className="field-error">{fieldErrors.setCount}</div>
-              )}
+              {fieldErrors.setCount && <div className="field-error">{fieldErrors.setCount}</div>}
             </div>
 
             <div className={`input-group half ${fieldErrors.repCount ? "error" : ""}`}>
@@ -272,13 +280,11 @@ const CreateExercise: React.FC = () => {
                 placeholder="3"
                 min={1}
               />
-              {fieldErrors.repCount && (
-                <div className="field-error">{fieldErrors.repCount}</div>
-              )}
+              {fieldErrors.repCount && <div className="field-error">{fieldErrors.repCount}</div>}
             </div>
           </div>
 
-          <div className={`input-group`}>
+          <div className="input-group">
             <label htmlFor="tags">Tags (optional)</label>
             <input
               id="tags"
@@ -299,9 +305,7 @@ const CreateExercise: React.FC = () => {
               onChange={handleChange}
               placeholder="Describe how to perform this exercise..."
             />
-            {fieldErrors.exerciseCopy && (
-              <div className="field-error">{fieldErrors.exerciseCopy}</div>
-            )}
+            {fieldErrors.exerciseCopy && <div className="field-error">{fieldErrors.exerciseCopy}</div>}
           </div>
         </form>
       </div>

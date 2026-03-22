@@ -2,6 +2,7 @@ import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Plan.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../../lib/supabase-client";
 
 interface Module {
   module_id: number;
@@ -31,14 +32,13 @@ interface PlanData {
 
 function mapDataToPlan(plan: PlanData): Plan {
   const categoryName = plan.plan_category?.name ?? "Uncategorized";
-
   return {
     id: plan.plan_id,
     title: plan.title,
     category: categoryName,
-    type: plan.description ?? 'Plan',
+    type: plan.description ?? "Plan",
     sessionCount: plan.plan_module ? plan.plan_module.length : 0,
-    image: '',
+    image: "",
   };
 }
 
@@ -47,9 +47,18 @@ export default function Plan() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/admin/plans", { credentials: "include" })
-      .then(res => res.json())
-      .then((data: unknown) => {
+    const loadPlans = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("http://localhost:3000/api/admin/plans", {
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {}),
+          },
+        });
+        const data: unknown = await res.json();
         console.log("RAW DATA:", data);
         if (!Array.isArray(data)) {
           console.error("Expected array from API, got:", typeof data);
@@ -57,37 +66,39 @@ export default function Plan() {
           return;
         }
         setPlans((data as PlanData[]).map(mapDataToPlan));
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Failed to fetch plans:", err);
         setPlans([]);
-      });
+      }
+    };
+
+    loadPlans();
   }, []);
-  
-// Group plans by category
-// handles null/undefined plans or category
-const groupedPlans = (plans ?? []).reduce((acc, plan) => {
-  const category = plan.category ?? 'Uncategorized';
-  if (!acc[category]) acc[category] = [];
-  acc[category].push(plan);
-  return acc;
-}, {} as Record<string, Plan[]>);
+
+  const groupedPlans = (plans ?? []).reduce((acc, plan) => {
+    const category = plan.category ?? "Uncategorized";
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(plan);
+    return acc;
+  }, {} as Record<string, Plan[]>);
 
   console.log("PLANS STATE:", plans);
 
   return (
-    
     <AppLayout>
       <div className="plan-page">
-        {/* ==== HEADER ==== */}
         <header className="plan-header">
           <div className="plan-header-left">
             <h1 className="plan-title">Plans</h1>
             <p className="plan-count">{plans.length} Plans</p>
-            <button className="plan-new-plan-btn" onClick={() => navigate("/plan-dashboard/create")}>+ New Plan</button>
+            <button
+              className="plan-new-plan-btn"
+              onClick={() => navigate("/plan-dashboard/create")}
+            >
+              + New Plan
+            </button>
           </div>
 
-          {/* SEARCH BAR SECTION */}
           <div className="plan-header-right">
             <div className="plan-search-wrapper">
               <span className="plan-search-icon">
@@ -106,24 +117,30 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
                   />
                 </svg>
               </span>
-              <input type="text" className="plan-search-bar" placeholder="Search plans..." />
+              <input
+                type="text"
+                className="plan-search-bar"
+                placeholder="Search plans..."
+              />
             </div>
           </div>
         </header>
 
         <hr className="plan-divider" />
 
-        {/* ==== PLAN CARDS ==== */}
         {Object.entries(groupedPlans).map(([category, items]) => (
           <section className="plan-category-section" key={category}>
             <h2 className="plan-category-title">
-              {category} <span>{items.length} {items.length === 1 ? 'Plan' : 'Plans'}</span>
+              {category}{" "}
+              <span>
+                {items.length} {items.length === 1 ? "Plan" : "Plans"}
+              </span>
             </h2>
 
             <div className="plan-grid">
               {items.map((plan) => (
-                <div 
-                  className="plan-card" 
+                <div
+                  className="plan-card"
                   key={plan.id}
                   onClick={() => navigate(`/plan-dashboard/${plan.id}`)}
                 >
@@ -131,8 +148,11 @@ const groupedPlans = (plans ?? []).reduce((acc, plan) => {
                     <h3>{plan.title}</h3>
                     <p>{plan.category}</p>
                     <span className="plan-tag">
-                      <span className="material-symbols-outlined">vital_signs</span>
-                      {plan.sessionCount} {plan.sessionCount === 1 ? 'session' : 'sessions'}
+                      <span className="material-symbols-outlined">
+                        vital_signs
+                      </span>
+                      {plan.sessionCount}{" "}
+                      {plan.sessionCount === 1 ? "session" : "sessions"}
                     </span>
                   </div>
                 </div>

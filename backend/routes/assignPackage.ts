@@ -1,12 +1,16 @@
 import { Router } from "express";
 import { supabaseServer } from "../lib/supabaseServer";
+import { requireAdminCookie } from "../middleware/requireAdminCookie";
 import {
   getAssignableUsers,
   getAssignablePlans,
   assignPackageToUser,
+  parseAssignStartDate,
 } from "../services/relationshipService";
 
 const router = Router();
+
+router.use(requireAdminCookie);
 
 router.get("/users", async (_req, res) => {
   try {
@@ -32,7 +36,7 @@ router.get("/plans", async (_req, res) => {
 
 router.post("/assign-package", async (req, res) => {
   try {
-    const { user_id, package_id } = req.body;
+    const { user_id, package_id, start_date } = req.body;
 
     if (!user_id || !package_id) {
       return res.status(400).json({
@@ -40,10 +44,20 @@ router.post("/assign-package", async (req, res) => {
       });
     }
 
+    let startDate: string;
+    try {
+      startDate = parseAssignStartDate(start_date);
+    } catch (e) {
+      return res.status(400).json({
+        error: e instanceof Error ? e.message : "Invalid start_date.",
+      });
+    }
+
     const result = await assignPackageToUser(
       supabaseServer,
       String(user_id),
-      Number(package_id)
+      Number(package_id),
+      startDate
     );
 
     return res.status(200).json(result);

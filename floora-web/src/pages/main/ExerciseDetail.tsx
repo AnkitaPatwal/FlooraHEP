@@ -2,10 +2,20 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
 import { useAuth } from "../../lib/auth";
+import { supabase } from "../../lib/supabase-client";
 import "../../components/main/Exercise.css";
 import "./ExerciseDetail.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 interface Exercise {
   exercise_id: number;
@@ -36,9 +46,8 @@ function ExerciseDetail() {
       if (!id) return;
       try {
         setLoading(true);
-        const res = await fetch(`${API_URL}/api/exercises/${id}`, {
-          credentials: "include",
-        });
+        const headers = await authHeaders();
+        const res = await fetch(`${API_URL}/api/exercises/${id}`, { headers });
         if (!res.ok) {
           if (res.status === 404) throw new Error("Exercise not found");
           throw new Error(`Failed to load (${res.status})`);
@@ -60,9 +69,10 @@ function ExerciseDetail() {
     try {
       setDeleting(true);
       setError(null);
+      const headers = await authHeaders();
       const res = await fetch(`${API_URL}/api/exercises/${id}`, {
         method: "DELETE",
-        credentials: "include",
+        headers,
       });
       if (!res.ok) {
         const data = await res.json();

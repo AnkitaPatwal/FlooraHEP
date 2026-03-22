@@ -3,6 +3,29 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import CreatePlan from "../main/CreatePlan";
 
+// Mock Supabase client
+vi.mock("../lib/supabase-client", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({
+        data: {
+          session: {
+            access_token: "mock-access-token",
+            user: {
+              id: "mock-user-id",
+              email: "admin@floora.com",
+              user_metadata: { role: "admin" },
+            },
+          },
+        },
+      }),
+      onAuthStateChange: vi.fn().mockReturnValue({
+        data: { subscription: { unsubscribe: vi.fn() } },
+      }),
+    },
+  },
+}));
+
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
@@ -57,7 +80,6 @@ describe("CreatePlan component", () => {
     const addButtons = screen.getAllByText("Add");
     fireEvent.click(addButtons[0]);
 
-    // Added to the selected list
     expect(screen.getByText("1. Lower Back Mobility")).toBeInTheDocument();
   });
 

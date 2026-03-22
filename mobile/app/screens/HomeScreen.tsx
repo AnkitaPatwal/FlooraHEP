@@ -265,6 +265,12 @@ const HomeScreen = () => {
     return (
       <View style={styles.stateContainer}>
         <Text style={styles.stateText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => router.replace("/(tabs)")}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -281,7 +287,7 @@ const HomeScreen = () => {
       </View>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>Your Assigned Sessions</Text>

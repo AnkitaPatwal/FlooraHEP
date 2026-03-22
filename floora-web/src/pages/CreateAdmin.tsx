@@ -1,16 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../lib/supabase-client";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type AccessState = "checking" | "allowed" | "unauthenticated" | "forbidden";
 
 export default function CreateAdmin() {
   const [accessState, setAccessState] = useState<AccessState>("checking");
-
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -18,24 +16,14 @@ export default function CreateAdmin() {
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/admin/me`, {
-          method: "GET",
-          credentials: "include",
-        });
+        const { data: { session } } = await supabase.auth.getSession();
 
-        const json = await res.json().catch(() => ({} as any));
-
-        if (res.status === 401) {
+        if (!session) {
           setAccessState("unauthenticated");
           return;
         }
 
-        if (!res.ok) {
-          setAccessState("forbidden");
-          return;
-        }
-
-        const role = json?.admin?.role;
+        const role = session.user.user_metadata?.role;
 
         if (role !== "super_admin") {
           setAccessState("forbidden");
@@ -65,10 +53,7 @@ export default function CreateAdmin() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (accessState !== "allowed") {
-      return;
-    }
-
+    if (accessState !== "allowed") return;
     if (emailError) {
       setErrorMsg(emailError);
       return;
@@ -77,10 +62,16 @@ export default function CreateAdmin() {
     try {
       setIsSubmitting(true);
 
+      const { data: { session } } = await supabase.auth.getSession();
+
       const res = await fetch("http://localhost:3000/api/admin/invite", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
         body: JSON.stringify({
           email: email.trim().toLowerCase(),
           name: name.trim() || null,
@@ -102,7 +93,7 @@ export default function CreateAdmin() {
         return;
       }
 
-      setSuccessMsg("Admin role assigned successfully.");
+      setSuccessMsg("Invite sent successfully.");
       setEmail("");
       setName("");
     } catch {
@@ -112,23 +103,15 @@ export default function CreateAdmin() {
     }
   };
 
-  if (accessState === "checking") {
-    return <div>Loading...</div>;
-  }
-
-  if (accessState === "unauthenticated") {
-    return <div>Unauthorized: please log in</div>;
-  }
-
-  if (accessState === "forbidden") {
-    return <div>Unauthorized: you do not have access to this page</div>;
-  }
+  if (accessState === "checking") return <div>Loading...</div>;
+  if (accessState === "unauthenticated") return <div>Unauthorized: please log in</div>;
+  if (accessState === "forbidden") return <div>Unauthorized: you do not have access to this page</div>;
 
   return (
     <div style={{ width: "100%", maxWidth: 720, padding: 32 }}>
       <h2 style={{ marginBottom: 6 }}>Create Admin</h2>
       <p style={{ marginBottom: 18, opacity: 0.8 }}>
-        Assign admin role to an existing account.
+        Invite a new admin by email.
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: "grid", gap: 14 }}>
@@ -136,7 +119,6 @@ export default function CreateAdmin() {
           <label htmlFor="email" style={{ fontWeight: 600 }}>
             Email <span style={{ color: "crimson" }}>*</span>
           </label>
-
           <input
             id="email"
             type="email"
@@ -147,13 +129,8 @@ export default function CreateAdmin() {
               if (successMsg) setSuccessMsg(null);
             }}
             placeholder="admin@example.com"
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.2)",
-            }}
+            style={{ padding: 12, borderRadius: 10, border: "1px solid rgba(0,0,0,0.2)" }}
           />
-
           {emailError && (
             <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>
           )}
@@ -163,7 +140,6 @@ export default function CreateAdmin() {
           <label htmlFor="name" style={{ fontWeight: 600 }}>
             Name <span style={{ opacity: 0.6 }}>(optional)</span>
           </label>
-
           <input
             id="name"
             type="text"
@@ -174,11 +150,7 @@ export default function CreateAdmin() {
               if (successMsg) setSuccessMsg(null);
             }}
             placeholder="Admin Name"
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.2)",
-            }}
+            style={{ padding: 12, borderRadius: 10, border: "1px solid rgba(0,0,0,0.2)" }}
           />
         </div>
 
@@ -200,12 +172,8 @@ export default function CreateAdmin() {
           {isSubmitting ? "Saving..." : "Submit"}
         </button>
 
-        {successMsg && (
-          <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>
-        )}
-        {errorMsg && (
-          <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>
-        )}
+        {successMsg && <div style={{ color: "green", fontWeight: 600 }}>{successMsg}</div>}
+        {errorMsg && <div style={{ color: "crimson", fontWeight: 600 }}>{errorMsg}</div>}
       </form>
     </div>
   );

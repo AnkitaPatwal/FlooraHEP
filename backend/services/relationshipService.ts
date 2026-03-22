@@ -272,10 +272,36 @@ export async function getAssignablePlans(
   return (data ?? []) as AssignablePlan[];
 }
 
+/** Validates YYYY-MM-DD and rejects invalid calendar dates. */
+export function parseAssignStartDate(input: unknown): string {
+  if (typeof input !== "string") {
+    throw new Error("start_date is required (YYYY-MM-DD).");
+  }
+  const s = input.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) {
+    throw new Error("start_date must be YYYY-MM-DD.");
+  }
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const t = Date.UTC(y, mo - 1, d);
+  const dt = new Date(t);
+  if (
+    dt.getUTCFullYear() !== y ||
+    dt.getUTCMonth() !== mo - 1 ||
+    dt.getUTCDate() !== d
+  ) {
+    throw new Error("start_date must be a valid calendar date.");
+  }
+  return s;
+}
+
 export async function assignPackageToUser(
   supabase: SupabaseClient,
   userId: string,
   packageId: number,
+  startDate: string,
 ): Promise<{ success: true }> {
   if (!userId || !packageId) {
     throw new Error("Please select both user and package.");
@@ -302,6 +328,7 @@ export async function assignPackageToUser(
       {
         user_id: userId,
         package_id: packageId,
+        start_date: startDate,
       },
     ]);
 

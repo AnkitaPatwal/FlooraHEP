@@ -1,12 +1,12 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
+import { requireAdminCookie } from '../middleware/requireAdminCookie';
+import { requireAdmin, requireSuperAdmin } from './adminAuth';
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -17,8 +17,6 @@ const SUPABASE_SERVICE_ROLE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
   process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY;
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
-
 if (!SUPABASE_URL) {
   throw new Error('SUPABASE_URL is not set');
 }
@@ -27,38 +25,13 @@ if (!SUPABASE_SERVICE_ROLE_KEY) {
   throw new Error('SUPABASE_SERVICE_ROLE_KEY is not set');
 }
 
-if (!ADMIN_JWT_SECRET) {
-  throw new Error('ADMIN_JWT_SECRET is not set');
-}
-
 const supabaseAdmin = createClient(
-  process.env.LOCAL_SUPABASE_URL || SUPABASE_URL,
-  process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY || SUPABASE_SERVICE_ROLE_KEY,
+  SUPABASE_URL,
+  SUPABASE_SERVICE_ROLE_KEY,
   { auth: { persistSession: false } }
 );
 
 const router = express.Router();
-
-// Cookie-based admin authentication middleware
-function requireAdminCookie(
-  req: express.Request,
-  res: express.Response,
-  next: express.NextFunction
-) {
-  const token = (req as any).cookies?.admin_token;
-
-  if (!token) {
-    return res.status(401).json({ ok: false, error: 'Missing authorization token' });
-  }
-
-  try {
-    const payload = jwt.verify(token, ADMIN_JWT_SECRET!) as any;
-    (req as any).admin = payload;
-    return next();
-  } catch (_err) {
-    return res.status(401).json({ ok: false, error: 'Invalid or expired token' });
-  }
-}
 
 function requireSuperAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
   const admin = (req as any).admin;
@@ -166,12 +139,13 @@ router.post("/accept-invite", async (req, res) => {
 
 // PROTECTED ROUTES (everything below requires admin_token cookie)
 router.use(requireAdminCookie);
+// ALL ROUTES BELOW REQUIRE VALID SUPABASE SESSION TOKEN
+router.use(requireAdmin);
 
 /**
  * ATH-253 List clients (admin only)
  */
 router.get("/clients", async (_req, res) => {
-
   try {
     const { data, error } = await supabaseAdmin
       .from('user')
@@ -271,14 +245,97 @@ router.get('/modules', async (_req, res) => {
   } catch (error) {
     console.error('Failed to fetch modules:', error);
     return res.status(500).json({ error: 'Failed to fetch modules' });
-
-
   }
 });
 
 /**
- * Invite a new admin (super admin only)
+ * Create a new module/session (admin-only)
  */
+router.post('/modules', async (req, res) => {
+  try {
+    const adminId = (req as any).admin?.id;
+    const { title, description, session_number } = req.body;
+
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Title is required.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('module')
+      .insert({
+        title: title.trim(),
+        description: description?.trim() ?? '',
+        session_number: session_number ?? 1,
+        created_by_admin_id: adminId ?? null,
+      })
+      .select('module_id, title, description, session_number')
+      .single();
+
+    if (error) {
+      console.error('Error creating module:', error);
+      return res.status(500).json({ error: 'Failed to create module.' });
+    }
+
+    return res.status(201).json(data);
+  } catch (error) {
+    console.error('Failed to create module:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Save exercises for a module/session (admin-only)
+ * PUT /api/admin/modules/:id/exercises
+ * Body: { exercise_ids: number[] }
+ */
+router.put('/modules/:id/exercises', async (req, res) => {
+  try {
+    const moduleId = Number(req.params.id);
+    if (!moduleId) {
+      return res.status(400).json({ error: 'Invalid module id.' });
+    }
+
+    const { exercise_ids } = req.body;
+    if (!Array.isArray(exercise_ids)) {
+      return res.status(400).json({ error: 'exercise_ids must be an array.' });
+    }
+
+    // Delete existing mappings
+    const { error: deleteError } = await supabaseAdmin
+      .from('module_exercise')
+      .delete()
+      .eq('module_id', moduleId);
+
+    if (deleteError) {
+      console.error('Error deleting module exercises:', deleteError);
+      return res.status(500).json({ error: 'Failed to update exercises.' });
+    }
+
+    // Insert new mappings
+    if (exercise_ids.length > 0) {
+      const rows = exercise_ids.map((exercise_id: number, index: number) => ({
+        module_id: moduleId,
+        exercise_id,
+        order_index: index + 1,
+      }));
+
+      const { error: insertError } = await supabaseAdmin
+        .from('module_exercise')
+        .insert(rows);
+
+      if (insertError) {
+        console.error('Error inserting module exercises:', insertError);
+        return res.status(500).json({ error: 'Failed to save exercises.' });
+      }
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Failed to save module exercises:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
 router.post("/invite", requireSuperAdmin, async (req, res) => {
   try {
     const email = (req.body?.email || "").trim().toLowerCase();
@@ -287,148 +344,62 @@ router.post("/invite", requireSuperAdmin, async (req, res) => {
       return res.status(400).json({ ok: false, error: "Valid email is required" });
     }
 
-    const resendApiKey = process.env.RESEND_API_KEY;
-    const fromEmail = process.env.RESET_FROM_EMAIL;
-    const inviteBaseUrl = process.env.FRONTEND_ADMIN_INVITE_URL;
-
-    if (!resendApiKey || !fromEmail || !inviteBaseUrl) {
-      return res.status(500).json({ ok: false, error: "Email configuration missing" });
-    }
-
-    // Create signed invite token (24h expiry)
-    const inviteToken = jwt.sign(
+    // First try to invite
+    const { error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+      email,
       {
-        type: "admin_invite",
-        email,
-      },
-      ADMIN_JWT_SECRET!,
-      { expiresIn: "24h" }
+        data: { role: "admin" },
+        redirectTo: process.env.FRONTEND_ADMIN_INVITE_URL,
+      }
     );
 
-    const inviteUrl = `${inviteBaseUrl}?token=${encodeURIComponent(inviteToken)}`;
+    if (inviteError) {
+      // If user already exists but hasn't confirmed, delete and re-invite
+      if (inviteError.message?.includes("already been registered")) {
+        // Find and delete the unconfirmed user
+        const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
+        const pending = existingUser?.users?.find(
+          (u) => u.email === email && !u.last_sign_in_at
+        );
 
-    const html = `
-<div style="
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  line-height: 1.6;
-  color: #1F2937;
-  background-color: #FFFFFF;
-  padding: 24px;
-">
+        if (pending) {
+          await supabaseAdmin.auth.admin.deleteUser(pending.id);
 
-  <h2 style="
-    margin: 0 0 12px 0;
-    font-size: 22px;
-    font-weight: 700;
-    color: #111827;
-  ">
-    You’ve been invited to Floora Admin
-  </h2>
+          // Re-invite
+          const { error: retryError } = await supabaseAdmin.auth.admin.inviteUserByEmail(
+            email,
+            {
+              data: { role: "admin" },
+              redirectTo: process.env.FRONTEND_ADMIN_INVITE_URL,
+            }
+          );
 
-  <p style="margin: 0 0 12px 0;">
-    A super admin invited you to create an admin account for Floora.
-  </p>
+          if (retryError) {
+            return res.status(500).json({ ok: false, error: retryError.message });
+          }
 
-  <p style="margin: 0 0 20px 0;">
-    Click the button below to set your password and finish setting up your admin access.
-    This link will expire in <strong>24 hours</strong>.
-  </p>
+          return res.status(200).json({ ok: true });
+        }
 
-  <a
-    href="${inviteUrl}"
-    style="
-      display: inline-block;
-      background-color: #2B8C8E;
-      color: #FFFFFF;
-      text-decoration: none;
-      padding: 12px 20px;
-      border-radius: 8px;
-      font-weight: 700;
-      font-size: 15px;
-    "
-  >
-    Accept invite
-  </a>
+        // User exists and has actually logged in — don't overwrite
+        return res.status(409).json({
+          ok: false,
+          error: "This email already has an active admin account.",
+        });
+      }
 
-  <p style="
-    margin: 20px 0 12px 0;
-    font-size: 14px;
-    color: #6B7280;
-  ">
-    If the button doesn’t work, copy and paste this link into your browser:
-  </p>
-
-  <p style="
-    margin: 0 0 20px 0;
-    font-size: 14px;
-    word-break: break-all;
-  ">
-    <a href="${inviteUrl}" style="color: #2B8C8E;">
-      ${inviteUrl}
-    </a>
-  </p>
-
-  <hr style="
-    border: none;
-    border-top: 1px solid #E5E7EB;
-    margin: 24px 0;
-  " />
-
-  <p style="
-    margin: 0;
-    font-size: 13px;
-    color: #6B7280;
-  ">
-    If you weren’t expecting this invite, you can safely ignore this email.
-    No account will be created unless you use the link above.
-  </p>
-
-</div>
-    `.trim();
-
-    const devTo = process.env.RESEND_DEV_TO_EMAIL;
-    const toEmail = devTo || email;
-
-    console.log("Invite email debug:", {
-      emailEntered: email,
-      RESEND_DEV_TO_EMAIL: process.env.RESEND_DEV_TO_EMAIL,
-      toEmail,
-      fromEmail,
-    });
-
-    const sendResp = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${resendApiKey}`,
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: toEmail,
-        subject: "You’re invited to Floora Admin",
-        html,
-      }),
-    });
-
-    if (!sendResp.ok) {
-      const errText = await sendResp.text();
-      console.error("Resend error:", errText);
-      return res.status(502).json({ ok: false, error: "Email failed to send" });
+      return res.status(500).json({ ok: false, error: inviteError.message || "Failed to send invite" });
     }
 
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Admin invite error:", err);
     return res.status(500).json({ ok: false, error: "Something went wrong" });
-
   }
 });
 
 /**
-
  * ATH-254: Assign a module/plan to a client (admin-only)
- * POST /api/admin/clients/:userId/modules
- * Body: { module_id: number, available_at?: string, notes?: string }
  */
 router.post('/clients/:userId/modules', async (req, res) => {
   try {
@@ -483,7 +454,6 @@ router.post('/clients/:userId/modules', async (req, res) => {
 
 /**
  * ATH-254: Retrieve assigned modules for a client (admin-only)
- * GET /api/admin/clients/:userId/modules
  */
 router.get('/clients/:userId/modules', async (req, res) => {
   try {
@@ -644,7 +614,7 @@ router.put('/categories/:id', async (req, res) => {
 });
 
 /**
- * Delete a plan category (admin-only). Plans using it will have category_id set to null.
+ * Delete a plan category (admin-only)
  */
 router.delete('/categories/:id', async (req, res) => {
   try {
@@ -820,7 +790,6 @@ router.get('/plans/:id', async (req, res) => {
  */
 router.put('/plans/:id', async (req, res) => {
   try {
-    const adminId = (req as any).admin?.id;
     const { id } = req.params;
     const { title, description, moduleIds, categoryId } = req.body;
 
@@ -914,6 +883,4 @@ router.delete('/plans/:id', async (req, res) => {
   }
 });
 
-
 export default router;
-
