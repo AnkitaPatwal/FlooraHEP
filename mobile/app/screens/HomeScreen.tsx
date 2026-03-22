@@ -9,16 +9,16 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Video, ResizeMode } from "expo-av";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
-import { fetchExercises, type ExerciseFromApi } from "../../lib/api";
-import colors from "../../constants/colors";
 import { useAuth } from "../../providers/AuthProvider";
+import colors from "../../constants/colors";
+import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
 
 type SessionItem = {
   module_id: number | string;
   title?: string;
+  exerciseCount?: number;
 };
 
 const styles = StyleSheet.create({
@@ -54,10 +54,13 @@ const styles = StyleSheet.create({
     color: "#111827",
     marginBottom: 4,
   },
-  sectionSub: {
-    fontSize: 16,
-    color: colors.brand,
-    marginBottom: 12,
+  accentLine: {
+    width: 150,
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+    marginTop: 6,
+    marginBottom: 22,
   },
   card: {
     borderRadius: 14,
@@ -72,7 +75,6 @@ const styles = StyleSheet.create({
   cardImage: {
     width: "100%",
     aspectRatio: 16 / 9,
-    resizeMode: "cover",
   },
   cardCaption: {
     fontSize: 20,
@@ -84,23 +86,8 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#1F2937",
   },
-  accentLine: {
-    width: 150,
-    height: 6,
-    borderRadius: 4,
-    backgroundColor: colors.accent,
-    marginTop: 6,
-    marginBottom: 22,
-  },
-  exercisesLoader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  exercisesLoaderText: {
-    fontSize: 14,
-    color: "#6B7280",
+  cardCaptionMeta: {
+    color: "#374151",
   },
   header: {
     paddingHorizontal: 16,
@@ -130,54 +117,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  exerciseCard: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  exerciseCardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
-  exerciseCardImagePlaceholder: {
-    backgroundColor: "#E5E7EB",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  exerciseCardPlaceholderText: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
-  exerciseCardCaption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  exerciseCardCaptionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
-  },
-  retryButton: {
-    marginTop: 16,
-    minHeight: 44,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#0D2C2C",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
 });
 
 const HomeScreen = () => {
@@ -188,8 +127,6 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [exercises, setExercises] = useState<ExerciseFromApi[]>([]);
-  const [exercisesLoading, setExercisesLoading] = useState(true);
 
   useEffect(() => {
     const fetchAssignedSessions = async () => {
@@ -264,7 +201,39 @@ const HomeScreen = () => {
           return;
         }
 
-        setSessions(modulesData || []);
+        let countsByModule: Record<string, number> = {};
+
+        if (isExerciseApiConfigured()) {
+          const countEntries = await Promise.all(
+            moduleIds.map(async (moduleId: number | string) => {
+              try {
+                const rows = await fetchExerciseListByModule(moduleId);
+                return [String(moduleId), rows.length] as const;
+              } catch {
+                return [String(moduleId), 0] as const;
+              }
+            })
+          );
+          countsByModule = Object.fromEntries(countEntries);
+        } else {
+          const { data: moduleExerciseRows } = await supabase
+            .from("module_exercise")
+            .select("module_id, exercise_id")
+            .in("module_id", moduleIds);
+
+          countsByModule = (moduleExerciseRows || []).reduce<Record<string, number>>((acc, row: any) => {
+            const key = String(row.module_id);
+            acc[key] = (acc[key] || 0) + 1;
+            return acc;
+          }, {});
+        }
+
+        const withCounts = (modulesData || []).map((m: any) => ({
+          ...m,
+          exerciseCount: countsByModule[String(m.module_id)] || 0,
+        }));
+
+        setSessions(withCounts);
       } catch (err) {
         setError("Something went wrong.");
         setSessions([]);
@@ -276,63 +245,12 @@ const HomeScreen = () => {
     fetchAssignedSessions();
   }, [session?.user?.id, authLoading]);
 
-  useEffect(() => {
-    const mapRowToExercise = (r: Record<string, unknown>): ExerciseFromApi => ({
-      exercise_id: r.exercise_id as number,
-      title: (r.title as string) ?? "",
-      description: (r.description as string) ?? null,
-      default_sets: (r.default_sets as number) ?? null,
-      default_reps: (r.default_reps as number) ?? null,
-      body_part: (r.body_part as string) ?? null,
-      thumbnail_url: (r.thumbnail_url as string) ?? null,
-      video_url: (r.video_url as string) ?? null,
-    });
-
-    const loadFromSupabase = async (): Promise<ExerciseFromApi[]> => {
-      const { data: rows, error } = await supabase
-        .from("exercise")
-        .select("exercise_id, title, description, default_sets, default_reps, body_part, thumbnail_url, video_url")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error || !rows?.length) return [];
-      return rows.map(mapRowToExercise);
-    };
-
-    const loadExercises = async () => {
-      setExercisesLoading(true);
-      try {
-        let list = await fetchExercises();
-        if (list.length === 0) list = await loadFromSupabase();
-        setExercises(list);
-      } catch {
-        const list = await loadFromSupabase();
-        setExercises(list);
-      } finally {
-        setExercisesLoading(false);
-      }
-    };
-    loadExercises();
-  }, []);
-
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
-      pathname: "/screens/ExerciseGrid",
+      pathname: "/screens/SessionExerciseList",
       params: { sessionId: moduleId, sessionName },
     });
   };
-
-  const goToExercise = (exercise: ExerciseFromApi) => {
-    router.push({
-      pathname: "/screens/ExerciseDetail",
-      params: {
-        id: String(exercise.exercise_id),
-        sessionName: exercise.body_part || "Exercise",
-        fromApi: "1",
-      },
-    });
-  };
-
-  const currentSession = sessions[0];
 
   if (authLoading || loading) {
     return (
@@ -372,92 +290,43 @@ const HomeScreen = () => {
         contentContainerStyle={[styles.container, { paddingBottom: 100 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Your Current Session</Text>
-
-        {currentSession ? (
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() =>
-              goToSession(
-                String(currentSession.module_id),
-                currentSession.title || "Session 1"
-              )
-            }
-            style={{ minHeight: 44 }}
-          >
-            <View style={styles.card}>
-              <Image
-                source={require("../../assets/images/current-session.jpg")}
-                style={styles.cardImage}
-                resizeMode="cover"
-              />
-            </View>
-            <Text style={styles.cardCaption}>
-              <Text style={styles.cardCaptionStrong}>
-                {currentSession.title || "Session 1"}
-              </Text>
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <Text style={styles.emptyText}>No assigned sessions yet.</Text>
-        )}
-
+        <Text style={styles.sectionTitle}>Your Assigned Sessions</Text>
         <View style={styles.accentLine} />
 
-        <Text style={[styles.sectionTitle, { marginTop: 28, marginBottom: 12 }]}>
-          Exercises
-        </Text>
-        {exercisesLoading ? (
-          <View style={styles.exercisesLoader}>
-            <ActivityIndicator size="small" color="#0F9AA8" />
-            <Text style={styles.exercisesLoaderText}>Loading exercises...</Text>
-          </View>
-        ) : exercises.length > 0 ? (
-          exercises.map((ex) => (
+        {sessions.length > 0 ? (
+          sessions.map((sessionItem, index) => (
             <TouchableOpacity
-              key={ex.exercise_id}
+              key={`${sessionItem.module_id}-${index}`}
               activeOpacity={0.9}
-              onPress={() => goToExercise(ex)}
-              style={{ minHeight: 44 }}
+              onPress={() =>
+                goToSession(
+                  String(sessionItem.module_id),
+                  sessionItem.title || `Session ${index + 1}`
+                )
+              }
             >
-              <View style={styles.exerciseCard}>
-                {ex.video_url ? (
-                  <Video
-                    key={`video-${ex.exercise_id}-${ex.video_url?.slice(-20)}`}
-                    source={{ uri: ex.video_url }}
-                    style={styles.exerciseCardImage}
-                    resizeMode={ResizeMode.COVER}
-                    isMuted
-                    isLooping
-                    shouldPlay
-                    useNativeControls={false}
-                    onError={(e) => {
-                      if (__DEV__) console.warn("Exercise video playback error:", e);
-                    }}
-                  />
-                ) : ex.thumbnail_url ? (
-                  <Image
-                    source={{ uri: ex.thumbnail_url }}
-                    style={styles.exerciseCardImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={[styles.exerciseCardImage, styles.exerciseCardImagePlaceholder]}>
-                    <Text style={styles.exerciseCardPlaceholderText}>No video</Text>
-                  </View>
-                )}
+              <View style={styles.card}>
+                <Image
+                  source={require("../../assets/images/current-session.jpg")}
+                  style={styles.cardImage}
+                  resizeMode="cover"
+                />
               </View>
-              <Text style={styles.exerciseCardCaption} numberOfLines={1}>
-                <Text style={styles.exerciseCardCaptionStrong}>{ex.title}</Text>
-                {[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).length > 0
-                  ? ` | ${[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).join(" · ")}`
-                  : ""}
+              <Text style={styles.cardCaption}>
+                <Text style={styles.cardCaptionStrong}>
+                  {sessionItem.title || `Session ${index + 1}`}
+                </Text>
+                <Text style={styles.cardCaptionMeta}>
+                  {` | ${sessionItem.exerciseCount ?? 0} `}
+                  {(sessionItem.exerciseCount ?? 0) === 1 ? "Exercise" : "Exercises"}
+                </Text>
               </Text>
             </TouchableOpacity>
           ))
         ) : (
-          <Text style={styles.emptyText}>No exercises yet. Add some from the admin site.</Text>
+          <Text style={styles.emptyText}>No assigned sessions yet.</Text>
         )}
+
       </ScrollView>
     </SafeAreaView>
   );

@@ -11,6 +11,7 @@ import {
 import { Video, AVPlaybackStatus } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
 import {
@@ -21,13 +22,17 @@ import {
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
 
 const ExerciseDetail = () => {
-  const { id, sessionName, videoUrl: paramVideoUrl } = useLocalSearchParams<{
-    id?: string;
-    sessionName?: string;
-    fromApi?: string;
-    videoUrl?: string;
-  }>();
+  const { id, sessionName, videoUrl: paramVideoUrl, exercisePosition, sessionExerciseTotal } =
+    useLocalSearchParams<{
+      id?: string;
+      sessionName?: string;
+      fromApi?: string;
+      videoUrl?: string;
+      exercisePosition?: string;
+      sessionExerciseTotal?: string;
+    }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const videoRef = useRef<Video>(null);
   const [apiExercise, setApiExercise] = useState<ExerciseApiResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
@@ -134,8 +139,11 @@ const ExerciseDetail = () => {
   }, [videoUrl]);
 
   const handleBack = () => {
-    // Navigate back to main app (Home tab)
-    router.replace("/(tabs)");
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
   };
 
   if (fetchLoading && !displayExercise) {
@@ -161,6 +169,16 @@ const ExerciseDetail = () => {
 
   const sessionLabel =
     (sessionName as string) || (exerciseId ? `Session ${exerciseId}` : "Session");
+
+  const progressTotalRaw = parseInt(String(sessionExerciseTotal ?? ""), 10);
+  const progressPositionRaw = parseInt(String(exercisePosition ?? ""), 10);
+  const progressTotal =
+    Number.isFinite(progressTotalRaw) && progressTotalRaw > 0 ? progressTotalRaw : 1;
+  const progressCurrent =
+    Number.isFinite(progressPositionRaw) && progressPositionRaw > 0
+      ? Math.min(progressPositionRaw, progressTotal)
+      : 1;
+
   const heroSource =
     (displayExercise as any).thumbnail != null
       ? { uri: String((displayExercise as any).thumbnail) }
@@ -170,7 +188,7 @@ const ExerciseDetail = () => {
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.screen}>
-        <View style={styles.topBar}>
+        <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <Ionicons name="chevron-back" size={28} color={COLORS.textDark} />
             <Text style={styles.backText}>Back</Text>
@@ -185,11 +203,16 @@ const ExerciseDetail = () => {
               <Text style={styles.sessionSub}>Restore</Text>
             </View>
             <View style={styles.sessionRight}>
-              <Text style={styles.progressText}>3/3</Text>
+              <Text style={styles.progressText}>
+                {progressCurrent}/{progressTotal}
+              </Text>
               <View style={styles.dotsRow}>
-                <View style={styles.dot} />
-                <View style={styles.dot} />
-                <View style={[styles.dot, styles.dotActive]} />
+                {Array.from({ length: progressTotal }, (_, i) => (
+                  <View
+                    key={i}
+                    style={[styles.dot, i + 1 === progressCurrent ? styles.dotActive : null]}
+                  />
+                ))}
               </View>
             </View>
           </View>
