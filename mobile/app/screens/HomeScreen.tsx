@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,19 +7,14 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Video, ResizeMode } from "expo-av";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
-import { fetchExercises, type ExerciseFromApi } from "../../lib/api";
+import { getUnlockState, getAssignedPlanTitle, type ModuleProgress } from "../../lib/sessionProgress";
 import colors from "../../constants/colors";
 import { useAuth } from "../../providers/AuthProvider";
-
-type SessionItem = {
-  module_id: number | string;
-  title?: string;
-};
 
 const styles = StyleSheet.create({
   screen: {
@@ -48,11 +43,22 @@ const styles = StyleSheet.create({
     color: "#6B7280",
     marginTop: 4,
   },
+  planName: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.brand,
+    marginBottom: 4,
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: "800",
     color: "#111827",
     marginBottom: 4,
+  },
+  progressSummary: {
+    fontSize: 15,
+    color: "#6B7280",
+    marginBottom: 12,
   },
   sectionSub: {
     fontSize: 16,
@@ -92,16 +98,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 22,
   },
-  exercisesLoader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 8,
-  },
-  exercisesLoaderText: {
-    fontSize: 14,
-    color: "#6B7280",
-  },
   header: {
     paddingHorizontal: 16,
     paddingTop: 8,
@@ -130,38 +126,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  exerciseCard: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+  sessionCardCompleted: {
+    opacity: 0.85,
   },
-  exerciseCardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
+  retryButton: {
+    marginTop: 16,
+    backgroundColor: "#0F9AA8",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 10,
   },
-  exerciseCardImagePlaceholder: {
-    backgroundColor: "#E5E7EB",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  exerciseCardPlaceholderText: {
-    fontSize: 14,
-    color: "#9CA3AF",
-  },
-  exerciseCardCaption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  exerciseCardCaptionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });
 
@@ -170,16 +148,15 @@ const HomeScreen = () => {
   const { session, loading: authLoading } = useAuth();
 
   const [displayName, setDisplayName] = useState("");
+  const [planName, setPlanName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
-  const [sessions, setSessions] = useState<SessionItem[]>([]);
-  const [exercises, setExercises] = useState<ExerciseFromApi[]>([]);
-  const [exercisesLoading, setExercisesLoading] = useState(true);
+  const [sessionProgress, setSessionProgress] = useState<ModuleProgress[]>([]);
 
-  useEffect(() => {
-    const fetchAssignedSessions = async () => {
+  const fetchAssignedSessions = useCallback(async (isRefresh = false) => {
       try {
-        setLoading(true);
+        if (!isRefresh) setLoading(true);
         setError("");
 
         if (authLoading) {
@@ -188,7 +165,7 @@ const HomeScreen = () => {
 
         if (!session?.user?.id) {
           setError("Unable to load user.");
-          setSessions([]);
+          setSessionProgress([]);
           setLoading(false);
           return;
         }
@@ -215,109 +192,65 @@ const HomeScreen = () => {
           .from("user_packages")
           .select("package_id")
           .eq("user_id", authUserId)
+          .not("package_id", "is", null)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
 
         if (packageError || !packageRow) {
-          setSessions([]);
+          setSessionProgress([]);
+          setPlanName("");
           return;
         }
 
-        const { data: planModules, error: planModulesError } = await supabase
-          .from("plan_module")
-          .select("module_id")
-          .eq("plan_id", packageRow.package_id)
-          .order("order_index", { ascending: true });
+        // Use RPC to get plan title (bypasses RLS, works without users_read_assigned_plan policy)
+        const title = await getAssignedPlanTitle();
+        setPlanName(title);
 
-        if (planModulesError || !planModules || planModules.length === 0) {
-          setSessions([]);
-          return;
-        }
-
-        const moduleIds = planModules.map((item: any) => item.module_id);
-
-        const { data: modulesData, error: modulesError } = await supabase
-          .from("module")
-          .select("module_id, title")
-          .in("module_id", moduleIds)
-          .order("module_id", { ascending: true });
-
-        if (modulesError) {
-          setError("Failed to load assigned sessions.");
-          setSessions([]);
-          return;
-        }
-
-        setSessions(modulesData || []);
+        // Fetch unlock state (ensures Session 1 is unlocked on first visit)
+        const progress = await getUnlockState();
+        setSessionProgress(progress);
       } catch (err) {
         setError("Something went wrong.");
-        setSessions([]);
+        setSessionProgress([]);
+        setPlanName("");
       } finally {
-        setLoading(false);
+        if (!isRefresh) setLoading(false);
+        setRefreshing(false);
       }
-    };
-
-    fetchAssignedSessions();
-  }, [session?.user?.id, authLoading]);
+    },
+  [session?.user?.id, authLoading]);
 
   useEffect(() => {
-    const mapRowToExercise = (r: Record<string, unknown>): ExerciseFromApi => ({
-      exercise_id: r.exercise_id as number,
-      title: (r.title as string) ?? "",
-      description: (r.description as string) ?? null,
-      default_sets: (r.default_sets as number) ?? null,
-      default_reps: (r.default_reps as number) ?? null,
-      body_part: (r.body_part as string) ?? null,
-      thumbnail_url: (r.thumbnail_url as string) ?? null,
-      video_url: (r.video_url as string) ?? null,
-    });
+    fetchAssignedSessions();
+  }, [fetchAssignedSessions]);
 
-    const loadFromSupabase = async (): Promise<ExerciseFromApi[]> => {
-      const { data: rows, error } = await supabase
-        .from("exercise")
-        .select("exercise_id, title, description, default_sets, default_reps, body_part, thumbnail_url, video_url")
-        .order("created_at", { ascending: false })
-        .limit(50);
-      if (error || !rows?.length) return [];
-      return rows.map(mapRowToExercise);
-    };
-
-    const loadExercises = async () => {
-      setExercisesLoading(true);
-      try {
-        let list = await fetchExercises();
-        if (list.length === 0) list = await loadFromSupabase();
-        setExercises(list);
-      } catch {
-        const list = await loadFromSupabase();
-        setExercises(list);
-      } finally {
-        setExercisesLoading(false);
-      }
-    };
-    loadExercises();
-  }, []);
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchAssignedSessions(true);
+  }, [fetchAssignedSessions]);
 
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
       pathname: "/screens/ExerciseGrid",
-      params: { sessionId: moduleId, sessionName },
+      params: { moduleId, sessionId: moduleId, sessionName, planName: planName || "Plan" },
     });
   };
 
-  const goToExercise = (exercise: ExerciseFromApi) => {
-    router.push({
-      pathname: "/screens/ExerciseDetail",
-      params: {
-        id: String(exercise.exercise_id),
-        sessionName: exercise.body_part || "Exercise",
-        fromApi: "1",
-      },
-    });
-  };
+  const totalSessions = sessionProgress.length;
+  const completedCount = sessionProgress.filter((p) => p.status === "completed").length;
 
-  const currentSession = sessions[0];
+  // Visible sessions = current first, then past (completed) in descending order (4, 3, 2, 1)
+  const visibleSessions = sessionProgress
+    .filter((p) => p.status === "unlocked" || p.status === "completed")
+    .sort((a, b) => {
+      if (a.status === "unlocked" && b.status !== "unlocked") return -1;
+      if (a.status !== "unlocked" && b.status === "unlocked") return 1;
+      if (a.status === "completed" && b.status === "completed") {
+        return b.order_index - a.order_index;
+      }
+      return 0;
+    });
 
   if (authLoading || loading) {
     return (
@@ -332,6 +265,15 @@ const HomeScreen = () => {
     return (
       <View style={styles.stateContainer}>
         <Text style={styles.stateText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setError("");
+            fetchAssignedSessions();
+          }}
+        >
+          <Text style={styles.retryButtonText}>Try again</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -350,86 +292,51 @@ const HomeScreen = () => {
         style={styles.scrollView}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#0F9AA8"
+          />
+        }
       >
-        <Text style={styles.sectionTitle}>Your Current Session</Text>
-
-        {currentSession ? (
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() =>
-            goToSession(
-              String(currentSession.module_id),
-              currentSession.title || "Session 1"
-            )
-          }
-        >
-          <View style={styles.card}>
-            <Image
-              source={require("../../assets/images/current-session.jpg")}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={styles.cardCaption}>
-            <Text style={styles.cardCaptionStrong}>{currentSession.title || "Session 1"}</Text>
+        {planName ? (
+          <Text style={styles.planName}>{planName}</Text>
+        ) : null}
+        <Text style={styles.sectionTitle}>Your Sessions</Text>
+        {totalSessions > 0 ? (
+          <Text style={styles.progressSummary}>
+            {completedCount} of {totalSessions} sessions complete
           </Text>
-        </TouchableOpacity>
-        ) : (
+        ) : null}
+
+        {visibleSessions.length === 0 ? (
           <Text style={styles.emptyText}>No assigned sessions yet.</Text>
-        )}
-
-        <View style={styles.accentLine} />
-
-        <Text style={[styles.sectionTitle, { marginTop: 28, marginBottom: 12 }]}>Exercises</Text>
-        {exercisesLoading ? (
-        <View style={styles.exercisesLoader}>
-          <ActivityIndicator size="small" color="#0F9AA8" />
-          <Text style={styles.exercisesLoaderText}>Loading exercises...</Text>
-        </View>
-        ) : exercises.length > 0 ? (
-          exercises.map((ex) => (
-          <TouchableOpacity
-            key={ex.exercise_id}
-            activeOpacity={0.9}
-            onPress={() => goToExercise(ex)}
-          >
-            <View style={styles.exerciseCard}>
-              {ex.video_url ? (
-                <Video
-                  key={`video-${ex.exercise_id}-${ex.video_url?.slice(-20)}`}
-                  source={{ uri: ex.video_url }}
-                  style={styles.exerciseCardImage}
-                  resizeMode={ResizeMode.COVER}
-                  isMuted
-                  isLooping
-                  shouldPlay
-                  useNativeControls={false}
-                  onError={(e) => {
-                    if (__DEV__) console.warn("Exercise video playback error:", e);
-                  }}
-                />
-              ) : ex.thumbnail_url ? (
-                <Image
-                  source={{ uri: ex.thumbnail_url }}
-                  style={styles.exerciseCardImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={[styles.exerciseCardImage, styles.exerciseCardImagePlaceholder]}>
-                  <Text style={styles.exerciseCardPlaceholderText}>No video</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.exerciseCardCaption} numberOfLines={1}>
-              <Text style={styles.exerciseCardCaptionStrong}>{ex.title}</Text>
-              {[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).length > 0
-                ? ` | ${[ex.body_part, ex.default_sets != null && `${ex.default_sets} sets`, ex.default_reps != null && `${ex.default_reps} reps`].filter(Boolean).join(" · ")}`
-                : ""}
-            </Text>
-          </TouchableOpacity>
-          ))
         ) : (
-          <Text style={styles.emptyText}>No exercises yet. Add some from the admin site.</Text>
+          visibleSessions.map((p) => {
+            const isCurrent = p.status === "unlocked";
+            return (
+              <TouchableOpacity
+                key={p.module_id}
+                activeOpacity={0.9}
+                onPress={() => goToSession(String(p.module_id), p.title || `Session ${p.order_index}`)}
+                style={p.status === "completed" ? styles.sessionCardCompleted : undefined}
+              >
+                <View style={styles.card}>
+                  <Image
+                    source={require("../../assets/images/current-session.jpg")}
+                    style={styles.cardImage}
+                    resizeMode="cover"
+                  />
+                </View>
+                <Text style={styles.cardCaption}>
+                  <Text style={styles.cardCaptionStrong}>{p.title || `Session ${p.order_index}`}</Text>
+                  {isCurrent && " (Current)"}
+                  {p.status === "completed" && " ✓"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </SafeAreaView>

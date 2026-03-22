@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Video, AVPlaybackStatus } from "expo-av";
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { EXERCISES } from "../../constants/exercises";
 import { Exercise } from "../../types/exercise";
@@ -35,6 +35,7 @@ const ExerciseDetail = () => {
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const exerciseId = id ?? "1";
   const tryBackend = isExerciseApiConfigured();
@@ -127,6 +128,20 @@ const ExerciseDetail = () => {
     }
   }, [tryBackend, exerciseId]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    if (tryBackend) {
+      try {
+        const data = await fetchExerciseById(exerciseId);
+        setApiExercise(data ?? null);
+        if (data?.video_url) setPlaybackState("loading");
+      } catch {
+        // Keep existing state on error
+      }
+    }
+    setRefreshing(false);
+  }, [tryBackend, exerciseId]);
+
   const handleVideoPress = useCallback(() => {
     if (videoRef.current && videoUrl) {
       videoRef.current.playAsync().catch(() => {});
@@ -171,14 +186,25 @@ const ExerciseDetail = () => {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.screen}>
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="chevron-back" size={28} color={COLORS.textDark} />
+          <TouchableOpacity
+            onPress={handleBack}
+            style={styles.backButton}
+            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.backChevron}>‹</Text>
             <Text style={styles.backText}>Back</Text>
           </TouchableOpacity>
           <Text style={styles.topTitle}>{sessionLabel}</Text>
           <View style={{ width: 24 }} />
         </View>
-        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#135D66" />
+          }
+        >
           <View style={styles.sessionRow}>
             <View>
               <Text style={styles.sessionLabel}>{sessionLabel}</Text>
@@ -270,11 +296,27 @@ const COLORS = {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: COLORS.bg },
   topBar: {
-    paddingTop: 16, paddingBottom: 10, paddingHorizontal: 16,
-    flexDirection: "row", alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg,
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.bg,
   },
-  backButton: { flexDirection: "row", alignItems: "center", paddingRight: 12, minWidth: 80 },
+  backButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingRight: 16,
+    minWidth: 80,
+  },
+  backChevron: {
+    fontSize: 28,
+    lineHeight: 28,
+    color: COLORS.textDark,
+    width: 18,
+  },
   backText: { fontSize: 16, color: COLORS.textDark, marginLeft: 2 },
   topTitle: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "600", color: COLORS.textDark },
   container: { paddingHorizontal: 16, paddingBottom: 32 },

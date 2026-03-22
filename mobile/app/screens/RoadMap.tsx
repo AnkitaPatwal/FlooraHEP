@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import colors from "../../constants/colors";
@@ -16,6 +17,12 @@ import session1Img from "../../assets/images/prev-1.jpg";
 
 export default function RoadMap() {
   const router = useRouter();
+  const [refreshing, setRefreshing] = useState(false);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await new Promise((r) => setTimeout(r, 500));
+    setRefreshing(false);
+  }, []);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -33,6 +40,9 @@ export default function RoadMap() {
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 28 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+        }
       >
         {/* Plan heading */}
         <Text style={styles.planTitle}>Leakage Plan</Text>

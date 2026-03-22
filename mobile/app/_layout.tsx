@@ -1,11 +1,13 @@
 import React from "react";
 import { Stack } from "expo-router";
 import { AuthProvider } from "../providers/AuthProvider";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
+    <ErrorBoundary>
+      <AuthProvider>
+        <Stack screenOptions={{ headerShown: false }}>
         {/* Entry */}
         <Stack.Screen name="index" />
 
@@ -16,5 +18,6 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
       </Stack>
     </AuthProvider>
+    </ErrorBoundary>
   );
 }

@@ -12,9 +12,11 @@ jest.mock("expo-router", () => ({
 
 const mockFrom = jest.fn();
 
-jest.mock("../../../lib/supabase", () => ({
+jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    auth: { getUser: () => Promise.resolve({ data: { user: { id: "test-uuid" } }, error: null }) },
+    rpc: () => Promise.resolve({ data: null, error: null }),
   },
 }));
 
@@ -26,14 +28,11 @@ jest.mock("../../../providers/AuthProvider", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-const mockFetchExercises = jest.fn();
-jest.mock("../../../lib/api", () => ({
-  fetchExercises: (...args: unknown[]) => mockFetchExercises(...args),
-}));
-
-jest.mock("expo-av", () => ({
-  Video: "Video",
-  ResizeMode: { COVER: "cover" },
+jest.mock("../../../lib/sessionProgress", () => ({
+  getUnlockState: jest.fn().mockResolvedValue([
+    { module_id: 1, order_index: 1, title: "week 1 foundations", status: "unlocked" },
+  ]),
+  getAssignedPlanTitle: jest.fn().mockResolvedValue(""),
 }));
 
 jest.mock("react-native-safe-area-context", () => ({
@@ -43,16 +42,17 @@ jest.mock("react-native-safe-area-context", () => ({
 function makeEqMaybeSingleChain<T>(data: T) {
   const maybeSingle = jest.fn().mockResolvedValue({ data, error: null });
   const eq = jest.fn(() => ({ maybeSingle }));
-  const select = jest.fn(() => ({ eq }));
+  const select = jest.fn(() => ({ eq, maybeSingle }));
   return { select };
 }
 
-/** user_packages query uses .order().limit(1).maybeSingle() - chain must support that */
+/** user_packages query uses .eq().not().order().limit(1).maybeSingle() - chain must support that */
 function makeUserPackagesChain<T>(data: T) {
   const maybeSingle = jest.fn().mockResolvedValue({ data, error: null });
   const limit = jest.fn(() => ({ maybeSingle }));
   const order = jest.fn(() => ({ limit }));
-  const eq = jest.fn(() => ({ order }));
+  const not = jest.fn(() => ({ order }));
+  const eq = jest.fn(() => ({ not }));
   const select = jest.fn(() => ({ eq }));
   return { select };
 }
@@ -94,32 +94,19 @@ function mockSupabaseUserWithPackage(opts: { fname?: string } = {}) {
   });
 }
 
-function mockSupabaseExerciseFallback(exercises: Array<{
-  exercise_id: number;
-  title: string;
-  body_part?: string | null;
-  default_sets?: number | null;
-  default_reps?: number | null;
-  video_url?: string | null;
-  thumbnail_url?: string | null;
-}>) {
-  mockSupabaseUserWithPackage();
-  mockFrom.mockImplementation((table: string) => {
-    if (table === "exercise") return makeChain(exercises);
-    if (table === "user") return makeUserChain({ user_id: 56, fname: "Keshwa" });
-    if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
-    if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
-    if (table === "module") return makeModuleChain([{ module_id: 1, title: "week 1 foundations" }]);
-    return { select: jest.fn() };
-  });
-}
-
 describe("HomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAuth.mockImplementation(() => ({ session: mockSession, loading: false }));
     (global as any).userEmail = "keshwa@example.com";
-    mockFetchExercises.mockResolvedValue([]);
+    const sessionProgress = require("../../../lib/sessionProgress") as {
+      getAssignedPlanTitle: jest.Mock;
+      getUnlockState: jest.Mock;
+    };
+    sessionProgress.getAssignedPlanTitle.mockResolvedValue("");
+    sessionProgress.getUnlockState.mockResolvedValue([
+      { module_id: 1, order_index: 1, title: "week 1 foundations", status: "unlocked" },
+    ]);
   });
 
   it("queries user_packages with session.user.id (auth UUID)", async () => {
@@ -127,9 +114,10 @@ describe("HomeScreen", () => {
     const maybeSingle = jest.fn().mockResolvedValue({ data: { package_id: 2 }, error: null });
     const limit = jest.fn(() => ({ maybeSingle }));
     const order = jest.fn(() => ({ limit }));
+    const not = jest.fn(() => ({ order }));
     const capturingEq = jest.fn((col: string, val: string) => {
       if (col === "user_id") capturedUserId = val;
-      return { order };
+      return { not };
     });
     mockFrom.mockImplementation((table: string) => {
       if (table === "user") return makeUserChain({ user_id: 56, fname: "Keshwa" });
@@ -137,9 +125,8 @@ describe("HomeScreen", () => {
       if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
       if (table === "module") return makeModuleChain([{ module_id: 1, title: "week 1 foundations" }]);
       if (table === "exercise") return makeChain([]);
-      return { select: jest.fn() };
-    });
-    mockFetchExercises.mockResolvedValue([]);
+    return { select: jest.fn() };
+  });
 
     render(<HomeScreen />);
 
@@ -148,9 +135,8 @@ describe("HomeScreen", () => {
     });
   });
 
-  it("renders assigned current session for user with package", async () => {
+  it("renders assigned sessions for user with package", async () => {
     mockSupabaseUserWithPackage();
-    mockSupabaseExerciseFallback([]);
 
     const { getByText, queryByText } = render(<HomeScreen />);
 
@@ -158,14 +144,12 @@ describe("HomeScreen", () => {
       expect(getByText("week 1 foundations")).toBeTruthy();
     });
 
-    expect(getByText("Your Current Session")).toBeTruthy();
+    expect(getByText("Your Sessions")).toBeTruthy();
     expect(queryByText("No assigned sessions yet.")).toBeNull();
-    expect(queryByText("No previous sessions.")).toBeNull();
   });
 
   it("shows first name in greeting when user has fname", async () => {
     mockSupabaseUserWithPackage({ fname: "Sadaf" });
-    mockFetchExercises.mockResolvedValue([]);
 
     const { getByText } = render(<HomeScreen />);
 
@@ -196,9 +180,10 @@ describe("HomeScreen", () => {
     const maybeSingleNull = jest.fn().mockResolvedValue({ data: null, error: null });
     const limit = jest.fn(() => ({ maybeSingle: maybeSingleNull }));
     const order = jest.fn(() => ({ limit }));
+    const not = jest.fn(() => ({ order }));
     mockFrom.mockImplementation((table: string) => {
       if (table === "user") return makeUserChain({ user_id: 57, fname: "Test" });
-      if (table === "user_packages") return { select: jest.fn(() => ({ eq: jest.fn(() => ({ order })) })) };
+      if (table === "user_packages") return { select: jest.fn(() => ({ eq: jest.fn(() => ({ not })) })) };
       if (table === "exercise") return makeChain([]);
       return { select: jest.fn() };
     });
@@ -211,7 +196,9 @@ describe("HomeScreen", () => {
   });
 
   it("shows error state when user cannot be loaded", async () => {
-    mockUseAuth.mockImplementation(() => ({ session: null, loading: false }));
+    // AuthProvider allows session: null when logged out — mockImplementation needs cast to allow null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseAuth.mockImplementation(() => ({ session: null, loading: false } as any));
 
     const { getByText } = render(<HomeScreen />);
 
@@ -220,125 +207,53 @@ describe("HomeScreen", () => {
     });
   });
 
-  it("displays exercises from API when fetchExercises returns data", async () => {
+  it("navigates to ExerciseGrid with moduleId when session card is pressed", async () => {
     mockSupabaseUserWithPackage();
-    mockFetchExercises.mockResolvedValue([
-      {
-        exercise_id: 19,
-        title: "Pelvic tilt",
-        body_part: "Core",
-        default_sets: 3,
-        default_reps: 10,
-        thumbnail_url: null,
-        video_url: "https://example.com/video.mp4",
-      },
-    ]);
 
     const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(getByText("Pelvic tilt")).toBeTruthy();
-    });
-    expect(getByText(/Core · 3 sets · 10 reps/)).toBeTruthy();
-  });
-
-  it("falls back to Supabase exercise table when API returns empty", async () => {
-    mockSupabaseUserWithPackage();
-    mockFetchExercises.mockResolvedValue([]);
-    mockSupabaseExerciseFallback([
-      {
-        exercise_id: 25,
-        title: "Squat",
-        body_part: "Lower Body",
-        default_sets: 3,
-        default_reps: 3,
-        video_url: "https://storage.example.com/squat.mp4",
-        thumbnail_url: null,
-      },
-    ]);
-
-    const { getByText } = render(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText("Squat")).toBeTruthy();
-    });
-    expect(getByText(/Lower Body · 3 sets · 3 reps/)).toBeTruthy();
-  });
-
-  it("shows No exercises yet when API and Supabase return empty", async () => {
-    mockSupabaseUserWithPackage();
-    mockFetchExercises.mockResolvedValue([]);
-    mockSupabaseExerciseFallback([]);
-
-    const { getByText } = render(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText("Exercises")).toBeTruthy();
-    });
-    expect(getByText("No exercises yet. Add some from the admin site.")).toBeTruthy();
-  });
-
-  it("navigates to ExerciseDetail with fromApi when exercise card is pressed", async () => {
-    mockSupabaseUserWithPackage();
-    mockFetchExercises.mockResolvedValue([
-      {
-        exercise_id: 19,
-        title: "Pelvic tilt",
-        body_part: "Core",
-        default_sets: 3,
-        default_reps: 10,
-        thumbnail_url: null,
-        video_url: null,
-      },
-    ]);
-
-    const { getByText } = render(<HomeScreen />);
-
-    await waitFor(() => {
-      expect(getByText("Pelvic tilt")).toBeTruthy();
+      expect(getByText("week 1 foundations")).toBeTruthy();
     });
 
-    fireEvent.press(getByText("Pelvic tilt"));
+    fireEvent.press(getByText("week 1 foundations"));
 
     expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/screens/ExerciseDetail",
-      params: {
-        id: "19",
-        sessionName: "Core",
-        fromApi: "1",
-      },
+      pathname: "/screens/ExerciseGrid",
+      params: { moduleId: "1", sessionId: "1", sessionName: "week 1 foundations", planName: "Plan" },
     });
   });
 
-  it("uses Exercise as sessionName when body_part is missing", async () => {
-    mockSupabaseUserWithPackage();
-    mockFetchExercises.mockResolvedValue([
-      {
-        exercise_id: 99,
-        title: "Unknown",
-        body_part: null,
-        default_sets: null,
-        default_reps: null,
-        thumbnail_url: null,
-        video_url: null,
-      },
+  it("shows progress summary when user has sessions", async () => {
+    const { getUnlockState } = require("../../../lib/sessionProgress") as {
+      getUnlockState: jest.Mock;
+    };
+    getUnlockState.mockResolvedValue([
+      { module_id: 1, order_index: 1, title: "Session 1", status: "completed" },
+      { module_id: 2, order_index: 2, title: "Session 2", status: "unlocked" },
+      { module_id: 3, order_index: 3, title: "Session 3", status: "locked" },
     ]);
+    mockSupabaseUserWithPackage();
 
     const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(getByText("Unknown")).toBeTruthy();
+      expect(getByText("1 of 3 sessions complete")).toBeTruthy();
     });
+  });
 
-    fireEvent.press(getByText("Unknown"));
+  it("shows plan name above Your Sessions when getAssignedPlanTitle returns a title", async () => {
+    const { getAssignedPlanTitle } = require("../../../lib/sessionProgress") as {
+      getAssignedPlanTitle: jest.Mock;
+    };
+    getAssignedPlanTitle.mockResolvedValue("Sadaf's Plan");
+    mockSupabaseUserWithPackage();
 
-    expect(mockPush).toHaveBeenCalledWith({
-      pathname: "/screens/ExerciseDetail",
-      params: {
-        id: "99",
-        sessionName: "Exercise",
-        fromApi: "1",
-      },
+    const { getByText } = render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(getByText("Sadaf's Plan")).toBeTruthy();
     });
+    expect(getByText("Your Sessions")).toBeTruthy();
   });
 });

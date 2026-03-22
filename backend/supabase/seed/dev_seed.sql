@@ -101,6 +101,23 @@ WHERE u.email = 'ethan@example.com'
   AND NOT EXISTS (SELECT 1 FROM public.patient p WHERE p.user_id = u.user_id);
 
 
+-- ATH-426: Second module in Pelvic Floor Rehab plan (for session unlock tests)
+INSERT INTO public.module (title, description, session_number, created_by_admin_id)
+SELECT 'Session 2 - Progress', 'Follow-up exercises', 2, au.id
+FROM public.admin_users au
+WHERE au.email = 'kayla.garibay31@gmail.com'
+  AND NOT EXISTS (SELECT 1 FROM public.module WHERE title = 'Session 2 - Progress');
+
+INSERT INTO public.plan_module (plan_id, module_id, order_index)
+SELECT p.plan_id, m.module_id, 2
+FROM public.plan p
+JOIN public.module m ON m.title = 'Session 2 - Progress'
+WHERE p.title = 'Pelvic Floor Rehab'
+  AND NOT EXISTS (
+    SELECT 1 FROM public.plan_module pm
+    WHERE pm.plan_id = p.plan_id AND pm.module_id = m.module_id
+  );
+
 -- ATH-375: Exercise video references
 INSERT INTO public.video (bucket, object_key, original_filename, mime_type, byte_size, duration_seconds, width, height, uploader_user_id)
 SELECT 'exercise-videos', 'crunches.mp4', 'crunches.mp4', 'video/mp4', 1024000, 30, 1920, 1080,

@@ -20,6 +20,7 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "seed:media": "node backend/supabase/seed/uploadMedia.js"
+    "seed:media": "node backend/supabase/seed/uploadMedia.js",
+    "build:web": "cd mobile && npx expo export -p web"
   }
 }
