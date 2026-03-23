@@ -38,6 +38,15 @@ beforeAll(() => {
   app = require("../../server").default;
 });
 
+function adminTokenCookie() {
+  const token = require("jsonwebtoken").sign(
+    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
+    "test-admin-jwt-secret-key",
+    { expiresIn: "1h" }
+  );
+  return `admin_token=${token}`;
+}
+
 describe("GET /api/admin/modules", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
@@ -60,6 +69,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(200);
@@ -73,6 +83,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(500);

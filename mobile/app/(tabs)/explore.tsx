@@ -31,7 +31,8 @@ export default function TabTwoScreen() {
           style={styles.headerImage}
         />
       }>
-      <ThemedView style={styles.titleContainer}>
+      <ThemedView style={[styles.titleContainer, { paddingBottom: 100 }]}>
+
         <ThemedText
           type="title"
           style={{

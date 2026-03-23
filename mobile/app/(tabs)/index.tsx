@@ -15,6 +15,7 @@
 //         <Image
 //           source={require('@/assets/images/partial-react-logo.png')}
 //           style={styles.reactLogo}
+
 //         />
 //       }
 //     >

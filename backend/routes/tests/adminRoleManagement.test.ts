@@ -77,6 +77,10 @@ const normalAdminToken = jwt.sign(
   { expiresIn: "1h" }
 );
 
+function adminTokenCookie(token: string) {
+  return `admin_token=${token}`;
+}
+
 let app: any;
 
 beforeAll(() => {
@@ -87,6 +91,7 @@ describe("Admin Role Management & RLS", () => {
   it("non-super_admin cannot invite via /invite", async () => {
     const res = await request(app)
       .post("/api/admin/invite")
+      .set("Cookie", adminTokenCookie(normalAdminToken))
       .set("Authorization", `Bearer ${normalAdminToken}`)
       .send({ email: "new@test.com" });
 
@@ -97,6 +102,7 @@ describe("Admin Role Management & RLS", () => {
   it("super_admin can successfully invite admin", async () => {
     const res = await request(app)
       .post("/api/admin/invite")
+      .set("Cookie", adminTokenCookie(superAdminToken))
       .set("Authorization", `Bearer ${superAdminToken}`)
       .send({ email: "new@test.com" });
 

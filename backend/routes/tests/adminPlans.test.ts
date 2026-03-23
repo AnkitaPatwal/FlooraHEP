@@ -51,6 +51,14 @@ beforeAll(() => {
   app = require("../../server").default;
 });
 
+function adminTokenCookie() {
+  return `admin_token=${require("jsonwebtoken").sign(
+    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
+    "test-admin-jwt-secret-key",
+    { expiresIn: "1h" }
+  )}`;
+}
+
 describe("POST /api/admin/plans", () => {
   const validAdminToken = require("jsonwebtoken").sign(
     { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
@@ -73,6 +81,7 @@ describe("POST /api/admin/plans", () => {
   it("returns 400 if title or description is missing", async () => {
     const res = await request(app)
       .post("/api/admin/plans")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`)
       .send({ moduleIds: [] });
 
@@ -91,6 +100,7 @@ describe("POST /api/admin/plans", () => {
 
     const res = await request(app)
       .post("/api/admin/plans")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Test Plan",
@@ -113,6 +123,7 @@ describe("POST /api/admin/plans", () => {
 
     const res = await request(app)
       .post("/api/admin/plans")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Test Plan",
@@ -139,6 +150,7 @@ describe("PUT /api/admin/plans/:id", () => {
 
     const res = await request(app)
       .put("/api/admin/plans/123")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Updated Plan",
@@ -163,6 +175,7 @@ describe("DELETE /api/admin/plans/:id", () => {
 
     const res = await request(app)
       .delete("/api/admin/plans/123")
+      .set("Cookie", adminTokenCookie())
       .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(200);

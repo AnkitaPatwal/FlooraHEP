@@ -162,10 +162,15 @@ describe("DELETE /api/exercises/:id — super_admin only", () => {
   });
 });
 
+function adminTokenCookie(token: string) {
+  return `admin_token=${token}`;
+}
+
 describe("POST /api/admin/invite — super_admin only", () => {
   it("admin role returns 403", async () => {
     const res = await request(app)
       .post("/api/admin/invite")
+      .set("Cookie", adminTokenCookie(adminToken))
       .set("Authorization", `Bearer ${adminToken}`)
       .send({ email: "newadmin@test.com" });
 

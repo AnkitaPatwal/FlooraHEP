@@ -76,8 +76,13 @@ describe("Admin invite flow", () => {
   });
 
   function bearerHeader(payload: any) {
-    const token = jwt.sign(payload, ADMIN_JWT_SECRET);
+    const token = jwt.sign({ ...payload, id: payload.id ?? "test-id" }, ADMIN_JWT_SECRET);
     return { Authorization: `Bearer ${token}` };
+  }
+
+  function adminTokenCookie(payload: any) {
+    const token = jwt.sign(payload, ADMIN_JWT_SECRET);
+    return ["admin_token", token] as [string, string];
   }
 
   test("POST /api/admin/invite succeeds for super_admin (Supabase auth.admin.inviteUserByEmail)", async () => {
@@ -85,7 +90,8 @@ describe("Admin invite flow", () => {
 
     const res = await request(app)
       .post("/api/admin/invite")
-      .set(bearerHeader({ email: "super@floora.com", role: "super_admin" }))
+      .set("Cookie", adminTokenCookie({ id: "super-id", email: "super@floora.com", role: "super_admin" }).join("="))
+      .set(bearerHeader({ id: "super-id", email: "super@floora.com", role: "super_admin" }))
       .send({ email: "newadmin@example.com" });
 
     expect(res.status).toBe(200);
@@ -97,7 +103,8 @@ describe("Admin invite flow", () => {
 
     const res = await request(app)
       .post("/api/admin/invite")
-      .set(bearerHeader({ email: "admin@floora.com", role: "admin" }))
+      .set("Cookie", adminTokenCookie({ id: "admin-id", email: "admin@floora.com", role: "admin" }).join("="))
+      .set(bearerHeader({ id: "admin-id", email: "admin@floora.com", role: "admin" }))
       .send({ email: "newadmin@example.com" });
 
     expect(res.status).toBe(403);

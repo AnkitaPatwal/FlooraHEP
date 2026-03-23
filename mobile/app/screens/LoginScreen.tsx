@@ -108,12 +108,11 @@ export default function LoginScreen() {
       });
 
       if (data?.session && !error) {
-      // Store logged-in email globally
-      (global as any).userEmail = normalizedEmail;
-      router.replace("/(tabs)");
-      return;
+        // Store logged-in email globally
+        (global as any).userEmail = normalizedEmail;
+        router.replace("/(tabs)");
+        return;
       }
-
 
       Alert.alert("Sign In Failed", "Invalid email or password.");
     } catch (err: unknown) {
@@ -126,7 +125,8 @@ export default function LoginScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingBottom: 32 }]}
+      keyboardShouldPersistTaps="handled"
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
       }
@@ -175,6 +175,7 @@ export default function LoginScreen() {
         <TouchableOpacity
           onPress={() => router.push("/screens/ForgotPassword")}
           disabled={loading}
+          style={{ minHeight: 44, justifyContent: "center" }}
         >
           <Text style={styles.forgotPassword}>Forgot Password?</Text>
         </TouchableOpacity>
@@ -182,7 +183,7 @@ export default function LoginScreen() {
 
       {/* Sign In Button */}
       <TouchableOpacity
-        style={styles.signInButton}
+        style={[styles.signInButton, { minHeight: 44, justifyContent: "center" }]}
         onPress={handleSignIn}
         disabled={loading}
       >
@@ -196,7 +197,10 @@ export default function LoginScreen() {
       {/* Footer */}
       <View style={styles.footerContainer}>
         <Text style={styles.footerText}>Don’t have an account?</Text>
-        <TouchableOpacity onPress={() => router.push("/screens/CreateAccount")}>
+        <TouchableOpacity
+          onPress={() => router.push("/screens/CreateAccount")}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
           <Text style={styles.footerLink}>Request Account</Text>
         </TouchableOpacity>
       </View>

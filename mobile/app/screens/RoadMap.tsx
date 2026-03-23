@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   ScrollView,
   View,
   Text,
@@ -9,6 +8,7 @@ import {
   Pressable,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import colors from "../../constants/colors";
 
@@ -28,7 +28,11 @@ export default function RoadMap() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable hitSlop={10} onPress={() => router.back()}>
+        <Pressable
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
           <Text style={styles.backChevron}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Roadmap</Text>
@@ -38,7 +42,7 @@ export default function RoadMap() {
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 28 }}
+        contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
@@ -57,6 +61,7 @@ export default function RoadMap() {
 
         {/* Session 1 card -> opens ExerciseGrid */}
         <Pressable
+          style={{ minHeight: 44 }}
           onPress={() =>
             router.push({
               pathname: "/screens/ExerciseGrid",

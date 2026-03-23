@@ -3,6 +3,7 @@ import {
   verifyAdminAccess,
   isAdminUser,
   assignPackageToUser,
+  parseAssignStartDate,
   PlanWithHierarchy,
   AdminAccessResult,
 } from '../../services/relationshipService';
@@ -417,6 +418,20 @@ describe('ATH-221 — Verify Data Relationships and Admin Access', () => {
   });
 });
 
+describe("parseAssignStartDate", () => {
+  it("accepts valid YYYY-MM-DD", () => {
+    expect(parseAssignStartDate("2026-03-01")).toBe("2026-03-01");
+  });
+
+  it("rejects wrong format", () => {
+    expect(() => parseAssignStartDate("3/1/2026")).toThrow("YYYY-MM-DD");
+  });
+
+  it("rejects invalid calendar date", () => {
+    expect(() => parseAssignStartDate("2026-02-31")).toThrow("valid calendar date");
+  });
+});
+
 describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
   it("valid user + valid package -> success", async () => {
     const maybeSingleMock = jest.fn().mockResolvedValue({
@@ -452,7 +467,7 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
       }),
     };
 
-    const result = await assignPackageToUser(mockSupabase, "56", 2);
+    const result = await assignPackageToUser(mockSupabase, "56", 2, "2026-03-21");
 
     expect(result).toEqual({ success: true });
     expect(mockSupabase.from).toHaveBeenCalledWith("user_packages");
@@ -460,6 +475,7 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
       {
         user_id: "56",
         package_id: 2,
+        start_date: "2026-03-21",
       },
     ]);
   });
@@ -496,9 +512,9 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
       }),
     };
 
-    await expect(assignPackageToUser(mockSupabase, "56", 2)).rejects.toThrow(
-      "This package is already assigned to this user."
-    );
+    await expect(
+      assignPackageToUser(mockSupabase, "56", 2, "2026-03-21")
+    ).rejects.toThrow("This package is already assigned to this user.");
 
     expect(insertMock).not.toHaveBeenCalled();
   });
@@ -508,8 +524,8 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
       from: jest.fn(),
     };
 
-    await expect(assignPackageToUser(mockSupabase, "", 0)).rejects.toThrow(
-      "Please select both user and package."
-    );
+    await expect(
+      assignPackageToUser(mockSupabase, "", 0, "2026-03-21")
+    ).rejects.toThrow("Please select both user and package.");
   });
 });

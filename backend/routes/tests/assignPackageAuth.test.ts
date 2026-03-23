@@ -1,4 +1,6 @@
 import express from "express";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 import request from "supertest";
 import assignPackageRouter from "../assignPackage";
 import { supabaseServer } from "../../lib/supabaseServer";
@@ -7,6 +9,8 @@ import {
   getAssignablePlans,
   assignPackageToUser,
 } from "../../services/relationshipService";
+
+process.env.ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "test-assign-package-secret";
 
 jest.mock("../../lib/supabaseServer", () => ({
   supabaseServer: {
@@ -17,45 +21,46 @@ jest.mock("../../lib/supabaseServer", () => ({
   },
 }));
 
-jest.mock("../../services/relationshipService", () => ({
-  getAssignableUsers: jest.fn(),
-  getAssignablePlans: jest.fn(),
-  assignPackageToUser: jest.fn(),
-}));
+jest.mock("../../services/relationshipService", () => {
+  const actual = jest.requireActual<typeof import("../../services/relationshipService")>(
+    "../../services/relationshipService"
+  );
+  return {
+    ...actual,
+    getAssignableUsers: jest.fn(),
+    getAssignablePlans: jest.fn(),
+    assignPackageToUser: jest.fn(),
+  };
+});
 
 const mockedSupabaseServer = supabaseServer as jest.Mocked<typeof supabaseServer>;
 const mockedGetAssignableUsers = getAssignableUsers as jest.MockedFunction<typeof getAssignableUsers>;
 const mockedGetAssignablePlans = getAssignablePlans as jest.MockedFunction<typeof getAssignablePlans>;
 const mockedAssignPackageToUser = assignPackageToUser as jest.MockedFunction<typeof assignPackageToUser>;
 
+function adminCookie(role: "admin" | "super_admin" = "admin") {
+  const token = jwt.sign(
+    { id: "admin-row-1", email: "admin@example.com", role },
+    process.env.ADMIN_JWT_SECRET!,
+    { expiresIn: "1h" }
+  );
+  return `admin_token=${token}`;
+}
+
 function makeApp() {
   const app = express();
+  app.use(cookieParser());
   app.use(express.json());
   app.use("/api/assign-package", assignPackageRouter);
   return app;
 }
 
-function mockAdminLookup(adminUser: any, error: any = null) {
-  const maybeSingle = jest.fn().mockResolvedValue({ data: adminUser, error });
-  const eqSecond = jest.fn().mockReturnValue({ maybeSingle });
-  const eqFirst = jest.fn().mockReturnValue({ eq: eqSecond, maybeSingle });
-
-  (mockedSupabaseServer.from as jest.Mock).mockReturnValue({
-    select: jest.fn().mockReturnValue({
-      eq: eqFirst,
-      maybeSingle,
-    }),
-  });
-
-  return { maybeSingle, eqFirst, eqSecond };
-}
-
-describe("assignPackage auth protection", () => {
+describe("assignPackage cookie auth", () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it("returns 401 when Authorization header is missing", async () => {
+  it("returns 401 when admin_token cookie is missing", async () => {
     const app = makeApp();
 
     const res = await request(app).get("/api/assign-package/users");
@@ -65,139 +70,25 @@ describe("assignPackage auth protection", () => {
       ok: false,
       error: "Missing authorization token",
     });
-    expect(mockedSupabaseServer.auth.getUser).not.toHaveBeenCalled();
+    expect(mockedGetAssignableUsers).not.toHaveBeenCalled();
   });
 
-  it("returns 401 when token is invalid", async () => {
+  it("returns 401 when cookie token is invalid", async () => {
     const app = makeApp();
-
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: { user: null },
-      error: { message: "Invalid token" },
-    });
 
     const res = await request(app)
       .get("/api/assign-package/users")
-      .set("Authorization", "Bearer fake123");
+      .set("Cookie", "admin_token=not-a-jwt");
 
     expect(res.status).toBe(401);
     expect(res.body).toEqual({
       ok: false,
       error: "Invalid or expired token",
     });
-    expect(mockedSupabaseServer.auth.getUser).toHaveBeenCalledWith("fake123");
   });
 
-  it("returns 403 when authenticated user is not in admin_users", async () => {
+  it("allows admin to fetch assignable users", async () => {
     const app = makeApp();
-
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-1",
-          email: "student@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup(null, null);
-
-    const res = await request(app)
-      .get("/api/assign-package/users")
-      .set("Authorization", "Bearer valid-user-token");
-
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({
-      ok: false,
-      error: "Forbidden",
-    });
-  });
-
-  it("returns 403 when authenticated user role is not admin or super_admin", async () => {
-    const app = makeApp();
-
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-2",
-          email: "client@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup({
-      id: "admin-row-2",
-      email: "client@example.com",
-      role: "viewer",
-      is_active: true,
-      name: "Client User",
-    });
-
-    const res = await request(app)
-      .get("/api/assign-package/users")
-      .set("Authorization", "Bearer valid-viewer-token");
-
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({
-      ok: false,
-      error: "Forbidden",
-    });
-  });
-
-  it("returns 403 when admin account is inactive", async () => {
-    const app = makeApp();
-
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-3",
-          email: "inactiveadmin@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup({
-      id: "admin-row-3",
-      email: "inactiveadmin@example.com",
-      role: "admin",
-      is_active: false,
-      name: "Inactive Admin",
-    });
-
-    const res = await request(app)
-      .get("/api/assign-package/users")
-      .set("Authorization", "Bearer inactive-admin-token");
-
-    expect(res.status).toBe(403);
-    expect(res.body).toEqual({
-      ok: false,
-      error: "Admin account is disabled",
-    });
-  });
-
-  it("allows admin user to access protected users route", async () => {
-    const app = makeApp();
-
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-4",
-          email: "admin@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup({
-      id: "admin-row-4",
-      email: "admin@example.com",
-      role: "admin",
-      is_active: true,
-      name: "Admin User",
-    });
 
     mockedGetAssignableUsers.mockResolvedValue([
       { id: "u1", email: "client1@example.com" },
@@ -205,94 +96,50 @@ describe("assignPackage auth protection", () => {
 
     const res = await request(app)
       .get("/api/assign-package/users")
-      .set("Authorization", "Bearer valid-admin-token");
+      .set("Cookie", adminCookie("admin"));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      { id: "u1", email: "client1@example.com" },
-    ]);
-    expect(mockedGetAssignableUsers).toHaveBeenCalled();
+    expect(res.body).toEqual([{ id: "u1", email: "client1@example.com" }]);
+    expect(mockedGetAssignableUsers).toHaveBeenCalledWith(mockedSupabaseServer);
   });
 
-  it("allows super_admin user to access protected plans route", async () => {
+  it("allows super_admin to fetch plans", async () => {
     const app = makeApp();
 
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-5",
-          email: "superadmin@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup({
-      id: "admin-row-5",
-      email: "superadmin@example.com",
-      role: "super_admin",
-      is_active: true,
-      name: "Super Admin",
-    });
-
     mockedGetAssignablePlans.mockResolvedValue([
-      { id: 1, name: "Starter Plan" },
+      { plan_id: 1, title: "Starter Plan" },
     ] as any);
 
     const res = await request(app)
       .get("/api/assign-package/plans")
-      .set("Authorization", "Bearer valid-super-admin-token");
+      .set("Cookie", adminCookie("super_admin"));
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([
-      { id: 1, name: "Starter Plan" },
-    ]);
-    expect(mockedGetAssignablePlans).toHaveBeenCalled();
+    expect(res.body).toEqual([{ plan_id: 1, title: "Starter Plan" }]);
+    expect(mockedGetAssignablePlans).toHaveBeenCalledWith(mockedSupabaseServer);
   });
 
-  it("allows admin user to assign package", async () => {
+  it("allows admin to assign package with start_date", async () => {
     const app = makeApp();
 
-    (mockedSupabaseServer.auth.getUser as jest.Mock).mockResolvedValue({
-      data: {
-        user: {
-          id: "user-6",
-          email: "admin@example.com",
-        },
-      },
-      error: null,
-    });
-
-    mockAdminLookup({
-      id: "admin-row-6",
-      email: "admin@example.com",
-      role: "admin",
-      is_active: true,
-      name: "Admin User",
-    });
-
-    mockedAssignPackageToUser.mockResolvedValue({
-      success: true,
-      message: "Package assigned successfully",
-    } as any);
+    mockedAssignPackageToUser.mockResolvedValue({ success: true } as any);
 
     const res = await request(app)
       .post("/api/assign-package/assign-package")
-      .set("Authorization", "Bearer valid-admin-token")
+      .set("Cookie", adminCookie("admin"))
       .send({
         user_id: "19",
         package_id: 2,
+        start_date: "2026-03-21",
       });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      success: true,
-      message: "Package assigned successfully",
-    });
+    expect(res.body).toEqual({ success: true });
     expect(mockedAssignPackageToUser).toHaveBeenCalledWith(
       mockedSupabaseServer,
       "19",
-      2
+      2,
+      "2026-03-21"
     );
   });
 });

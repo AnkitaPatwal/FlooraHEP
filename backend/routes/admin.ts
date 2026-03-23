@@ -1,11 +1,16 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcryptjs';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
+import { requireAdminCookie } from '../middleware/requireAdminCookie';
 import { requireAdmin, requireSuperAdmin } from './adminAuth';
+
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET;
 
 const SUPABASE_URL =
   process.env.SUPABASE_URL ||
@@ -32,6 +37,102 @@ const supabaseAdmin = createClient(
 
 const router = express.Router();
 
+/**
+ * PUBLIC ROUTE
+ * Accept invite and create admin account (no cookie required)
+ */
+router.post("/accept-invite", async (req, res) => {
+  try {
+    const { token, password } = req.body as {
+      token?: string;
+      password?: string;
+    };
+
+    if (!token) {
+      return res.status(400).json({ ok: false, error: "Missing invite token" });
+    }
+
+    if (!password || password.length < 8) {
+      return res.status(400).json({
+        ok: false,
+        error: "Password must be at least 8 characters",
+      });
+    }
+
+    // Verify invite token
+    if (!ADMIN_JWT_SECRET) {
+      return res.status(500).json({ ok: false, error: "Server configuration error" });
+    }
+    let decoded: any;
+    try {
+      decoded = jwt.verify(token, ADMIN_JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid or expired invite link",
+      });
+    }
+
+    if (decoded.type !== "admin_invite" || !decoded.email) {
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid invite token",
+      });
+    }
+
+    const email = String(decoded.email).toLowerCase().trim();
+
+    // Check if admin already exists
+    const { data: existingAdmin, error: existingError } = await supabaseAdmin
+      .from("admin_users")
+      .select("email")
+      .eq("email", email)
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("Supabase lookup error:", existingError);
+      return res.status(500).json({ ok: false, error: "Database error" });
+    }
+
+    if (existingAdmin) {
+      return res.status(409).json({
+        ok: false,
+        error: "Admin account already exists. Please log in.",
+      });
+    }
+
+    // Hash password and create admin user
+    const password_hash = await bcrypt.hash(password, 12);
+
+    const { error: insertError } = await supabaseAdmin
+      .from("admin_users")
+      .insert({
+        email,
+        role: "admin",
+        is_active: true,
+        password_hash,
+      });
+
+    if (insertError) {
+      console.error("Supabase insert error:", insertError);
+      return res.status(500).json({
+        ok: false,
+        error: "Failed to create admin account",
+      });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("Accept invite error:", err);
+    return res.status(500).json({
+      ok: false,
+      error: "Something went wrong",
+    });
+  }
+});
+
+// PROTECTED ROUTES (everything below requires admin_token cookie)
+router.use(requireAdminCookie);
 // ALL ROUTES BELOW REQUIRE VALID SUPABASE SESSION TOKEN
 router.use(requireAdmin);
 
