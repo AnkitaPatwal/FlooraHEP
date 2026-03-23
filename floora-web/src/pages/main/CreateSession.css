@@ -250,16 +250,18 @@
 
 .create-session-remove-btn {
   padding: 4px 10px;
-  border: 1px solid #dc2626;
-  border-radius: 4px;
-  background: #fff;
-  color: #dc2626;
+  border: none;
+  border-radius: 6px;
+  background-color: #5a8e93;
+  color: #fff;
   font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .create-session-remove-btn:hover {
-  background: #fef2f2;
+  background-color: #4f7d81;
 }
 
 /* Remove confirmation dialog (matches app design) */
@@ -320,7 +322,7 @@
 }
 
 .create-session-confirm-remove {
-  background: #dc2626;
+  background-color: #5a8e93;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -328,10 +330,11 @@
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
 .create-session-confirm-remove:hover {
-  background: #b91c1c;
+  background-color: #4f7d81;
 }
 
 @media (max-width: 768px) {
