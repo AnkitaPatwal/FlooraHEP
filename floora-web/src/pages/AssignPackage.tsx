@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../lib/auth";
 
 type User = {
   id: string;
@@ -10,9 +11,10 @@ type Plan = {
   title: string;
 };
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 export default function AssignPackage() {
+  const { accessToken } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userId, setUserId] = useState("");
@@ -21,13 +23,20 @@ export default function AssignPackage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    if (!accessToken) return;
+
     const loadData = async () => {
       try {
         setMessage("");
 
+        const headers: HeadersInit = {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        };
+
         const [usersRes, plansRes] = await Promise.all([
-          fetch(`${API_BASE}/api/assign-package/users`, { credentials: "include" }),
-          fetch(`${API_BASE}/api/assign-package/plans`, { credentials: "include" }),
+          fetch(`${API_BASE}/api/assign-package/users`, { credentials: "include", headers }),
+          fetch(`${API_BASE}/api/assign-package/plans`, { credentials: "include", headers }),
         ]);
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
@@ -50,7 +59,7 @@ export default function AssignPackage() {
     };
 
     loadData();
-  }, []);
+  }, [accessToken]);
 
   const handleAssign = async () => {
     setMessage("");
@@ -68,6 +77,7 @@ export default function AssignPackage() {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           user_id: userId,

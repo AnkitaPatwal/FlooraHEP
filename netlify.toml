@@ -1,8 +1,0 @@
-# Expo app lives in mobile/ - build must run from there.
-# If Netlify UI overrides this file, set in Site settings > Build & deploy:
-#   Build command: npm run build:web
-#   Publish directory: mobile/dist
-[build]
-  base = "mobile"
-  command = "npx expo export -p web"
-  publish = "dist"

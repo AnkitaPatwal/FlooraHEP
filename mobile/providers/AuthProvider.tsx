@@ -14,12 +14,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      const s = data.session ?? null;
-      setSession(s);
-      setLoading(false);
-      (global as any).userEmail = s?.user?.email ?? "";
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        const s = data.session ?? null;
+        setSession(s);
+        setLoading(false);
+        (global as any).userEmail = s?.user?.email ?? "";
+      })
+      .catch(() => {
+        // Invalid refresh token / no session (first load, logged out) – treat as unauthenticated
+        setSession(null);
+        setLoading(false);
+      });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);

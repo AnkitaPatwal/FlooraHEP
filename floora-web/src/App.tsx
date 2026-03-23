@@ -51,7 +51,11 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AdminLogin />} />
           <Route path="/create" element={<CreateAccount />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={
+            <AdminRoute>
+              <Dashboard />
+            </AdminRoute>
+          } />
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/users" element={<Users />} />
           <Route path="/plan-dashboard" element={
@@ -114,9 +118,11 @@ export default function App() {
           <Route
             path="/assign-package"
             element={
-              <AppLayout>
-                <AssignPackage />
-              </AppLayout>
+              <AdminRoute>
+                <AppLayout>
+                  <AssignPackage />
+                </AppLayout>
+              </AdminRoute>
             }
           />
         </Routes>

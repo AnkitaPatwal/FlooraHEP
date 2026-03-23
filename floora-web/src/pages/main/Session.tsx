@@ -42,6 +42,7 @@ function Session() {
     try {
       const res = await fetch(`${API_BASE}/api/admin/modules`, {
         method: "GET",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,

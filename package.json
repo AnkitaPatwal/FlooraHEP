@@ -9,7 +9,6 @@
     "react-dom": "^18.2.0",
     "react-icons": "^5.5.0",
     "react-native": "^0.75.5",
-    "react-native-web": "^0.21.0",
     "react-router-dom": "^7.9.4"
   },
   "devDependencies": {
@@ -20,7 +19,6 @@
     "typescript": "~5.9.2"
   },
   "scripts": {
-    "seed:media": "node backend/supabase/seed/uploadMedia.js",
-    "build:web": "cd mobile && npx expo export -p web"
+    "seed:media": "node backend/supabase/seed/uploadMedia.js"
   }
 }

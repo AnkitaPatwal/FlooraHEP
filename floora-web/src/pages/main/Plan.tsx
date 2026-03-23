@@ -46,28 +46,39 @@ function mapDataToPlan(plan: PlanData): Plan {
 
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { accessToken } = useAuth();
 
   useEffect(() => {
     if (!accessToken) return;
+    setError(null);
 
     const loadPlans = async () => {
       try {
         const res = await fetch(`${API_BASE}/api/admin/plans`, {
+          credentials: "include",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${accessToken}`,
           },
         });
         const data: unknown = await res.json();
+
+        if (!res.ok) {
+          const msg = (data as { error?: string })?.error ?? `Request failed (${res.status})`;
+          setError(msg);
+          setPlans([]);
+          return;
+        }
         if (!Array.isArray(data)) {
           setPlans([]);
           return;
         }
         setPlans((data as PlanData[]).map(mapDataToPlan));
       } catch (err) {
-        console.error("Failed to fetch plans:", err);
+        const msg = err instanceof Error ? err.message : "Failed to fetch plans";
+        setError(msg);
         setPlans([]);
       }
     };
@@ -85,6 +96,11 @@ export default function Plan() {
   return (
     <AppLayout>
       <div className="plan-page">
+        {error && (
+          <div style={{ padding: 16, background: "#fee", color: "#c00", marginBottom: 16 }}>
+            {error}
+          </div>
+        )}
         <header className="plan-header">
           <div className="plan-header-left">
             <h1 className="plan-title">Plans</h1>
