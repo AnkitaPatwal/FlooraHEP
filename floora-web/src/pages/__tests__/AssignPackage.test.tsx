@@ -49,7 +49,7 @@ describe("AssignPackage", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "Assign Plan" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "Assign Package" })).toBeInTheDocument();
     });
 
     await waitFor(() => {
@@ -71,11 +71,11 @@ describe("AssignPackage", () => {
     fireEvent.change(screen.getByLabelText("Plan"), {
       target: { value: "42" },
     });
-    fireEvent.change(screen.getByLabelText("Start date"), {
+    fireEvent.change(screen.getByLabelText("Program start date"), {
       target: { value: "2026-06-15" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Assign Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assign Package" }));
 
     await waitFor(() => {
       const assignCalls = mockFetch.mock.calls.filter((c) =>
@@ -97,7 +97,9 @@ describe("AssignPackage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent("Plan assigned successfully.");
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Package assigned successfully. Program start date: 2026-06-15."
+      );
     });
   });
 
@@ -108,10 +110,12 @@ describe("AssignPackage", () => {
       expect(screen.getByRole("option", { name: "Recovery Plan" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Assign Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assign Package" }));
 
     expect(
-      await screen.findByText("Please select user, plan, and start date.")
+      await screen.findByText(
+        "Please select a user, a plan, and a start date before assigning."
+      )
     ).toBeInTheDocument();
     expect(mockFetch.mock.calls.filter((c) => String(c[0]).includes("assign-package"))).toHaveLength(
       2
@@ -150,10 +154,10 @@ describe("AssignPackage", () => {
 
     fireEvent.change(screen.getByLabelText("User"), { target: { value: "u1" } });
     fireEvent.change(screen.getByLabelText("Plan"), { target: { value: "1" } });
-    fireEvent.click(screen.getByRole("button", { name: "Assign Plan" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assign Package" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(screen.getByRole("alert")).toHaveTextContent(
         "This package is already assigned to this user."
       );
     });

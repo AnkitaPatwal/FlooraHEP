@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { InlineMaterialDatePicker } from "../components/InlineMaterialDatePicker";
 
 type User = {
   id: string;
@@ -25,24 +26,36 @@ const fetchWithAdminCookie = (url: string, init?: RequestInit) =>
     ...init,
     credentials: "include",
     headers: {
-      ...(init?.headers ?? {}),
+      ...(init?.headers instanceof Headers
+        ? Object.fromEntries(init.headers.entries())
+        : (init?.headers as Record<string, string> | undefined) ?? {}),
     },
   });
 
+type AssignFeedback = { kind: "success" | "error"; text: string };
+
 export default function AssignPackage() {
+  const initialStart = todayLocalIsoDate();
   const [users, setUsers] = useState<User[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [userId, setUserId] = useState("");
   const [planId, setPlanId] = useState("");
-  const [startDate, setStartDate] = useState(todayLocalIsoDate);
-  const [message, setMessage] = useState("");
+  const [startDate, setStartDate] = useState(initialStart);
+  /** Keeps latest date synchronously — avoids stale state when Assign is clicked right after typing in the date field (blur + click batched). */
+  const startDateRef = useRef(initialStart);
+  const setStartDateCommitted = useCallback((iso: string) => {
+    startDateRef.current = iso;
+    setStartDate(iso);
+  }, []);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [assignFeedback, setAssignFeedback] = useState<AssignFeedback | null>(null);
   const [loadingLists, setLoadingLists] = useState(true);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        setMessage("");
+        setLoadError(null);
         setLoadingLists(true);
 
         const [usersRes, plansRes] = await Promise.all([
@@ -53,18 +66,26 @@ export default function AssignPackage() {
         const plansData = await plansRes.json();
 
         if (!usersRes.ok) {
-          throw new Error(usersData.error || "Failed to load users.");
+          throw new Error(
+            usersData.error ||
+              "The user list could not be loaded. Try signing in again."
+          );
         }
 
         if (!plansRes.ok) {
-          throw new Error(plansData.error || "Failed to load plans.");
+          throw new Error(
+            plansData.error ||
+              "The plan list could not be loaded. Try signing in again."
+          );
         }
 
         setUsers(Array.isArray(usersData) ? usersData : []);
         setPlans(Array.isArray(plansData) ? plansData : []);
       } catch (err) {
-        setMessage(
-          err instanceof Error ? err.message : "Failed to load users or plans."
+        setLoadError(
+          err instanceof Error
+            ? err.message
+            : "Could not load users or plans. Check your connection and try again."
         );
       } finally {
         setLoadingLists(false);
@@ -75,10 +96,15 @@ export default function AssignPackage() {
   }, []);
 
   const handleAssign = async () => {
-    setMessage("");
+    setAssignFeedback(null);
 
-    if (!userId || !planId || !startDate) {
-      setMessage("Please select user, plan, and start date.");
+    const effectiveStart = startDateRef.current;
+
+    if (!userId || !planId || !effectiveStart) {
+      setAssignFeedback({
+        kind: "error",
+        text: "Please select a user, a plan, and a start date before assigning.",
+      });
       return;
     }
 
@@ -95,24 +121,42 @@ export default function AssignPackage() {
           body: JSON.stringify({
             user_id: userId,
             package_id: Number(planId),
-            start_date: startDate,
+            start_date: effectiveStart,
           }),
         }
       );
 
-      const data = await res.json();
+      let data: { error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // non-JSON body
+      }
 
       if (!res.ok) {
-        setMessage(data.error || "Failed to assign plan.");
+        setAssignFeedback({
+          kind: "error",
+          text:
+            (typeof data.error === "string" && data.error) ||
+            "Could not assign the package. Please try again.",
+        });
         return;
       }
 
-      setMessage("Plan assigned successfully.");
+      setAssignFeedback({
+        kind: "success",
+        text: `Package assigned successfully. Program start date: ${effectiveStart}.`,
+      });
       setUserId("");
       setPlanId("");
-      setStartDate(todayLocalIsoDate());
+      const next = todayLocalIsoDate();
+      startDateRef.current = next;
+      setStartDate(next);
     } catch {
-      setMessage("Something went wrong.");
+      setAssignFeedback({
+        kind: "error",
+        text: "Network error. Check your connection, confirm you are still signed in, and try again.",
+      });
     } finally {
       setLoading(false);
     }
@@ -120,7 +164,26 @@ export default function AssignPackage() {
 
   return (
     <div style={{ padding: "24px", maxWidth: 480 }}>
-      <h1>Assign Plan</h1>
+      <h1 style={{ fontWeight: 600, margin: "0 0 20px", fontFamily: "'Poppins', sans-serif" }}>
+        Assign Package
+      </h1>
+
+      {loadError && (
+        <div
+          role="alert"
+          aria-live="polite"
+          style={{
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 8,
+            fontWeight: 600,
+            color: "#8b1538",
+            background: "#fde8ec",
+          }}
+        >
+          Could not load this page. {loadError}
+        </div>
+      )}
 
       <div style={{ marginBottom: "16px" }}>
         <label htmlFor="assign-user">User</label>
@@ -175,24 +238,58 @@ export default function AssignPackage() {
         )}
       </div>
 
-      <div style={{ marginBottom: "16px" }}>
-        <label htmlFor="start-date">Start date</label>
-        <br />
-        <input
+      <div style={{ marginBottom: "16px", width: "100%", maxWidth: 400 }}>
+        <label htmlFor="start-date" style={{ display: "block", marginBottom: 8, fontWeight: 600 }}>
+          Program start date
+        </label>
+        <InlineMaterialDatePicker
           id="start-date"
-          type="date"
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={setStartDateCommitted}
           disabled={loadingLists}
-          style={{ minHeight: 36 }}
         />
       </div>
 
-      <button type="button" onClick={handleAssign} disabled={loading || loadingLists}>
-        {loading ? "Assigning…" : "Assign Plan"}
+      <button
+        type="button"
+        onClick={handleAssign}
+        disabled={loading || loadingLists}
+        style={{
+          marginTop: 4,
+          padding: "12px 22px",
+          borderRadius: 8,
+          border: "none",
+          background: "#0D2C2C",
+          color: "#fff",
+          fontFamily: "'Poppins', sans-serif",
+          fontSize: 15,
+          fontWeight: 700,
+          letterSpacing: "0.1em",
+          cursor: loading || loadingLists ? "not-allowed" : "pointer",
+          opacity: loading || loadingLists ? 0.65 : 1,
+        }}
+      >
+        {loading ? "Assigning…" : "Assign Package"}
       </button>
 
-      {message && <p role="status">{message}</p>}
+      {assignFeedback && (
+        <p
+          role={assignFeedback.kind === "error" ? "alert" : "status"}
+          aria-live="polite"
+          style={{
+            marginTop: 16,
+            marginBottom: 0,
+            padding: 12,
+            borderRadius: 8,
+            fontWeight: 600,
+            ...(assignFeedback.kind === "success"
+              ? { color: "#0d5c2f", background: "#e6f4ea" }
+              : { color: "#8b1538", background: "#fde8ec" }),
+          }}
+        >
+          {assignFeedback.text}
+        </p>
+      )}
     </div>
   );
 }
