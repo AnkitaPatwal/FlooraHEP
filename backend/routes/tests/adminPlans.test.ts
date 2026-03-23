@@ -4,16 +4,7 @@ process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
 process.env.SUPABASE_URL = "https://test.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-  return {
-    __esModule: true,
-    requireAdminJwt: passThrough,
-    default: passThrough,
-  };
-});
-
-// Mock @supabase/supabase-js so we can intercept createClient
+// Mock @supabase/supabase-js: auth.getUser accepts custom JWT, from() for DB
 const mockInsert = jest.fn();
 const mockSelect = jest.fn();
 const mockSingle = jest.fn();
@@ -23,6 +14,8 @@ const mockDelete = jest.fn();
 const mockOrder = jest.fn();
 
 jest.mock("@supabase/supabase-js", () => {
+  const jwt = require("jsonwebtoken");
+  const secret = process.env.ADMIN_JWT_SECRET || "test-admin-jwt-secret-key";
   return {
     createClient: jest.fn(() => ({
       from: jest.fn(() => ({
@@ -34,6 +27,20 @@ jest.mock("@supabase/supabase-js", () => {
         delete: mockDelete.mockReturnThis(),
         order: mockOrder.mockReturnThis(),
       })),
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, secret) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: "Invalid token" } });
+          }
+        },
+      },
     })),
   };
 });
@@ -66,7 +73,7 @@ describe("POST /api/admin/plans", () => {
   it("returns 400 if title or description is missing", async () => {
     const res = await request(app)
       .post("/api/admin/plans")
-      .set("Cookie", `admin_token=${validAdminToken}`)
+      .set("Authorization", `Bearer ${validAdminToken}`)
       .send({ moduleIds: [] });
 
     expect(res.status).toBe(400);
@@ -84,7 +91,7 @@ describe("POST /api/admin/plans", () => {
 
     const res = await request(app)
       .post("/api/admin/plans")
-      .set("Cookie", `admin_token=${validAdminToken}`)
+      .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Test Plan",
         description: "Test Desc",
@@ -106,7 +113,7 @@ describe("POST /api/admin/plans", () => {
 
     const res = await request(app)
       .post("/api/admin/plans")
-      .set("Cookie", `admin_token=${validAdminToken}`)
+      .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Test Plan",
         description: "Test Desc",
@@ -132,7 +139,7 @@ describe("PUT /api/admin/plans/:id", () => {
 
     const res = await request(app)
       .put("/api/admin/plans/123")
-      .set("Cookie", `admin_token=${validAdminToken}`)
+      .set("Authorization", `Bearer ${validAdminToken}`)
       .send({
         title: "Updated Plan",
         description: "Updated Desc",
@@ -156,7 +163,7 @@ describe("DELETE /api/admin/plans/:id", () => {
 
     const res = await request(app)
       .delete("/api/admin/plans/123")
-      .set("Cookie", `admin_token=${validAdminToken}`);
+      .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Plan deleted successfully.");

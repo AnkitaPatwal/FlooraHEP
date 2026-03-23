@@ -22,6 +22,8 @@ jest.mock("../../lib/supabaseServer", () => ({
 
 jest.mock("@supabase/supabase-js", () => {
   const actualSupabase = jest.requireActual("@supabase/supabase-js");
+  const jwt = require("jsonwebtoken");
+  const secret = process.env.ADMIN_JWT_SECRET || "test-admin-jwt-secret";
   return {
     ...actualSupabase,
     createClient: jest.fn(() => ({
@@ -51,7 +53,20 @@ jest.mock("@supabase/supabase-js", () => {
         }
         return actualSupabase.createClient().from(table);
       }),
-      auth: { persistSession: false },
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, secret) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: "Invalid token" } });
+          }
+        },
+      },
     })),
   };
 });
@@ -89,7 +104,7 @@ describe("PATCH /api/exercises/:id — super_admin only", () => {
   it("super_admin returns 200", async () => {
     const res = await request(app)
       .patch("/api/exercises/1")
-      .set("Cookie", `admin_token=${superAdminToken}`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
       .send({ title: "Updated Title" });
 
     expect(res.status).toBe(200);
@@ -98,7 +113,7 @@ describe("PATCH /api/exercises/:id — super_admin only", () => {
   it("admin role returns 403", async () => {
     const res = await request(app)
       .patch("/api/exercises/1")
-      .set("Cookie", `admin_token=${adminToken}`)
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ title: "Updated Title" });
 
     expect(res.status).toBe(403);
@@ -127,7 +142,7 @@ describe("DELETE /api/exercises/:id — super_admin only", () => {
   it("super_admin returns 204", async () => {
     const res = await request(app)
       .delete("/api/exercises/1")
-      .set("Cookie", `admin_token=${superAdminToken}`);
+      .set("Authorization", `Bearer ${superAdminToken}`);
 
     expect(res.status).toBe(204);
   });
@@ -135,7 +150,7 @@ describe("DELETE /api/exercises/:id — super_admin only", () => {
   it("admin role returns 403", async () => {
     const res = await request(app)
       .delete("/api/exercises/1")
-      .set("Cookie", `admin_token=${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.status).toBe(403);
   });
@@ -147,11 +162,11 @@ describe("DELETE /api/exercises/:id — super_admin only", () => {
   });
 });
 
-describe("POST /api/admin/assign-admin-role — super_admin only", () => {
+describe("POST /api/admin/invite — super_admin only", () => {
   it("admin role returns 403", async () => {
     const res = await request(app)
-      .post("/api/admin/assign-admin-role")
-      .set("Cookie", `admin_token=${adminToken}`)
+      .post("/api/admin/invite")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ email: "newadmin@test.com" });
 
     expect(res.status).toBe(403);
@@ -159,7 +174,7 @@ describe("POST /api/admin/assign-admin-role — super_admin only", () => {
 
   it("no token (client) returns 401", async () => {
     const res = await request(app)
-      .post("/api/admin/assign-admin-role")
+      .post("/api/admin/invite")
       .send({ email: "newadmin@test.com" });
 
     expect(res.status).toBe(401);

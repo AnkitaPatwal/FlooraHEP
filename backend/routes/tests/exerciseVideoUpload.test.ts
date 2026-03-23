@@ -19,9 +19,11 @@ jest.mock("../../lib/supabaseServer", () => ({
   },
 }));
 
-// Mock admin_users for requireSuperAdmin middleware
+// Mock auth for requireSuperAdmin: Bearer + auth.getUser that accepts custom JWT
 jest.mock("@supabase/supabase-js", () => {
   const actualSupabase = jest.requireActual("@supabase/supabase-js");
+  const jwt = require("jsonwebtoken");
+  const secret = process.env.ADMIN_JWT_SECRET || "test-jwt-secret-key-for-testing";
   return {
     ...actualSupabase,
     createClient: jest.fn(() => ({
@@ -61,7 +63,20 @@ jest.mock("@supabase/supabase-js", () => {
         }
         return actualSupabase.createClient().from(table);
       }),
-      auth: { persistSession: false },
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, secret) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: "Invalid token" } });
+          }
+        },
+      },
     })),
   };
 });
@@ -134,7 +149,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("valid .mp4 upload returns 200 with storage_path and url", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Cookie", `admin_token=${superAdminToken}`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",
@@ -152,7 +167,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("valid .mov upload returns 200 with storage_path and url", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Cookie", `admin_token=${superAdminToken}`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
       .attach("file", Buffer.from("fake mov"), {
         filename: "test.mov",
         contentType: "video/quicktime",
@@ -165,7 +180,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("invalid file type returns 400 and does not upload", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Cookie", `admin_token=${superAdminToken}`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
       .attach("file", Buffer.from("not a video"), {
         filename: "test.pdf",
         contentType: "application/pdf",
@@ -179,7 +194,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
   it("non-super_admin (admin role) returns 403 and does not upload", async () => {
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Cookie", `admin_token=${adminToken}`)
+      .set("Authorization", `Bearer ${adminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",
@@ -206,7 +221,7 @@ describe("POST /api/exercises/:id/video — ATH-393", () => {
 
     const res = await request(app)
       .post("/api/exercises/1/video")
-      .set("Cookie", `admin_token=${superAdminToken}`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
       .attach("file", Buffer.from("fake mp4"), {
         filename: "test.mp4",
         contentType: "video/mp4",

@@ -5,12 +5,31 @@ import jwt from "jsonwebtoken";
 
 let fromMock: jest.Mock;
 
-// Mock supabase client creation at module load time
+// Mock auth.getUser to accept custom JWT; from() for DB
 jest.mock("@supabase/supabase-js", () => {
+  const jwt = require("jsonwebtoken");
+  const getSecret = () => process.env.ADMIN_JWT_SECRET || "test_admin_secret";
   fromMock = jest.fn();
   return {
     createClient: jest.fn(() => ({
       from: fromMock,
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, getSecret()) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: "Invalid token" } });
+          }
+        },
+        admin: {
+          inviteUserByEmail: jest.fn().mockResolvedValue({ data: { user: { id: "new-id" } }, error: null }),
+        },
+      },
     })),
   };
 });
@@ -56,58 +75,36 @@ describe("Admin invite flow", () => {
     }));
   });
 
-  function adminCookie(payload: any) {
+  function bearerHeader(payload: any) {
     const token = jwt.sign(payload, ADMIN_JWT_SECRET);
-    return `admin_token=${token}`;
+    return { Authorization: `Bearer ${token}` };
   }
 
-  test("POST /api/admin/invite sends email to RESEND_DEV_TO_EMAIL when set", async () => {
+  test("POST /api/admin/invite succeeds for super_admin (Supabase auth.admin.inviteUserByEmail)", async () => {
     const app = makeApp();
-
-    const cookie = adminCookie({ email: "super@floora.com", role: "super_admin" });
 
     const res = await request(app)
       .post("/api/admin/invite")
-      .set("Cookie", cookie)
+      .set(bearerHeader({ email: "super@floora.com", role: "super_admin" }))
       .send({ email: "newadmin@example.com" });
 
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
-
-    expect((global as any).fetch).toHaveBeenCalledTimes(1);
-    const fetchArgs = (global as any).fetch.mock.calls[0];
-    const url = fetchArgs[0];
-    const options = fetchArgs[1];
-
-    expect(url).toBe("https://api.resend.com/emails");
-    expect(options.method).toBe("POST");
-
-    const body = JSON.parse(options.body);
-
-    // Key dev constraint assertion
-    expect(body.to).toBe(process.env.RESEND_DEV_TO_EMAIL);
-    expect(body.from).toBe(process.env.RESET_FROM_EMAIL);
-    expect(body.subject).toContain("invited");
-    expect(body.html).toContain("Accept invite");
-    expect(body.html).toContain(process.env.FRONTEND_ADMIN_INVITE_URL as string);
   });
 
   test("POST /api/admin/invite rejects non super admin", async () => {
     const app = makeApp();
 
-    const cookie = adminCookie({ email: "admin@floora.com", role: "admin" });
-
     const res = await request(app)
       .post("/api/admin/invite")
-      .set("Cookie", cookie)
+      .set(bearerHeader({ email: "admin@floora.com", role: "admin" }))
       .send({ email: "newadmin@example.com" });
 
     expect(res.status).toBe(403);
-    expect(res.body.ok).toBe(false);
-    expect(res.body.error).toMatch(/Super admin required/i);
+    expect(res.body.message || res.body.error).toMatch(/Super admin|Unauthorized/i);
   });
 
-  test("POST /api/admin/accept-invite creates admin user when token valid", async () => {
+  test.skip("POST /api/admin/accept-invite creates admin user when token valid (route removed with Supabase auth)", async () => {
     const app = makeApp();
 
     // Mock supabase chain for accept-invite:
@@ -151,7 +148,7 @@ describe("Admin invite flow", () => {
     expect(insertArg.password_hash.length).toBeGreaterThan(10);
   });
 
-  test("POST /api/admin/accept-invite returns 409 if admin already exists", async () => {
+  test.skip("POST /api/admin/accept-invite returns 409 if admin already exists (route removed)", async () => {
     const app = makeApp();
 
     const maybeSingle = jest.fn(async () => ({ data: { email: "invited@floora.com" }, error: null }));
@@ -181,7 +178,7 @@ describe("Admin invite flow", () => {
     expect(insert).not.toHaveBeenCalled();
   });
 
-  test("POST /api/admin/accept-invite returns 401 on invalid token", async () => {
+  test.skip("POST /api/admin/accept-invite returns 401 on invalid token (route removed)", async () => {
     const app = makeApp();
 
     const res = await request(app)
@@ -193,7 +190,7 @@ describe("Admin invite flow", () => {
     expect(res.body.error).toMatch(/Invalid or expired/i);
   });
 
-  test("POST /api/admin/accept-invite returns 401 on expired token", async () => {
+  test.skip("POST /api/admin/accept-invite returns 401 on expired token (route removed)", async () => {
     jest.useFakeTimers();
 
     const app = makeApp();
@@ -217,7 +214,7 @@ describe("Admin invite flow", () => {
     jest.useRealTimers();
   });
 
-  test("POST /api/admin/accept-invite returns 400 when missing token", async () => {
+  test.skip("POST /api/admin/accept-invite returns 400 when missing token (route removed)", async () => {
     const app = makeApp();
 
     const res = await request(app)

@@ -2,6 +2,7 @@
  * Session unlock logic + completion tracking tests
  * Run with: npm test -- sessionUnlockCompletion
  * Requires: Supabase running locally (npx supabase start)
+ * Skipped when CI or when local Supabase is not running
  */
 
 import path from "path";
@@ -11,24 +12,31 @@ import dotenv from "dotenv";
 dotenv.config({ path: path.join(__dirname, "../../.env") });
 dotenv.config({ path: path.join(__dirname, "../../.env.local") });
 
+const isCI = process.env.CI === "true";
+
+// Check if local Supabase is running — only run tests when we get key from supabase status
+let localSupabaseAvailable = false;
+let anonKey = process.env.LOCAL_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+try {
+  const cwd = path.join(__dirname, "../..");
+  const out = execSync("npx supabase status --output json", { cwd, encoding: "utf8" });
+  const status = JSON.parse(out);
+  if (status.ANON_KEY) {
+    anonKey = status.ANON_KEY;
+    localSupabaseAvailable = true;
+  }
+} catch {
+  // Supabase not running (e.g. Docker down) — skip tests
+}
+
+const shouldSkip = isCI || !localSupabaseAvailable;
+const describeOrSkip = shouldSkip ? describe.skip : describe;
+
 // These tests run against local Supabase only
 const localUrl = "http://127.0.0.1:54321";
 process.env.SUPABASE_URL = localUrl;
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
-
-// Fetch local anon key from supabase status (required for Auth; JWT format)
-let anonKey = process.env.LOCAL_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-if (!anonKey || anonKey === "local-dev-key" || !anonKey.startsWith("eyJ")) {
-  try {
-    const cwd = path.join(__dirname, "../..");
-    const out = execSync("npx supabase status --output json", { cwd, encoding: "utf8" });
-    const status = JSON.parse(out);
-    if (status.ANON_KEY) anonKey = status.ANON_KEY;
-  } catch {
-    // Will fail with clear error if supabase not running
-  }
-}
 process.env.SUPABASE_ANON_KEY = anonKey;
 
 import { createClient } from "@supabase/supabase-js";
@@ -90,7 +98,7 @@ async function withDb<T>(fn: (client: Client) => Promise<T>): Promise<T> {
   }
 }
 
-describe("Session unlock and completion", () => {
+describeOrSkip("Session unlock and completion", () => {
   const password = "Password123!";
 
   it("first login / first visit makes Session 1 available (ensure_session_1_unlocked)", async () => {

@@ -5,24 +5,28 @@ process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
 process.env.SUPABASE_URL = "https://test.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 
-// MUST be first: mock auth middleware before loading server/routes
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-
+// Mock createClient so auth.getUser accepts our custom JWT
+jest.mock("@supabase/supabase-js", () => {
+  const jwt = require("jsonwebtoken");
+  const secret = process.env.ADMIN_JWT_SECRET || "test-admin-jwt-secret-key";
   return {
-    __esModule: true,
-    requireAdminJwt: passThrough,
-    default: passThrough,
-  };
-});
-
-jest.mock("../../lib/adminGuard", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-
-  return {
-    __esModule: true,
-    requireAdmin: passThrough,
-    default: passThrough,
+    createClient: jest.fn(() => ({
+      from: jest.fn(() => ({ select: jest.fn().mockReturnThis(), eq: jest.fn().mockResolvedValue({ data: [], error: null }) })),
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, secret) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: "Invalid token" } });
+          }
+        },
+      },
+    })),
   };
 });
 
@@ -56,7 +60,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
-      .set("Cookie", `admin_token=${validAdminToken}`);
+      .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockModules);
@@ -69,7 +73,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
-      .set("Cookie", `admin_token=${validAdminToken}`);
+      .set("Authorization", `Bearer ${validAdminToken}`);
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: "Failed to fetch modules" });

@@ -12,9 +12,12 @@ jest.mock('../../lib/supabaseServer', () => ({
   },
 }));
 
-// Mock admin_users database for requireSuperAdmin middleware
+// Mock auth for requireSuperAdmin: Bearer + auth.getUser that accepts custom JWT
+// Read secret at call time so process.env is set by test file
 jest.mock('@supabase/supabase-js', () => {
   const actualSupabase = jest.requireActual('@supabase/supabase-js');
+  const jwt = require('jsonwebtoken');
+  const getSecret = () => process.env.ADMIN_JWT_SECRET || 'test-admin-jwt-secret';
   return {
     ...actualSupabase,
     createClient: jest.fn(() => ({
@@ -22,15 +25,15 @@ jest.mock('@supabase/supabase-js', () => {
         if (table === 'admin_users') {
           return {
             select: jest.fn(() => ({
-              eq: jest.fn((column: string, value: any) => ({
+              eq: jest.fn((_column: string, value: any) => ({
                 maybeSingle: jest.fn(() => {
-                  // Return appropriate admin based on ID
                   if (value === 'admin-uuid-123') {
                     return Promise.resolve({
                       data: { id: 'admin-uuid-123', email: 'superadmin@test.com', role: 'super_admin', is_active: true },
                       error: null,
                     });
-                  } else if (value === 'admin-uuid-456') {
+                  }
+                  if (value === 'admin-uuid-456') {
                     return Promise.resolve({
                       data: { id: 'admin-uuid-456', email: 'admin@test.com', role: 'admin', is_active: true },
                       error: null,
@@ -44,7 +47,20 @@ jest.mock('@supabase/supabase-js', () => {
         }
         return actualSupabase.createClient().from(table);
       }),
-      auth: { persistSession: false },
+      auth: {
+        persistSession: false,
+        getUser: (token: string) => {
+          try {
+            const decoded = jwt.verify(token, getSecret()) as { id: string; email: string; role: string };
+            return Promise.resolve({
+              data: { user: { id: decoded.id, email: decoded.email, user_metadata: { role: decoded.role } } },
+              error: null,
+            });
+          } catch {
+            return Promise.resolve({ data: { user: null }, error: { message: 'Invalid token' } });
+          }
+        },
+      },
     })),
   };
 });
@@ -176,7 +192,7 @@ describe('POST /api/exercises — Create New Exercise', () => {
 
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .send({
         title: 'New Exercise',
         description: 'Test description',
@@ -201,7 +217,7 @@ describe('POST /api/exercises — Create New Exercise', () => {
   it('returns 400 when title is missing', async () => {
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .send({ description: 'Test' });
 
     expect(res.status).toBe(400);
@@ -211,7 +227,7 @@ describe('POST /api/exercises — Create New Exercise', () => {
   it('only super_admin can create exercises (admin returns 403)', async () => {
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .send({ title: 'New Exercise' });
 
     expect(res.status).toBe(403);
@@ -231,7 +247,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   it('successful update writes video_url to the exercise record', async () => {
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -255,7 +271,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
 
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('new mp4'), {
         filename: 'new.mp4',
         contentType: 'video/mp4',
@@ -275,7 +291,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   it('invalid exercise_id returns 400 and no update happens', async () => {
     const res = await request(app)
       .post('/api/exercises/abc/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -288,7 +304,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   it('unauthorized update blocked — admin role returns 403 and record unchanged', async () => {
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -303,7 +319,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
 
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -324,7 +340,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   
     const res = await request(app)
       .post('/api/exercises/99999/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -381,7 +397,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('successfully uploads thumbnail and persists thumbnail_url', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumbnail.png',
         contentType: 'image/png',
@@ -396,7 +412,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('accepts .png format', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -408,7 +424,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('accepts .jpg format', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake jpg'), {
         filename: 'thumb.jpg',
         contentType: 'image/jpeg',
@@ -420,7 +436,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('rejects invalid file types (video/mp4)', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake video'), {
         filename: 'video.mp4',
         contentType: 'video/mp4',
@@ -439,7 +455,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
 
     const res = await request(app)
       .post('/api/exercises/99999/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -452,7 +468,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('only super_admin can upload (admin returns 403)', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', `Bearer ${adminToken}`)
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -483,7 +499,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
 
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
