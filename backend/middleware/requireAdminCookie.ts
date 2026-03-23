@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-/**
+/*
  * Cookie-based admin auth (same as /api/admin routes after login).
  * Expects `admin_token` httpOnly cookie signed with ADMIN_JWT_SECRET.
  */
