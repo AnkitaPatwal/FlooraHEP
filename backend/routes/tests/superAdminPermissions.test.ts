@@ -1,4 +1,4 @@
-/**
+/*
  * Tests for super_admin-only restricted endpoints.
  * Verifies: admin => 403, client (no token) => 401, super_admin => success.
  */
