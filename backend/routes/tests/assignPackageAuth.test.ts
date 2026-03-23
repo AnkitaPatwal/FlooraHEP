@@ -143,3 +143,62 @@ describe("assignPackage cookie auth", () => {
     );
   });
 });
+
+describe("ATH-423 plan management validation", () => {
+  it("PATCH /unlock-date returns 400 when user_id, module_id, or unlock_date is missing", async () => {
+    const app = makeApp();
+
+    const noPayload = await request(app)
+      .patch("/api/assign-package/unlock-date")
+      .set("Cookie", adminCookie())
+      .send({});
+    expect(noPayload.status).toBe(400);
+    expect(noPayload.body.error).toMatch(/user_id|module_id|unlock_date/);
+
+    const missingUnlockDate = await request(app)
+      .patch("/api/assign-package/unlock-date")
+      .set("Cookie", adminCookie())
+      .send({ user_id: "u1", module_id: 1 });
+    expect(missingUnlockDate.status).toBe(400);
+
+    const valid = await request(app)
+      .patch("/api/assign-package/unlock-date")
+      .set("Cookie", adminCookie())
+      .send({ user_id: "u1", module_id: 1, unlock_date: "2026-03-25" });
+    expect(valid.status).toBe(200);
+  });
+
+  it("DELETE /client-session returns 400 when user_id or module_id is missing", async () => {
+    const app = makeApp();
+
+    const noPayload = await request(app)
+      .delete("/api/assign-package/client-session")
+      .set("Cookie", adminCookie())
+      .send({});
+    expect(noPayload.status).toBe(400);
+    expect(noPayload.body.error).toMatch(/user_id|module_id/);
+
+    const valid = await request(app)
+      .delete("/api/assign-package/client-session")
+      .set("Cookie", adminCookie())
+      .send({ user_id: "u1", module_id: 1 });
+    expect(valid.status).toBe(200);
+  });
+
+  it("DELETE /unassign returns 400 when user_id is missing", async () => {
+    const app = makeApp();
+
+    const noPayload = await request(app)
+      .delete("/api/assign-package/unassign")
+      .set("Cookie", adminCookie())
+      .send({});
+    expect(noPayload.status).toBe(400);
+    expect(noPayload.body.error).toMatch(/user_id/);
+
+    const valid = await request(app)
+      .delete("/api/assign-package/unassign")
+      .set("Cookie", adminCookie())
+      .send({ user_id: "u1" });
+    expect(valid.status).toBe(200);
+  });
+});
