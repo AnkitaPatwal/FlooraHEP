@@ -54,7 +54,11 @@ export default function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/plan-dashboard" element={<PlanDashboard />} />
+          <Route path="/plan-dashboard" element={
+            <AdminRoute>
+              <PlanDashboard />
+            </AdminRoute>
+          } />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/plan-dashboard/create" element={
             <AdminRoute>
@@ -66,7 +70,11 @@ export default function App() {
               <CreatePlan />
             </AdminRoute>
           } />
-          <Route path="/sessions" element={<SessionDashboard />} />
+          <Route path="/sessions" element={
+            <AdminRoute>
+              <SessionDashboard />
+            </AdminRoute>
+          } />
           <Route path="/sessions/create" element={<CreateSession />} />
           <Route path="/sessions/:id/edit" element={<CreateSession />} />
           <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />

@@ -2,7 +2,9 @@ import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Plan.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase-client";
+import { useAuth } from "../../lib/auth";
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 interface Module {
   module_id: number;
@@ -45,23 +47,21 @@ function mapDataToPlan(plan: PlanData): Plan {
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const navigate = useNavigate();
+  const { accessToken } = useAuth();
 
   useEffect(() => {
+    if (!accessToken) return;
+
     const loadPlans = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch("http://localhost:3000/api/admin/plans", {
+        const res = await fetch(`${API_BASE}/api/admin/plans`, {
           headers: {
             "Content-Type": "application/json",
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
+            Authorization: `Bearer ${accessToken}`,
           },
         });
         const data: unknown = await res.json();
-        console.log("RAW DATA:", data);
         if (!Array.isArray(data)) {
-          console.error("Expected array from API, got:", typeof data);
           setPlans([]);
           return;
         }
@@ -73,7 +73,7 @@ export default function Plan() {
     };
 
     loadPlans();
-  }, []);
+  }, [accessToken]);
 
   const groupedPlans = (plans ?? []).reduce((acc, plan) => {
     const category = plan.category ?? "Uncategorized";
@@ -81,8 +81,6 @@ export default function Plan() {
     acc[category].push(plan);
     return acc;
   }, {} as Record<string, Plan[]>);
-
-  console.log("PLANS STATE:", plans);
 
   return (
     <AppLayout>

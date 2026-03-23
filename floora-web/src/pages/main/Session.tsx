@@ -3,19 +3,9 @@ import "../../components/main/Session.css";
 import { useEffect, useState } from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../../lib/supabase-client";
+import { useAuth } from "../../lib/auth";
 
-const API_BASE = "http://localhost:3000";
-
-async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
-  return {
-    "Content-Type": "application/json",
-    ...(session?.access_token
-      ? { Authorization: `Bearer ${session.access_token}` }
-      : {}),
-  };
-}
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 type Exercise = {
   exercise_id: number;
@@ -39,17 +29,24 @@ type Module = {
 
 function Session() {
   const navigate = useNavigate();
+  const { accessToken } = useAuth();
   const [modules, setModules] = useState<Module[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
   const loadModules = async () => {
+    if (!accessToken) return;
     setLoadingModules(true);
     setError("");
     try {
-      const headers = await authHeaders();
-      const res = await fetch(`${API_BASE}/api/admin/modules`, { method: "GET", headers });
+      const res = await fetch(`${API_BASE}/api/admin/modules`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load sessions");
       setModules(Array.isArray(data) ? data : []);
@@ -62,8 +59,8 @@ function Session() {
   };
 
   useEffect(() => {
-    loadModules();
-  }, []);
+    if (accessToken) loadModules();
+  }, [accessToken]);
 
   const filteredModules = modules.filter(
     (m) => !search.trim() || m.title.toLowerCase().includes(search.toLowerCase())

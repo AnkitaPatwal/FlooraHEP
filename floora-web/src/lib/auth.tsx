@@ -60,6 +60,7 @@ export async function refreshAdminUser(): Promise<AdminUser | null> {
 
 type AuthContextValue = {
   admin: AdminUser | null;
+  accessToken: string | null;
   isSuperAdmin: boolean;
   loading: boolean;
   isAuthLoading: boolean;
@@ -68,6 +69,7 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue>({
   admin: null,
+  accessToken: null,
   isSuperAdmin: false,
   loading: true,
   isAuthLoading: true,
@@ -76,12 +78,24 @@ const AuthContext = createContext<AuthContextValue>({
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [admin, setAdmin] = useState<AdminUser | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshAuth = useCallback(async () => {
     setLoading(true);
-    const a = await getAdminUser();
-    setAdmin(a);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setAdmin(null);
+      setAccessToken(null);
+    } else {
+      setAdmin({
+        id: session.user.id,
+        email: session.user.email ?? "",
+        role: session.user.user_metadata?.role ?? null,
+        name: session.user.user_metadata?.name ?? null,
+      });
+      setAccessToken(session.access_token ?? null);
+    }
     setLoading(false);
   }, []);
 
@@ -93,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (!session?.user) {
         setAdmin(null);
+        setAccessToken(null);
       } else {
         setAdmin({
           id: session.user.id,
@@ -100,6 +115,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: session.user.user_metadata?.role ?? null,
           name: session.user.user_metadata?.name ?? null,
         });
+        setAccessToken(session.access_token ?? null);
       }
       setLoading(false);
     });
@@ -111,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const superAdmin = role === "super_admin";
 
   return (
-    <AuthContext.Provider value={{ admin, isSuperAdmin: superAdmin, loading, isAuthLoading: loading, refreshAuth }}>
+    <AuthContext.Provider value={{ admin, accessToken, isSuperAdmin: superAdmin, loading, isAuthLoading: loading, refreshAuth }}>
       {children}
     </AuthContext.Provider>
   );
