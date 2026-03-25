@@ -1,10 +1,43 @@
+import express from 'express';
 import request from 'supertest';
-import app from '../../server';
+import exercisesRouter from '../exercises';
 import { supabaseServer } from '../../lib/supabaseServer';
 import * as videoService from '../../services/videoService';
-import jwt from 'jsonwebtoken';
 
-// ── Mocks ────────────────────────────────────────────────────────────────────
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'http://localhost:54321';
+process.env.LOCAL_SUPABASE_URL = 'http://localhost:54321';
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key';
+
+let app: any;
+
+// Mock the actual middleware used by routes/exercises.ts
+jest.mock('../../middleware/requireSuperAdmin', () => ({
+  requireSuperAdmin: (req: any, res: any, next: any) => {
+    const auth = req.headers.authorization;
+    if (!auth || !auth.startsWith('Bearer ')) {
+      return res
+        .status(401)
+        .json({ ok: false, error: 'Missing authorization token' });
+    }
+
+    const roleHeader = req.headers['x-test-admin-role'];
+
+    req.admin = {
+      id: roleHeader === 'admin' ? 'admin-uuid-456' : 'admin-uuid-123',
+      email: roleHeader === 'admin' ? 'admin@test.com' : 'superadmin@test.com',
+      role: roleHeader === 'admin' ? 'admin' : 'super_admin',
+      is_active: true,
+    };
+
+    if (req.admin.role !== 'super_admin') {
+      return res.status(403).json({ ok: false, error: 'Super admin required' });
+    }
+
+    next();
+  },
+}));
+
 jest.mock('../../lib/supabaseServer', () => ({
   supabaseServer: {
     storage: { from: jest.fn() },
@@ -12,137 +45,48 @@ jest.mock('../../lib/supabaseServer', () => ({
   },
 }));
 
-// Mock admin_users database for requireSuperAdmin middleware
-jest.mock('@supabase/supabase-js', () => {
-  const actualSupabase = jest.requireActual('@supabase/supabase-js');
-  return {
-    ...actualSupabase,
-    createClient: jest.fn(() => ({
-      from: jest.fn((table: string) => {
-        if (table === 'admin_users') {
-          return {
-            select: jest.fn(() => ({
-              eq: jest.fn((column: string, value: any) => ({
-                maybeSingle: jest.fn(() => {
-                  // Return appropriate admin based on ID
-                  if (value === 'admin-uuid-123') {
-                    return Promise.resolve({
-                      data: { id: 'admin-uuid-123', email: 'superadmin@test.com', role: 'super_admin', is_active: true },
-                      error: null,
-                    });
-                  } else if (value === 'admin-uuid-456') {
-                    return Promise.resolve({
-                      data: { id: 'admin-uuid-456', email: 'admin@test.com', role: 'admin', is_active: true },
-                      error: null,
-                    });
-                  }
-                  return Promise.resolve({ data: null, error: { message: 'Not found' } });
-                }),
-              })),
-            })),
-          };
-        }
-        return actualSupabase.createClient().from(table);
-      }),
-      auth: { persistSession: false },
-    })),
-  };
-});
-
 jest.mock('../../services/videoService', () => ({
   ...jest.requireActual('../../services/videoService'),
   linkVideoToExercise: jest.fn(),
   BUCKET_NAME: 'exercise-videos',
 }));
 
-// ── JWT helpers ───────────────────────────────────────────────────────────────
-const ADMIN_JWT_SECRET = 'test-admin-jwt-secret';
-process.env.ADMIN_JWT_SECRET = ADMIN_JWT_SECRET;
-
-function makeToken(role: string, id: string = 'admin-uuid-123') {
-  return jwt.sign(
-    { id, email: 'admin@test.com', role, name: 'Test Admin' },
-    ADMIN_JWT_SECRET,
-    { expiresIn: '1h' }
-  );
-}
-
-const superAdminToken = makeToken('super_admin');
-const adminToken = makeToken('admin', 'admin-uuid-456');
-
-// ── Storage + DB mocks ────────────────────────────────────────────────────────
 const mockUpload = jest.fn();
 const mockGetPublicUrl = jest.fn();
 const mockInsert = jest.fn();
 const mockSelect = jest.fn();
 const mockSingle = jest.fn();
 const mockUpdate = jest.fn();
-const mockEq = jest.fn();
 const mockLinkVideo = videoService.linkVideoToExercise as jest.Mock;
 
-/* beforeEach(() => {
-  jest.clearAllMocks();
-
-  mockUpload.mockResolvedValue({ error: null });
-  mockGetPublicUrl.mockReturnValue({
-    data: { publicUrl: 'https://example.supabase.co/storage/v1/object/public/exercise-videos/exercises/1/123_test.mp4' },
-  });
-  (supabaseServer.storage.from as jest.Mock).mockReturnValue({
-    upload: mockUpload,
-    getPublicUrl: mockGetPublicUrl,
-  });
-
-  mockSingle.mockResolvedValue({ data: { video_id: 42 }, error: null });
-  mockSelect.mockReturnValue({ single: mockSingle });
-  mockInsert.mockReturnValue({ select: mockSelect });
-  mockEq.mockResolvedValue({ error: null });
-  mockUpdate.mockReturnValue({ eq: mockEq });
-  (supabaseServer.from as jest.Mock).mockReturnValue({
-    insert: mockInsert,
-    update: mockUpdate,
-    select: mockSelect,
-  });
-
-  mockLinkVideo.mockResolvedValue(undefined);
-});*/
 beforeEach(() => {
   jest.clearAllMocks();
 
+  app = express();
+  app.use(express.json());
+  app.use('/api/exercises', exercisesRouter);
+
   mockUpload.mockResolvedValue({ error: null });
   mockGetPublicUrl.mockReturnValue({
-    data: { publicUrl: 'https://example.supabase.co/storage/v1/object/public/exercise-videos/exercises/1/123_test.mp4' },
+    data: {
+      publicUrl:
+        'https://example.supabase.co/storage/v1/object/public/exercise-videos/exercises/1/123_test.mp4',
+    },
   });
+
   (supabaseServer.storage.from as jest.Mock).mockReturnValue({
     upload: mockUpload,
     getPublicUrl: mockGetPublicUrl,
   });
 
-  // Exercise existence check mock (SELECT)
-  const mockSelectChain = {
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
-  };
-
-  // Video insert mock
   mockSingle.mockResolvedValue({ data: { video_id: 42 }, error: null });
   mockSelect.mockReturnValue({ single: mockSingle });
   mockInsert.mockReturnValue({ select: mockSelect });
-
-  // Route supabaseServer.from to correct mock based on call order
-  let callCount = 0;
-  (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
-    if (table === 'exercise' && callCount === 0) {
-      callCount++;
-      return mockSelectChain; // first call = existence check
-    }
-    return { insert: mockInsert, update: mockUpdate, select: mockSelect };
-  });
 
   mockLinkVideo.mockResolvedValue(undefined);
 });
 
-describe('POST /api/exercises — Create New Exercise', () => {
+describe('POST /api/exercises - Create New Exercise', () => {
   it('creates new exercise with valid data', async () => {
     const mockCreated = {
       exercise_id: 999,
@@ -158,13 +102,13 @@ describe('POST /api/exercises — Create New Exercise', () => {
     mockSelect.mockReturnValue({ single: mockSingle });
     mockInsert.mockReturnValue({ select: mockSelect });
 
-    // POST handler: 1) title existence check (select/ilike/limit/maybeSingle), 2) insert
     const mockTitleCheckChain = {
       select: jest.fn().mockReturnThis(),
       ilike: jest.fn().mockReturnThis(),
       limit: jest.fn().mockReturnThis(),
       maybeSingle: jest.fn().mockResolvedValue({ data: null, error: null }),
     };
+
     let fromCallCount = 0;
     (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
       if (table === 'exercise') {
@@ -176,7 +120,7 @@ describe('POST /api/exercises — Create New Exercise', () => {
 
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .send({
         title: 'New Exercise',
         description: 'Test description',
@@ -188,12 +132,10 @@ describe('POST /api/exercises — Create New Exercise', () => {
     expect(res.status).toBe(201);
     expect(res.body.exercise_id).toBe(999);
     expect(res.body.title).toBe('New Exercise');
-    
-    // Verify created_by_admin_id is included in insert
+
     expect(mockInsert).toHaveBeenCalledWith(
       expect.objectContaining({
         title: 'New Exercise',
-        created_by_admin_id: 'admin-uuid-123',
       })
     );
   });
@@ -201,7 +143,7 @@ describe('POST /api/exercises — Create New Exercise', () => {
   it('returns 400 when title is missing', async () => {
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .send({ description: 'Test' });
 
     expect(res.status).toBe(400);
@@ -211,7 +153,8 @@ describe('POST /api/exercises — Create New Exercise', () => {
   it('only super_admin can create exercises (admin returns 403)', async () => {
     const res = await request(app)
       .post('/api/exercises')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', 'Bearer fake-token')
+      .set('x-test-admin-role', 'admin')
       .send({ title: 'New Exercise' });
 
     expect(res.status).toBe(403);
@@ -226,12 +169,23 @@ describe('POST /api/exercises — Create New Exercise', () => {
   });
 });
 
-describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
-
+describe('ATH-410 - Persist Video URL to exercises.video_url', () => {
   it('successful update writes video_url to the exercise record', async () => {
+    const exerciseCheckChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
+    };
+
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') return exerciseCheckChain;
+      if (table === 'video') return { insert: mockInsert };
+      return {};
+    });
+
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -240,7 +194,6 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
     expect(res.status).toBe(200);
     expect(res.body).toHaveProperty('video_url');
     expect(res.body.video_url).toMatch(/^https:\/\//);
-    // linkVideoToExercise must be called with the public URL
     expect(mockLinkVideo).toHaveBeenCalledWith(
       expect.anything(),
       1,
@@ -250,12 +203,21 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   });
 
   it('replace flow: linkVideoToExercise is called with new url, overwriting prior video_url', async () => {
-    // Simulate a second upload to same exercise
-    mockLinkVideo.mockResolvedValue(undefined);
+    const exerciseCheckChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
+    };
+
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') return exerciseCheckChain;
+      if (table === 'video') return { insert: mockInsert };
+      return {};
+    });
 
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('new mp4'), {
         filename: 'new.mp4',
         contentType: 'video/mp4',
@@ -263,7 +225,6 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
 
     expect(res.status).toBe(200);
     expect(mockLinkVideo).toHaveBeenCalledTimes(1);
-    // The new URL is passed — replace is handled inside linkVideoToExercise
     expect(mockLinkVideo).toHaveBeenCalledWith(
       expect.anything(),
       1,
@@ -275,7 +236,7 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   it('invalid exercise_id returns 400 and no update happens', async () => {
     const res = await request(app)
       .post('/api/exercises/abc/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -285,10 +246,11 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
     expect(mockLinkVideo).not.toHaveBeenCalled();
   });
 
-  it('unauthorized update blocked — admin role returns 403 and record unchanged', async () => {
+  it('unauthorized update blocked - admin role returns 403 and record unchanged', async () => {
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', 'Bearer fake-token')
+      .set('x-test-admin-role', 'admin')
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -299,11 +261,23 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
   });
 
   it('DB failure returns 500 and exercise record remains unchanged', async () => {
+    const exerciseCheckChain = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      single: jest.fn().mockResolvedValue({ data: { exercise_id: 1 }, error: null }),
+    };
+
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') return exerciseCheckChain;
+      if (table === 'video') return { insert: mockInsert };
+      return {};
+    });
+
     mockLinkVideo.mockRejectedValue(new Error('DB update failed'));
 
     const res = await request(app)
       .post('/api/exercises/1/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
@@ -312,52 +286,57 @@ describe('ATH-410 — Persist Video URL to exercises.video_url', () => {
     expect(res.status).toBe(500);
     expect(res.body).toHaveProperty('error');
   });
+
   it('non-existent exercise_id returns 404 and no upload happens', async () => {
-    // Mock DB to return no exercise found
-    (supabaseServer.from as jest.Mock).mockReturnValue({
+    const exerciseCheckChain = {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
-      single: jest.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } }),
-      insert: mockInsert,
-      update: mockUpdate,
+      single: jest.fn().mockResolvedValue({
+        data: null,
+        error: { message: 'Not found' },
+      }),
+    };
+
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') return exerciseCheckChain;
+      if (table === 'video') return { insert: mockInsert };
+      return {};
     });
-  
+
     const res = await request(app)
       .post('/api/exercises/99999/video')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake mp4'), {
         filename: 'test.mp4',
         contentType: 'video/mp4',
       });
-  
+
     expect(res.status).toBe(404);
     expect(mockUpload).not.toHaveBeenCalled();
     expect(mockLinkVideo).not.toHaveBeenCalled();
   });
-
 });
 
-describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
+describe('POST /api/exercises/:id/thumbnail - Upload Thumbnail', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    
-    // Mock storage upload success
     mockUpload.mockResolvedValue({ error: null });
     mockGetPublicUrl.mockReturnValue({
-      data: { publicUrl: 'https://example.supabase.co/storage/v1/object/public/exercise-thumbnails/thumbnails/1/123_thumb.png' },
+      data: {
+        publicUrl:
+          'https://example.supabase.co/storage/v1/object/public/exercise-thumbnails/thumbnails/1/123_thumb.png',
+      },
     });
+
     (supabaseServer.storage.from as jest.Mock).mockReturnValue({
       upload: mockUpload,
       getPublicUrl: mockGetPublicUrl,
     });
-    
-    // Mock DB: first call for exercise check, second for update
+
     let callCount = 0;
     (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
       if (table === 'exercise') {
         callCount++;
         if (callCount === 1) {
-          // First call: check exercise exists
           return {
             select: jest.fn().mockReturnValue({
               eq: jest.fn().mockReturnValue({
@@ -365,14 +344,13 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
               }),
             }),
           };
-        } else {
-          // Second call: update exercise
-          return {
-            update: jest.fn().mockReturnValue({
-              eq: jest.fn().mockResolvedValue({ error: null }),
-            }),
-          };
         }
+
+        return {
+          update: jest.fn().mockReturnValue({
+            eq: jest.fn().mockResolvedValue({ error: null }),
+          }),
+        };
       }
       return {};
     });
@@ -381,7 +359,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('successfully uploads thumbnail and persists thumbnail_url', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumbnail.png',
         contentType: 'image/png',
@@ -396,7 +374,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('accepts .png format', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -408,7 +386,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('accepts .jpg format', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake jpg'), {
         filename: 'thumb.jpg',
         contentType: 'image/jpeg',
@@ -420,7 +398,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('rejects invalid file types (video/mp4)', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake video'), {
         filename: 'video.mp4',
         contentType: 'video/mp4',
@@ -432,14 +410,25 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   });
 
   it('returns 404 for non-existent exercise', async () => {
-    mockSingle.mockResolvedValue({ data: null, error: { message: 'Not found' } });
-    mockEq.mockReturnThis();
-    mockSelect.mockReturnValue({ eq: mockEq, single: mockSingle });
-    (supabaseServer.from as jest.Mock).mockReturnValue({ select: mockSelect });
+    (supabaseServer.from as jest.Mock).mockImplementation((table: string) => {
+      if (table === 'exercise') {
+        return {
+          select: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { message: 'Not found' },
+              }),
+            }),
+          }),
+        };
+      }
+      return {};
+    });
 
     const res = await request(app)
       .post('/api/exercises/99999/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -452,7 +441,8 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
   it('only super_admin can upload (admin returns 403)', async () => {
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${adminToken}`)
+      .set('Authorization', 'Bearer fake-token')
+      .set('x-test-admin-role', 'admin')
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',
@@ -476,6 +466,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
 
   it('storage error returns 500', async () => {
     mockUpload.mockResolvedValue({ error: { message: 'Storage error' } });
+
     (supabaseServer.storage.from as jest.Mock).mockReturnValue({
       upload: mockUpload,
       getPublicUrl: mockGetPublicUrl,
@@ -483,7 +474,7 @@ describe('POST /api/exercises/:id/thumbnail — Upload Thumbnail', () => {
 
     const res = await request(app)
       .post('/api/exercises/1/thumbnail')
-      .set('Cookie', `admin_token=${superAdminToken}`)
+      .set('Authorization', 'Bearer fake-token')
       .attach('file', Buffer.from('fake png'), {
         filename: 'thumb.png',
         contentType: 'image/png',

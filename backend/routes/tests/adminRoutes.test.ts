@@ -1,46 +1,46 @@
-let app: any;
-
-// Set environment variables before loading modules
-process.env.ADMIN_JWT_SECRET = "test-admin-jwt-secret-key";
-process.env.SUPABASE_URL = "https://test.supabase.co";
-process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-
-// MUST be first: mock auth middleware before loading server/routes
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-
-  return {
-    __esModule: true,
-    requireAdminJwt: passThrough,
-    default: passThrough,
-  };
-});
-
-jest.mock("../../lib/adminGuard", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-
-  return {
-    __esModule: true,
-    requireAdmin: passThrough,
-    default: passThrough,
-  };
-});
-
 import request from "supertest";
 import * as moduleService from "../../services/moduleService";
 
-beforeAll(() => {
-  // load server only AFTER mocks are in place
-  app = require("../../server").default;
+jest.mock("../adminAuth", () => ({
+  requireAdmin: (req: any, res: any, next: any) => {
+    const auth = req.headers.authorization;
+
+    if (!auth || !auth.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ ok: false, error: "Missing authorization token" });
+    }
+
+    req.admin = { id: "test-admin", role: "admin" };
+    next();
+  },
+
+  requireSuperAdmin: (req: any, res: any, next: any) => {
+    const auth = req.headers.authorization;
+
+    if (!auth || !auth.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ ok: false, error: "Missing authorization token" });
+    }
+
+    req.admin = { id: "test-admin", role: "super_admin" };
+    next();
+  },
+}));
+
+import express from "express";
+import adminRouter from "../admin";
+
+let app: any;
+
+beforeEach(() => {
+  app = express();
+  app.use(express.json());
+  app.use("/api/admin", adminRouter);
 });
 
 describe("GET /api/admin/modules", () => {
-  const validAdminToken = require("jsonwebtoken").sign(
-    { id: "test-admin-uuid", email: "admin@test.com", role: "admin" },
-    "test-admin-jwt-secret-key",
-    { expiresIn: "1h" }
-  );
-
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -56,7 +56,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
-      .set("Cookie", `admin_token=${validAdminToken}`);
+      .set("Authorization", "Bearer fake-token");
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual(mockModules);
@@ -69,7 +69,7 @@ describe("GET /api/admin/modules", () => {
 
     const res = await request(app)
       .get("/api/admin/modules")
-      .set("Cookie", `admin_token=${validAdminToken}`);
+      .set("Authorization", "Bearer fake-token");
 
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: "Failed to fetch modules" });
