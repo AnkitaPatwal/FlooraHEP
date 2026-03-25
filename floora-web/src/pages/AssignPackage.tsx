@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase-client";
 
 type User = {
   id: string;
@@ -20,14 +21,15 @@ function todayLocalIsoDate(): string {
   return `${y}-${m}-${day}`;
 }
 
-const fetchWithAdminCookie = (url: string, init?: RequestInit) =>
-  fetch(url, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(init?.headers ?? {}),
-    },
-  });
+async function authHeaders(): Promise<HeadersInit> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : {}),
+  };
+}
 
 export default function AssignPackage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -45,10 +47,13 @@ export default function AssignPackage() {
         setMessage("");
         setLoadingLists(true);
 
+        const headers = await authHeaders();
+
         const [usersRes, plansRes] = await Promise.all([
-          fetchWithAdminCookie(`${API_BASE}/api/assign-package/users`),
-          fetchWithAdminCookie(`${API_BASE}/api/assign-package/plans`),
+          fetch(`${API_BASE}/api/assign-package/users`, { headers }),
+          fetch(`${API_BASE}/api/assign-package/plans`, { headers }),
         ]);
+
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
 
@@ -85,13 +90,12 @@ export default function AssignPackage() {
     try {
       setLoading(true);
 
-      const res = await fetchWithAdminCookie(
+      const headers = await authHeaders();
+      const res = await fetch(
         `${API_BASE}/api/assign-package/assign-package`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify({
             user_id: userId,
             package_id: Number(planId),
