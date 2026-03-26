@@ -12,7 +12,7 @@ export type ExerciseApiResponse = {
 export type ExerciseListItem = ExerciseApiResponse;
 
 const getBaseUrl = (): string | null => {
-  const url = process.env.EXPO_PUBLIC_BACKEND_URL;
+  const url = process.env.EXPO_PUBLIC_API_URL || process.env.EXPO_PUBLIC_BACKEND_URL;
   if (typeof url === "string" && url.trim()) return url.trim().replace(/\/$/, "");
   return null;
 };
@@ -25,6 +25,32 @@ export async function fetchExerciseList(): Promise<ExerciseListItem[]> {
   if (!baseUrl) return [];
 
   const res = await fetch(`${baseUrl}/api/exercises?pageSize=50`, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!res.ok) return [];
+  try {
+    const json = (await res.json()) as { data?: ExerciseListItem[] };
+    return Array.isArray(json.data) ? json.data : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetches exercises mapped to a specific module/session.
+ */
+export async function fetchExerciseListByModule(
+  moduleId: string | number
+): Promise<ExerciseListItem[]> {
+  const baseUrl = getBaseUrl();
+  if (!baseUrl) return [];
+
+  const numId = typeof moduleId === "string" ? parseInt(moduleId, 10) : moduleId;
+  if (!Number.isInteger(numId) || numId <= 0) return [];
+
+  const res = await fetch(`${baseUrl}/api/exercises/by-module/${numId}`, {
     method: "GET",
     headers: { Accept: "application/json" },
   });

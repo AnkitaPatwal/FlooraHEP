@@ -384,7 +384,46 @@ router.get('/clients/:userId/modules', async (req, res) => {
 });
 
 /**
- * List all plan categories (admin-only)
+ * ATH-413: Create a new module (admin-only)
+
+ * Fetch all modules/plans with exercises (admin-only)
+ */
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = await getAllModulesWithExercises(supabaseServer)
+    return res.status(200).json(modules)
+  } catch (error) {
+    console.error('Failed to fetch modules:', error)
+    return res.status(500).json({ error: 'Failed to fetch modules' })
+  }
+});
+
+/**
+ * Save exercises for a module (admin-only). Replaces existing module_exercise rows.
+ * Body: { exercise_ids: number[] }
+ */
+router.put('/modules/:moduleId/exercises', async (req, res) => {
+  try {
+    const moduleId = parseInt(req.params.moduleId, 10);
+    if (!Number.isInteger(moduleId) || moduleId < 1) {
+      return res.status(400).json({ error: 'Invalid module id' });
+    }
+    const { exercise_ids } = req.body ?? {};
+    if (!Array.isArray(exercise_ids)) {
+      return res.status(400).json({ error: 'exercise_ids must be an array' });
+    }
+    await saveModuleExercises(supabaseAdmin, moduleId, exercise_ids);
+    return res.status(200).json({ message: 'Exercises saved', module_id: moduleId });
+  } catch (error) {
+    console.error('Failed to save module exercises:', error);
+    return res.status(500).json({
+      error: (error instanceof Error ? error.message : 'Failed to save module exercises'),
+    });
+  }
+});
+
+/**
+ * List all plan categories (admin-only). No seed data; admins create names.
  */
 router.get('/categories', async (req, res) => {
   try {
