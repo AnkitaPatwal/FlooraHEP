@@ -11,10 +11,12 @@ jest.mock("expo-router", () => ({
 }));
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
@@ -77,6 +79,14 @@ function makeModuleExerciseChain(
   return { select };
 }
 
+/** select → eq → in (Promise), for user_session_unlock / user_session_completion */
+function makeEqInSelectChain(rows: unknown[]) {
+  const inFn = jest.fn().mockResolvedValue({ data: rows, error: null });
+  const eq = jest.fn(() => ({ in: inFn }));
+  const select = jest.fn(() => ({ eq }));
+  return { select };
+}
+
 function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ module_id: number; exercise_id: number }> } = {}) {
   const fname = opts.fname != null ? opts.fname : "Keshwa";
   const meRows = opts.moduleExerciseRows ?? [
@@ -89,6 +99,12 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
     if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
     if (table === "module") return makeModuleChain([{ module_id: 1, title: "week 1 foundations" }]);
     if (table === "module_exercise") return makeModuleExerciseChain(meRows);
+    if (table === "user_session_unlock") {
+      return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+    }
+    if (table === "user_session_completion") {
+      return makeEqInSelectChain([]);
+    }
     return { select: jest.fn() };
   });
 }
@@ -96,6 +112,7 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
 describe("HomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRpc.mockResolvedValue({ data: null, error: null });
     mockUseAuth.mockImplementation(() => ({ session: mockSession, loading: false }));
     (global as any).userEmail = "keshwa@example.com";
     defaultMockFrom();
@@ -103,10 +120,11 @@ describe("HomeScreen", () => {
 
   it("fetches user_packages when user is signed in", async () => {
     defaultMockFrom();
-    render(<HomeScreen />);
-    await waitFor(() => {
-      expect(mockFrom).toHaveBeenCalledWith("user_packages");
-    });
+    const { findByText } = render(<HomeScreen />);
+    // Wait for loaded UI so the full Supabase chain (user → user_packages → …) has finished.
+    await findByText("week 1 foundations");
+    expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
+    expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
   });
 
   it("renders assigned sessions section and exercise count from module_exercise", async () => {
@@ -138,9 +156,15 @@ describe("HomeScreen", () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "user") return makeUserChain({ user_id: 56, fname: null });
       if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
-      if (table === "plan_module") return makePlanModuleChain([{ module_id: 1 }]);
+      if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
       if (table === "module") return makeModuleChain([{ module_id: 1, title: "Session 1" }]);
       if (table === "module_exercise") return makeModuleExerciseChain([]);
+      if (table === "user_session_unlock") {
+        return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+      }
+      if (table === "user_session_completion") {
+        return makeEqInSelectChain([]);
+      }
       return { select: jest.fn() };
     });
 

@@ -3,7 +3,7 @@
  * Lists exercises for a plan module (session) via module_exercise + exercise.
  * Dashboard and Roadmap navigate here with sessionId + sessionName.
  */
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -12,11 +12,13 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Exercise } from "../../types/exercise";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
 import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../providers/AuthProvider";
 import session1Img from "../../assets/images/prev-1.jpg";
 
 type Params = {
@@ -28,10 +30,51 @@ type Params = {
 
 export default function SessionExerciseList() {
   const router = useRouter();
+  const { session } = useAuth();
   const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [sessionCompleted, setSessionCompleted] = useState(false);
+  const [completeLoading, setCompleteLoading] = useState(false);
+
+  const moduleIdNum = useMemo(() => {
+    const n = sessionId ? parseInt(String(sessionId), 10) : NaN;
+    return Number.isInteger(n) ? n : null;
+  }, [sessionId]);
+
+  const refreshCompletion = useCallback(async () => {
+    if (!session?.user?.id || moduleIdNum == null) return;
+    const { data } = await supabase
+      .from("user_session_completion")
+      .select("module_id")
+      .eq("user_id", session.user.id)
+      .eq("module_id", moduleIdNum)
+      .maybeSingle();
+    setSessionCompleted(!!data);
+  }, [session?.user?.id, moduleIdNum]);
+
+  useEffect(() => {
+    refreshCompletion();
+  }, [refreshCompletion]);
+
+  const handleCompleteSession = async () => {
+    if (moduleIdNum == null || completeLoading || sessionCompleted) return;
+    setCompleteLoading(true);
+    try {
+      const { error } = await supabase.rpc("complete_user_session", {
+        p_module_id: moduleIdNum,
+      });
+      if (error) {
+        Alert.alert("Could not complete", error.message);
+        return;
+      }
+      setSessionCompleted(true);
+      Alert.alert("Session complete", "The next session will unlock after the 7-day countdown.");
+    } finally {
+      setCompleteLoading(false);
+    }
+  };
 
   const mapToExercise = (ex: {
     exercise_id: number;
@@ -159,6 +202,26 @@ export default function SessionExerciseList() {
           <Text style={styles.sessionLabel}>{headerTitle}</Text>
           <Text style={styles.subtitle}>{subtitle || "Restore"}</Text>
           <View style={styles.accentLine} />
+          {moduleIdValid && !apiLoading && exercises.length > 0 ? (
+            <View style={styles.completeWrap}>
+              {sessionCompleted ? (
+                <Text style={styles.completedBanner}>Session completed</Text>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.completeButton, completeLoading && styles.completeButtonDisabled]}
+                  onPress={handleCompleteSession}
+                  disabled={completeLoading}
+                  activeOpacity={0.85}
+                >
+                  {completeLoading ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.completeButtonText}>Mark session complete</Text>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : null}
         </View>
 
         {!moduleIdValid ? (
@@ -227,6 +290,19 @@ const styles = StyleSheet.create({
   sessionLabel: { fontSize: 26, fontWeight: "700", color: "#111827" },
   subtitle: { fontSize: 16, fontWeight: "600", color: "#0F766E", marginTop: 2 },
   accentLine: { marginTop: 8, width: 80, height: 3, borderRadius: 999, backgroundColor: "#0F766E" },
+  completeWrap: { marginTop: 16, marginBottom: 4 },
+  completeButton: {
+    backgroundColor: "#0F766E",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: "center",
+    minHeight: 48,
+    justifyContent: "center",
+  },
+  completeButtonDisabled: { opacity: 0.7 },
+  completeButtonText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  completedBanner: { fontSize: 15, fontWeight: "600", color: "#047857" },
   loadingWrap: { paddingVertical: 32, alignItems: "center" },
   loadingText: { marginTop: 8, fontSize: 14, color: "#6B7280" },
   emptyWrap: { paddingVertical: 32, paddingHorizontal: 8, alignItems: "center" },

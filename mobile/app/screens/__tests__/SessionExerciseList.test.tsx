@@ -1,5 +1,6 @@
 import React from "react";
 import { render, waitFor, fireEvent } from "@testing-library/react-native";
+import { Alert } from "react-native";
 import SessionExerciseList from "../SessionExerciseList";
 
 const mockPush = jest.fn();
@@ -23,11 +24,17 @@ jest.mock("expo-router", () => ({
 }));
 
 const mockFrom = jest.fn();
+const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
 const mockGetPublicUrl = jest.fn(() => ({ data: { publicUrl: "https://storage.test/public.mp4" } }));
+
+jest.mock("../../../providers/AuthProvider", () => ({
+  useAuth: () => ({ session: { user: { id: "auth-uuid-test" } } }),
+}));
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
     from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
     storage: {
       from: () => ({ getPublicUrl: mockGetPublicUrl }),
     },
@@ -46,6 +53,14 @@ function makeModuleExerciseChain(rows: Array<{ exercise_id: number; order_index:
   const order = jest.fn().mockResolvedValue({ data: rows, error: null });
   const eq = jest.fn(() => ({ order }));
   const select = jest.fn(() => ({ eq }));
+  return { select };
+}
+
+function makeCompletionLookupChain(row: { module_id: number } | null) {
+  const maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
+  const eqModule = jest.fn(() => ({ maybeSingle }));
+  const eqUser = jest.fn(() => ({ eq: eqModule }));
+  const select = jest.fn(() => ({ eq: eqUser }));
   return { select };
 }
 
@@ -68,6 +83,7 @@ function makeExerciseInChain(
 describe("SessionExerciseList (ATH-428)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRpc.mockResolvedValue({ data: null, error: null });
     mockIsApiConfigured.mockReturnValue(false);
     mockFetchByModule.mockResolvedValue([]);
     routeParams.sessionId = "1";
@@ -89,6 +105,9 @@ describe("SessionExerciseList (ATH-428)", () => {
             video: null,
           },
         ]);
+      }
+      if (table === "user_session_completion") {
+        return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
     });
@@ -141,7 +160,12 @@ describe("SessionExerciseList (ATH-428)", () => {
         video_url: "https://api.example/lunge.mp4",
       },
     ]);
-    mockFrom.mockImplementation(() => ({ select: jest.fn() }));
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "user_session_completion") {
+        return makeCompletionLookupChain(null);
+      }
+      return { select: jest.fn() };
+    });
 
     const { getByText } = render(<SessionExerciseList />);
     await waitFor(() => {
@@ -154,6 +178,9 @@ describe("SessionExerciseList (ATH-428)", () => {
   it("shows empty state when module has no exercises", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "module_exercise") return makeModuleExerciseChain([]);
+      if (table === "user_session_completion") {
+        return makeCompletionLookupChain(null);
+      }
       return { select: jest.fn() };
     });
 
@@ -192,6 +219,9 @@ describe("SessionExerciseList (ATH-428)", () => {
           },
         ]);
       }
+      if (table === "user_session_completion") {
+        return makeCompletionLookupChain(null);
+      }
       return { select: jest.fn() };
     });
 
@@ -222,6 +252,12 @@ describe("SessionExerciseList (ATH-428)", () => {
       { exercise_id: 1, title: "A", description: "", video_url: null },
       { exercise_id: 2, title: "B", description: "", video_url: null },
     ]);
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "user_session_completion") {
+        return makeCompletionLookupChain(null);
+      }
+      return { select: jest.fn() };
+    });
 
     const { getByText } = render(<SessionExerciseList />);
     await waitFor(() => {
@@ -239,5 +275,22 @@ describe("SessionExerciseList (ATH-428)", () => {
         }),
       })
     );
+  });
+
+  it("calls complete_user_session when Mark session complete is pressed", async () => {
+    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+
+    const { getByText } = render(<SessionExerciseList />);
+    await waitFor(() => {
+      expect(getByText("Squats")).toBeTruthy();
+    });
+
+    fireEvent.press(getByText("Mark session complete"));
+
+    await waitFor(() => {
+      expect(mockRpc).toHaveBeenCalledWith("complete_user_session", { p_module_id: 1 });
+    });
+    expect(alertSpy).toHaveBeenCalled();
+    alertSpy.mockRestore();
   });
 });

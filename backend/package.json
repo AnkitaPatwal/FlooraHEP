@@ -138,7 +138,8 @@
     "dev": "ts-node-dev --respawn --transpile-only server.ts",
     "build": "tsc -p .",
     "start": "node dist/server.js",
-    "test": "cross-env NODE_ENV=test jest"
+    "test": "cross-env NODE_ENV=test jest",
+    "test:integration:ath426": "cross-env NODE_ENV=test jest --config jest.integration.config.js"
   },
   "keywords": [],
   "author": "",
