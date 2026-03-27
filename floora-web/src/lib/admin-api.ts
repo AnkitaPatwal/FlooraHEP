@@ -1,5 +1,7 @@
 import { supabase } from "../lib/supabase-client";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -118,7 +120,7 @@ export async function uploadExerciseVideo(
   form.append("file", file);
 
   const res = await fetch(
-    `http://localhost:3000/api/admin/exercises/${exerciseId}/video`,
+    `${API_BASE}/api/admin/exercises/${exerciseId}/video`,
     {
       method: "POST",
       body: form,

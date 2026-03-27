@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabase-client";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type AccessState = "checking" | "allowed" | "unauthenticated" | "forbidden";
@@ -64,7 +66,7 @@ export default function CreateAdmin() {
 
       const { data: { session } } = await supabase.auth.getSession();
 
-      const res = await fetch("http://localhost:3000/api/admin/invite", {
+      const res = await fetch(`${API_BASE}/api/admin/invite`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
