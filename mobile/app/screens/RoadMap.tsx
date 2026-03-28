@@ -1,178 +1,136 @@
 import React from "react";
-import {
-  ScrollView,
-  View,
-  Text,
-  StyleSheet,
-  Image,
-  Pressable,
-} from "react-native";
+import { ScrollView, View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import colors from "../../constants/colors";
-
-// use any image you like
+import { theme } from "../../constants/theme";
+import SessionCard from "../../components/SessionCard";
+import ScreenBackButton from "../../components/ScreenBackButton";
 import session1Img from "../../assets/images/prev-1.jpg";
 
 export default function RoadMap() {
   const router = useRouter();
 
+  const goSession = (sessionId: string, sessionName: string) => {
+    router.push({
+      pathname: "/screens/SessionExerciseList",
+      params: {
+        sessionId,
+        sessionName,
+        planName: "Leakage",
+        subtitle: "Restore",
+      },
+    });
+  };
+
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
-      {/* Header */}
+    <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable
-          hitSlop={10}
-          onPress={() => router.back()}
-          style={{ minHeight: 44, justifyContent: "center" }}
-        >
-          <Text style={styles.backChevron}>‹</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Roadmap</Text>
-        {/* spacer to keep title centered */}
-        <View style={{ width: 18 }} />
+        <ScreenBackButton onPress={() => router.back()} />
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          Roadmap
+        </Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Plan heading */}
-        <Text style={styles.planTitle}>Leakage Plan</Text>
+        <Text style={styles.planTitle} numberOfLines={2}>
+          Leakage Plan
+        </Text>
         <Text style={styles.planSub}>Started 10/2/2025</Text>
 
-        {/* Accent line */}
         <View style={styles.accentLine} />
 
-        {/* Section */}
         <Text style={styles.sectionTitle}>Restore</Text>
-        <Text style={styles.sectionSub}>Sessions 1-4</Text>
+        <Text style={styles.sectionSub}>Sessions 1–4</Text>
 
-        {/* Session 1 card -> session exercise list */}
-        <Pressable
-          style={{ minHeight: 44 }}
-          onPress={() =>
-            router.push({
-              pathname: "/screens/SessionExerciseList",
-              params: {
-                sessionId: "1",
-                sessionName: "Session 1",
-                planName: "Leakage",
-                subtitle: "Restore",
-              },
-            })
-          }
-        >
-          <View style={styles.card}>
-            <Image
-              source={session1Img}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={styles.caption}>
-            <Text style={styles.captionStrong}>Session 1</Text>
-            <Text> | 3 Exercises</Text>
-          </Text>
-        </Pressable>
+        <SessionCard
+          title="Session 1"
+          exerciseCount={3}
+          image={session1Img}
+          state="current"
+          onPress={() => goSession("1", "Session 1")}
+        />
 
-        {/* Duplicate this Pressable for Session 2, 3, etc with different params */}
+        <SessionCard
+          title="Session 2"
+          exerciseCount={3}
+          image={session1Img}
+          state="available"
+          onPress={() => goSession("2", "Session 2")}
+        />
+
+        <SessionCard title="Session 3" exerciseCount={3} image={session1Img} state="locked" />
+
+        <SessionCard
+          title="Session 4"
+          exerciseCount={2}
+          image={session1Img}
+          state="completed"
+          onPress={() => goSession("4", "Session 4")}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.color.surface,
   },
-
-  // Header
+  scroll: {
+    flex: 1,
+    backgroundColor: theme.color.surface,
+  },
+  scrollContent: {
+    paddingHorizontal: theme.space.screenHorizontal,
+    paddingTop: theme.space.screenTop,
+    paddingBottom: theme.space.scrollBottom,
+  },
   header: {
-    height: 56,
+    minHeight: theme.space.headerRowHeight,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: theme.color.border,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
-  },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
+    paddingHorizontal: theme.space.screenHorizontal,
+    backgroundColor: theme.color.surface,
   },
   headerTitle: {
+    ...theme.typography.screenHeaderTitle,
     flex: 1,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
+    minWidth: 0,
   },
-
-  // Titles
+  headerSpacer: {
+    width: theme.layout.minTouchTarget,
+  },
   planTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginTop: 16,
+    ...theme.typography.planTitle,
     marginBottom: 4,
   },
   planSub: {
-    fontSize: 16,
-    color: colors.brand, // teal subtext
+    ...theme.typography.planSubtitle,
     marginBottom: 12,
   },
-
   accentLine: {
-    width: 150,
-    height: 6,
-    borderRadius: 4,
-    backgroundColor: colors.accent, // soft teal line
-    marginTop: 6,
-    marginBottom: 22,
+    width: theme.layout.accentLineWidth,
+    height: theme.layout.accentLineHeight,
+    borderRadius: theme.radius.accentBar,
+    backgroundColor: theme.color.accent,
+    marginTop: theme.space.accentLineMarginTop,
+    marginBottom: theme.space.accentLineMarginBottom,
   },
-
   sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 4,
+    ...theme.typography.sectionTitle,
+    marginBottom: theme.space.sectionTitleBottom,
   },
   sectionSub: {
-    fontSize: 16,
-    color: colors.brand,
+    ...theme.typography.sectionSubtitle,
     marginBottom: 12,
-  },
-
-  // Card
-  card: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  cardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
-
-  caption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  captionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
   },
 });

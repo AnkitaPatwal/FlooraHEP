@@ -13,6 +13,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
+import ScreenBackButton from "../../components/ScreenBackButton";
+import { theme } from "../../constants/theme";
 import { supabase } from "../../lib/supabaseClient";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,11 +103,9 @@ export default function UpdateEmail() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity hitSlop={10} onPress={() => router.push("/profile")}>
-          <Text style={styles.backChevron}>‹</Text>
-        </TouchableOpacity>
+        <ScreenBackButton onPress={() => router.push("/profile")} />
         <Text style={styles.headerTitle}>Email</Text>
-        <View style={{ width: 18 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.body}>
@@ -151,81 +151,56 @@ export default function UpdateEmail() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.color.surface,
   },
   header: {
-    height: 56,
+    minHeight: theme.space.headerRowHeight,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: theme.color.border,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: theme.space.screenHorizontal,
+    backgroundColor: theme.color.surface,
   },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
+  headerSpacer: {
+    width: theme.layout.minTouchTarget,
   },
   headerTitle: {
+    ...theme.typography.screenHeaderTitle,
     flex: 1,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#333",
   },
   body: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 36,
+    paddingHorizontal: theme.space.formBodyHorizontal,
+    paddingTop: theme.space.formBodyTop,
+    paddingBottom: theme.space.formBodyBottom,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#111827",
-    marginBottom: 28,
+    ...theme.typography.formPageTitle,
   },
   label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    ...theme.typography.formLabel,
   },
   input: {
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
+    ...theme.typography.formInput,
+    backgroundColor: theme.color.inputFill,
+    borderRadius: theme.radius.input,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    fontSize: 15,
-    color: "#333",
     marginBottom: 24,
   },
   errorText: {
-    fontSize: 14,
-    color: "#B91C1C",
-    marginBottom: 12,
+    ...theme.typography.errorBanner,
   },
   button: {
-    backgroundColor: "#5A8E93",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-    width: 150,
-    alignSelf: "center",
+    ...theme.button.primary,
+    alignSelf: "stretch",
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "500",
+    ...theme.button.primaryText,
   },
 });
