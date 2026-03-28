@@ -24,6 +24,7 @@ import session1Img from "../../assets/images/prev-1.jpg";
 type Params = {
   sessionId?: string;
   sessionName?: string;
+  moduleId?: string;
   planName?: string;
   subtitle?: string;
 };
@@ -31,7 +32,7 @@ type Params = {
 export default function SessionExerciseList() {
   const router = useRouter();
   const { session } = useAuth();
-  const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
+  const { sessionId, sessionName, moduleId, planName, subtitle } = useLocalSearchParams<Params>();
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
@@ -39,9 +40,10 @@ export default function SessionExerciseList() {
   const [completeLoading, setCompleteLoading] = useState(false);
 
   const moduleIdNum = useMemo(() => {
-    const n = sessionId ? parseInt(String(sessionId), 10) : NaN;
+    const raw = moduleId ?? sessionId;
+    const n = raw ? parseInt(String(raw), 10) : NaN;
     return Number.isInteger(n) ? n : null;
-  }, [sessionId]);
+  }, [moduleId, sessionId]);
 
   const refreshCompletion = useCallback(async () => {
     if (!session?.user?.id || moduleIdNum == null) return;
@@ -92,74 +94,85 @@ export default function SessionExerciseList() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
     const loadExercises = async () => {
-      const moduleId = sessionId ? parseInt(String(sessionId), 10) : NaN;
-      if (!Number.isInteger(moduleId) || moduleId < 1) {
-        setApiExercises([]);
-        setApiLoading(false);
-        return;
-      }
-
-      if (isExerciseApiConfigured()) {
-        try {
-          const apiRows = await fetchExerciseListByModule(moduleId);
-          if (apiRows.length > 0) {
-            setApiExercises(apiRows.map((ex) => mapToExercise(ex)));
-            setApiLoading(false);
-            return;
-          }
-        } catch {
-          // fall through to Supabase
-        }
-      }
-
-      const { data: meRows, error: meError } = await supabase
-        .from("module_exercise")
-        .select("exercise_id, order_index")
-        .eq("module_id", moduleId)
-        .order("order_index", { ascending: true });
-
-      if (!meError && meRows?.length) {
-        const exIds = meRows.map((r) => r.exercise_id);
-        const { data: exRows, error: exError } = await supabase
-          .from("exercise")
-          .select("exercise_id, title, description, thumbnail_url, video_url, video:video_id(bucket, object_key)")
-          .in("exercise_id", exIds)
-          .order("exercise_id", { ascending: true });
-
-        if (!exError && exRows?.length) {
-          const ordered = meRows
-            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
-            .filter(Boolean) as {
-            exercise_id: number;
-            title: string;
-            description: string | null;
-            thumbnail_url: string | null;
-            video_url: string | null;
-            video: { bucket: string; object_key: string } | null;
-          }[];
-
-          setApiExercises(
-            ordered.map((ex) => {
-              let videoUrl = ex.video_url ?? "";
-              if (!videoUrl && ex.video?.bucket && ex.video?.object_key) {
-                const { data } = supabase.storage.from(ex.video.bucket).getPublicUrl(ex.video.object_key);
-                videoUrl = data?.publicUrl ?? "";
-              }
-              return mapToExercise({ ...ex, video_url: videoUrl });
-            })
-          );
-          setApiLoading(false);
+      setApiLoading(true);
+      try {
+        const rawModule = sessionId ?? moduleId;
+        const moduleIdNum = rawModule ? parseInt(String(rawModule), 10) : NaN;
+        if (!Number.isInteger(moduleIdNum) || moduleIdNum < 1) {
+          setApiExercises([]);
           return;
         }
-      }
 
-      setApiExercises([]);
-      setApiLoading(false);
+        if (isExerciseApiConfigured()) {
+          try {
+            const apiRows = await fetchExerciseListByModule(moduleIdNum);
+            if (apiRows.length > 0) {
+              if (!cancelled) {
+                setApiExercises(apiRows.map((ex) => mapToExercise(ex)));
+              }
+              return;
+            }
+          } catch {
+            // fall through to Supabase
+          }
+        }
+
+        const { data: meRows, error: meError } = await supabase
+          .from("module_exercise")
+          .select("exercise_id, order_index")
+          .eq("module_id", moduleIdNum)
+          .order("order_index", { ascending: true });
+
+        if (!meError && meRows?.length) {
+          const exIds = meRows.map((r) => r.exercise_id);
+          const { data: exRows, error: exError } = await supabase
+            .from("exercise")
+            .select("exercise_id, title, description, thumbnail_url, video_url, video:video_id(bucket, object_key)")
+            .in("exercise_id", exIds)
+            .order("exercise_id", { ascending: true });
+
+          if (!exError && exRows?.length) {
+            const ordered = meRows
+              .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
+              .filter(Boolean) as {
+              exercise_id: number;
+              title: string;
+              description: string | null;
+              thumbnail_url: string | null;
+              video_url: string | null;
+              video: { bucket: string; object_key: string } | null;
+            }[];
+
+            if (!cancelled) {
+              setApiExercises(
+                ordered.map((ex) => {
+                  let videoUrl = ex.video_url ?? "";
+                  if (!videoUrl && ex.video?.bucket && ex.video?.object_key) {
+                    const { data } = supabase.storage.from(ex.video.bucket).getPublicUrl(ex.video.object_key);
+                    videoUrl = data?.publicUrl ?? "";
+                  }
+                  return mapToExercise({ ...ex, video_url: videoUrl });
+                })
+              );
+            }
+            return;
+          }
+        }
+
+        if (!cancelled) setApiExercises([]);
+      } finally {
+        if (!cancelled) setApiLoading(false);
+      }
     };
 
     loadExercises();
-  }, [sessionId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, moduleId]);
 
   const exercises = useMemo(() => apiExercises, [apiExercises]);
 
@@ -181,7 +194,11 @@ export default function SessionExerciseList() {
     });
   };
 
-  const moduleIdValid = sessionId && Number.isInteger(parseInt(String(sessionId), 10)) && parseInt(String(sessionId), 10) > 0;
+  const routeModuleId = sessionId ?? moduleId;
+  const moduleIdValid =
+    !!routeModuleId &&
+    Number.isInteger(parseInt(String(routeModuleId), 10)) &&
+    parseInt(String(routeModuleId), 10) > 0;
 
   return (
     <>

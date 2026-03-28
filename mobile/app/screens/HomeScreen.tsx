@@ -24,6 +24,22 @@ type SessionItem = {
   completed: boolean;
 };
 
+function withDashboardTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(`dashboard_load timed out after ${ms}ms`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(t);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(t);
+        reject(e);
+      }
+    );
+  });
+}
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -136,6 +152,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#2B8C8E",
   },
+  planName: {
+    fontSize: 17,
+    fontWeight: "600",
+    color: "#0F766E",
+    marginTop: 4,
+  },
   scrollView: {
     flex: 1,
     backgroundColor: "#FFFFFF",
@@ -165,6 +187,7 @@ const HomeScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [hasAssignedPlan, setHasAssignedPlan] = useState(false);
+  const [planTitle, setPlanTitle] = useState("");
   const [sessions, setSessions] = useState<SessionItem[]>([]);
 
   useEffect(() => {
@@ -179,180 +202,204 @@ const HomeScreen = () => {
 
         if (!session?.user?.id) {
           setError("Unable to load user.");
+          setPlanTitle("");
           setSessions([]);
           setLoading(false);
           return;
         }
 
         const authUserId = session.user.id;
-        const email = session.user.email ?? (global as any)?.userEmail ?? "";
 
-        if (email) {
-          const { data: userRow, error: userError } = await supabase
-            .from("user")
-            .select("fname")
-            .eq("email", email)
-            .maybeSingle();
+        await withDashboardTimeout(
+          (async () => {
+            const email = session.user.email ?? (global as any)?.userEmail ?? "";
 
-          if (!userError && userRow) {
-            const firstName = (userRow as { fname?: string }).fname?.trim();
-            if (firstName) {
-              setDisplayName(firstName.charAt(0).toUpperCase() + firstName.slice(1));
-            }
-          }
-        }
+            if (email) {
+              const { data: userRow, error: userError } = await supabase
+                .from("user")
+                .select("fname")
+                .eq("email", email)
+                .maybeSingle();
 
-        const { data: packageRow, error: packageError } = await supabase
-          .from("user_packages")
-          .select("package_id")
-          .eq("user_id", authUserId)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (packageError || !packageRow) {
-          setHasAssignedPlan(false);
-          setSessions([]);
-          return;
-        }
-
-        setHasAssignedPlan(true);
-
-        const { error: rpcUnlockBootstrapError } = await supabase.rpc("ensure_first_session_unlock");
-        if (__DEV__ && rpcUnlockBootstrapError) {
-          console.warn("[HomeScreen] ensure_first_session_unlock failed:", rpcUnlockBootstrapError.message);
-        }
-
-        const { data: planModules, error: planModulesError } = await supabase
-          .from("plan_module")
-          .select("module_id, order_index")
-          .eq("plan_id", packageRow.package_id)
-          .order("order_index", { ascending: true });
-
-        if (planModulesError || !planModules || planModules.length === 0) {
-          setSessions([]);
-          return;
-        }
-
-        const moduleIds = planModules.map((item: { module_id: number }) => item.module_id);
-
-        const { data: modulesData, error: modulesError } = await supabase
-          .from("module")
-          .select("module_id, title")
-          .in("module_id", moduleIds)
-          .order("module_id", { ascending: true });
-
-        if (modulesError) {
-          setError("Failed to load assigned sessions.");
-          setSessions([]);
-          return;
-        }
-
-        let countsByModule: Record<string, number> = {};
-
-        if (isExerciseApiConfigured()) {
-          const countEntries = await Promise.all(
-            moduleIds.map(async (moduleId: number | string) => {
-              try {
-                const rows = await fetchExerciseListByModule(moduleId);
-                return [String(moduleId), rows.length] as const;
-              } catch {
-                return [String(moduleId), 0] as const;
-              }
-            })
-          );
-          countsByModule = Object.fromEntries(countEntries);
-        } else {
-          const { data: moduleExerciseRows } = await supabase
-            .from("module_exercise")
-            .select("module_id, exercise_id")
-            .in("module_id", moduleIds);
-
-          countsByModule = (moduleExerciseRows || []).reduce<Record<string, number>>((acc, row: { module_id: number }) => {
-            const key = String(row.module_id);
-            acc[key] = (acc[key] || 0) + 1;
-            return acc;
-          }, {});
-        }
-
-        const [
-          { data: unlockRows, error: unlockQueryError },
-          { data: completionRows, error: completionQueryError },
-        ] = await Promise.all([
-          supabase
-            .from("user_session_unlock")
-            .select("module_id, unlock_date")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
-          supabase
-            .from("user_session_completion")
-            .select("module_id, completed_at")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
-        ]);
-
-        const unlockTrackingUnavailable =
-          !!rpcUnlockBootstrapError || !!unlockQueryError || !!completionQueryError;
-
-        const unlockByModule = new Map<number, string>(
-          (unlockRows || []).map((r: { module_id: number; unlock_date: string }) => [
-            r.module_id,
-            r.unlock_date,
-          ])
-        );
-        const completedModules = new Set<number>(
-          (completionRows || []).map((r: { module_id: number }) => r.module_id)
-        );
-
-        const noUnlockRowsRead =
-          !unlockQueryError &&
-          !rpcUnlockBootstrapError &&
-          moduleIds.length > 0 &&
-          unlockByModule.size === 0;
-
-        const useAth420ShowAllSessions = unlockTrackingUnavailable || noUnlockRowsRead;
-
-        if (__DEV__ && useAth420ShowAllSessions) {
-          console.warn(
-            "[HomeScreen] Session unlock fallback — showing all assigned modules (unlock tracking missing or empty).",
-            unlockTrackingUnavailable
-              ? {
-                  rpc: rpcUnlockBootstrapError?.message,
-                  unlock: unlockQueryError?.message,
-                  completion: completionQueryError?.message,
+              if (!userError && userRow) {
+                const firstName = (userRow as { fname?: string }).fname?.trim();
+                if (firstName) {
+                  setDisplayName(firstName.charAt(0).toUpperCase() + firstName.slice(1));
                 }
-              : { reason: "no unlock rows (apply ATH-426 migrations / RLS)" }
-          );
-        }
+              }
+            }
 
-        const moduleMap = new Map(
-          (modulesData || []).map((m: { module_id: number; title: string }) => [m.module_id, m])
+            const { data: packageRow, error: packageError } = await supabase
+              .from("user_packages")
+              .select("package_id")
+              .eq("user_id", authUserId)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+            if (packageError || !packageRow?.package_id) {
+              if (__DEV__ && packageError) {
+                console.warn("[HomeScreen] user_packages:", packageError.message);
+              }
+              setHasAssignedPlan(false);
+              setPlanTitle("");
+              setSessions([]);
+              return;
+            }
+
+            setHasAssignedPlan(true);
+
+            const { data: rpcTitle, error: rpcTitleError } = await supabase.rpc("get_my_assigned_plan_title");
+            if (__DEV__ && rpcTitleError) {
+              console.warn("[HomeScreen] get_my_assigned_plan_title:", rpcTitleError.message);
+            }
+            const assignedTitle =
+              !rpcTitleError && rpcTitle != null ? String(rpcTitle).trim() : "";
+            setPlanTitle(assignedTitle);
+
+            const { error: rpcUnlockBootstrapError } = await supabase.rpc("ensure_first_session_unlock");
+            if (__DEV__ && rpcUnlockBootstrapError) {
+              console.warn("[HomeScreen] ensure_first_session_unlock failed:", rpcUnlockBootstrapError.message);
+            }
+
+            const { data: planModules, error: planModulesError } = await supabase
+              .from("plan_module")
+              .select("module_id, order_index")
+              .eq("plan_id", packageRow.package_id)
+              .order("order_index", { ascending: true });
+
+            if (planModulesError || !planModules || planModules.length === 0) {
+              setSessions([]);
+              return;
+            }
+
+            const moduleIds = planModules.map((item: { module_id: number }) => item.module_id);
+
+            const { data: modulesData, error: modulesError } = await supabase
+              .from("module")
+              .select("module_id, title")
+              .in("module_id", moduleIds)
+              .order("module_id", { ascending: true });
+
+            if (modulesError) {
+              setError("Failed to load assigned sessions.");
+              setSessions([]);
+              return;
+            }
+
+            let countsByModule: Record<string, number> = {};
+
+            if (isExerciseApiConfigured()) {
+              const countEntries = await Promise.all(
+                moduleIds.map(async (moduleId: number | string) => {
+                  try {
+                    const rows = await fetchExerciseListByModule(moduleId);
+                    return [String(moduleId), rows.length] as const;
+                  } catch {
+                    return [String(moduleId), 0] as const;
+                  }
+                })
+              );
+              countsByModule = Object.fromEntries(countEntries);
+            } else {
+              const { data: moduleExerciseRows } = await supabase
+                .from("module_exercise")
+                .select("module_id, exercise_id")
+                .in("module_id", moduleIds);
+
+              countsByModule = (moduleExerciseRows || []).reduce<Record<string, number>>((acc, row: { module_id: number }) => {
+                const key = String(row.module_id);
+                acc[key] = (acc[key] || 0) + 1;
+                return acc;
+              }, {});
+            }
+
+            const [
+              { data: unlockRows, error: unlockQueryError },
+              { data: completionRows, error: completionQueryError },
+            ] = await Promise.all([
+              supabase
+                .from("user_session_unlock")
+                .select("module_id, unlock_date")
+                .eq("user_id", authUserId)
+                .in("module_id", moduleIds),
+              supabase
+                .from("user_session_completion")
+                .select("module_id, completed_at")
+                .eq("user_id", authUserId)
+                .in("module_id", moduleIds),
+            ]);
+
+            const unlockTrackingUnavailable =
+              !!rpcUnlockBootstrapError || !!unlockQueryError || !!completionQueryError;
+
+            const unlockByModule = new Map<number, string>(
+              (unlockRows || []).map((r: { module_id: number; unlock_date: string }) => [
+                r.module_id,
+                r.unlock_date,
+              ])
+            );
+            const completedModules = new Set<number>(
+              (completionRows || []).map((r: { module_id: number }) => r.module_id)
+            );
+
+            const noUnlockRowsRead =
+              !unlockQueryError &&
+              !rpcUnlockBootstrapError &&
+              moduleIds.length > 0 &&
+              unlockByModule.size === 0;
+
+            const useAth420ShowAllSessions = unlockTrackingUnavailable || noUnlockRowsRead;
+
+            if (__DEV__ && useAth420ShowAllSessions) {
+              console.warn(
+                "[HomeScreen] Session unlock fallback — showing all assigned modules (unlock tracking missing or empty).",
+                unlockTrackingUnavailable
+                  ? {
+                      rpc: rpcUnlockBootstrapError?.message,
+                      unlock: unlockQueryError?.message,
+                      completion: completionQueryError?.message,
+                    }
+                  : { reason: "no unlock rows (apply ATH-426 migrations / RLS)" }
+              );
+            }
+
+            const moduleMap = new Map(
+              (modulesData || []).map((m: { module_id: number; title: string }) => [m.module_id, m])
+            );
+
+            const now = Date.now();
+            const merged: SessionItem[] = [];
+            for (const pm of planModules as { module_id: number; order_index: number }[]) {
+              const mod = moduleMap.get(pm.module_id);
+              if (!mod) continue;
+              const unlockIso = unlockByModule.get(pm.module_id);
+              const unlocked = useAth420ShowAllSessions
+                ? true
+                : unlockIso != null && new Date(unlockIso).getTime() <= now;
+              merged.push({
+                module_id: mod.module_id,
+                title: mod.title,
+                order_index: pm.order_index,
+                unlocked,
+                completed: completedModules.has(pm.module_id),
+                exerciseCount: countsByModule[String(mod.module_id)] || 0,
+              });
+            }
+
+            const visible = merged.filter((s) => s.unlocked);
+            visible.sort((a, b) => b.order_index - a.order_index);
+            setSessions(visible);
+          })(),
+          55_000
         );
-
-        const now = Date.now();
-        const merged: SessionItem[] = [];
-        for (const pm of planModules as { module_id: number; order_index: number }[]) {
-          const mod = moduleMap.get(pm.module_id);
-          if (!mod) continue;
-          const unlockIso = unlockByModule.get(pm.module_id);
-          const unlocked = useAth420ShowAllSessions
-            ? true
-            : unlockIso != null && new Date(unlockIso).getTime() <= now;
-          merged.push({
-            module_id: mod.module_id,
-            title: mod.title,
-            order_index: pm.order_index,
-            unlocked,
-            completed: completedModules.has(pm.module_id),
-            exerciseCount: countsByModule[String(mod.module_id)] || 0,
-          });
-        }
-
-        const visible = merged.filter((s) => s.unlocked);
-        visible.sort((a, b) => b.order_index - a.order_index);
-        setSessions(visible);
       } catch (err) {
-        setError("Something went wrong.");
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("timed out")) {
+          setError("Loading took too long. Check your connection, then use Retry below.");
+        } else {
+          setError("Something went wrong.");
+        }
         setSessions([]);
       } finally {
         setLoading(false);
@@ -365,7 +412,11 @@ const HomeScreen = () => {
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: moduleId, sessionName },
+      params: {
+        sessionId: moduleId,
+        sessionName,
+        moduleId,
+      },
     });
   };
 
@@ -405,6 +456,7 @@ const HomeScreen = () => {
           <Text style={styles.greeting}>Hi {displayName || "there"}!</Text>
           <Text style={styles.brandText}>Floora</Text>
         </View>
+        {hasAssignedPlan && planTitle ? <Text style={styles.planName}>{planTitle}</Text> : null}
       </View>
       <ScrollView
         style={styles.scrollView}
@@ -455,7 +507,7 @@ const HomeScreen = () => {
           <Text style={styles.emptyText}>
             {hasAssignedPlan
               ? "No unlocked sessions yet. Complete the previous session or wait until the next unlock date."
-              : "No assigned sessions yet."}
+              : "No care plan is linked to this login yet. Your clinic assigns plans to your account email. If you use a different email in the app than the one they used, ask them to update it or sign in with that email."}
           </Text>
         )}
       </ScrollView>

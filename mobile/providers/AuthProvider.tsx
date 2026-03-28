@@ -17,15 +17,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     const initSession = async () => {
-      const { data, error } = await supabase.auth.getSession();
+      const AUTH_INIT_MS = 20_000;
+      let data: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"];
+      let error: Awaited<ReturnType<typeof supabase.auth.getSession>>["error"];
+      try {
+        const result = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("auth_init_timeout")), AUTH_INIT_MS)
+          ),
+        ]);
+        data = result.data;
+        error = result.error;
+      } catch {
+        await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+        if (!cancelled) {
+          setSession(null);
+          setLoading(false);
+          (global as any).userEmail = "";
+        }
+        return;
+      }
 
-      if (error) {
-        const msg = error.message ?? "";
+      const sessionError = error;
+
+      if (sessionError) {
+        const msg = sessionError.message ?? "";
         const isRefreshFailure =
           msg.includes("Refresh Token") ||
           msg.includes("Invalid Refresh") ||
           msg.includes("refresh_token") ||
-          (error as { code?: string }).code === "refresh_token_not_found";
+          (sessionError as { code?: string }).code === "refresh_token_not_found";
 
         if (isRefreshFailure) {
           await supabase.auth.signOut({ scope: "local" });

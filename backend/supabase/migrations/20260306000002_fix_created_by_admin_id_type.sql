@@ -1,5 +1,5 @@
-- Fix created_by_admin_id to reference admin_users (UUID) instead of admin (BIGINT)
--- This aligns with the JWT auth system which uses admin_users.id (UUID)
+-- Fix created_by_admin_id to reference admin_users (UUID) instead of admin (BIGINT).
+-- This aligns with the JWT auth system which uses admin_users.id (UUID).
 
 begin;
 

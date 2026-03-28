@@ -11,7 +11,12 @@ jest.mock("expo-router", () => ({
 }));
 
 const mockFrom = jest.fn();
-const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
+const mockRpc = jest.fn((name: string) => {
+  if (name === "get_my_assigned_plan_title") {
+    return Promise.resolve({ data: "Assigned Test Plan", error: null });
+  }
+  return Promise.resolve({ data: null, error: null });
+});
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
@@ -112,7 +117,12 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
 describe("HomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockImplementation((name: string) => {
+      if (name === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Assigned Test Plan", error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     mockUseAuth.mockImplementation(() => ({ session: mockSession, loading: false }));
     (global as any).userEmail = "keshwa@example.com";
     defaultMockFrom();
@@ -121,9 +131,10 @@ describe("HomeScreen", () => {
   it("fetches user_packages when user is signed in", async () => {
     defaultMockFrom();
     const { findByText } = render(<HomeScreen />);
-    // Wait for loaded UI so the full Supabase chain (user → user_packages → …) has finished.
-    await findByText("week 1 foundations");
+    // Wait for loaded UI (user → user_packages → get_my_assigned_plan_title → plan_module → …).
+    await findByText("week 1 foundations", {}, { timeout: 5000 });
     expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
+    expect(mockRpc).toHaveBeenCalledWith("get_my_assigned_plan_title");
     expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
   });
 
@@ -152,10 +163,21 @@ describe("HomeScreen", () => {
     expect(getByText("Floora")).toBeTruthy();
   });
 
+  it("shows assigned plan name from get_my_assigned_plan_title at the top", async () => {
+    defaultMockFrom();
+
+    const { getByText } = render(<HomeScreen />);
+
+    await waitFor(() => {
+      expect(getByText("Assigned Test Plan")).toBeTruthy();
+    });
+  });
+
   it("shows Hi there! when user has no fname", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "user") return makeUserChain({ user_id: 56, fname: null });
       if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
+      if (table === "plan") return makeEqMaybeSingleChain({ title: "Assigned Test Plan" });
       if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
       if (table === "module") return makeModuleChain([{ module_id: 1, title: "Session 1" }]);
       if (table === "module_exercise") return makeModuleExerciseChain([]);
@@ -188,7 +210,7 @@ describe("HomeScreen", () => {
     const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(getByText("No assigned sessions yet.")).toBeTruthy();
+      expect(getByText(/No care plan is linked to this login yet/)).toBeTruthy();
     });
   });
 
@@ -215,7 +237,7 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", sessionName: "week 1 foundations" },
+      params: { sessionId: "1", sessionName: "week 1 foundations", moduleId: "1" },
     });
   });
 });
