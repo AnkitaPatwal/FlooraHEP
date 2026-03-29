@@ -23,6 +23,7 @@ import session1Img from "../../assets/images/prev-1.jpg";
 
 type Params = {
   sessionId?: string;
+  moduleId?: string;
   sessionName?: string;
   planName?: string;
   subtitle?: string;
@@ -31,7 +32,10 @@ type Params = {
 export default function SessionExerciseList() {
   const router = useRouter();
   const { session } = useAuth();
-  const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
+  const { sessionId, moduleId: moduleIdParam, sessionName, planName, subtitle } =
+    useLocalSearchParams<Params>();
+
+  const routeModuleIdStr = moduleIdParam ?? sessionId;
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
@@ -39,9 +43,9 @@ export default function SessionExerciseList() {
   const [completeLoading, setCompleteLoading] = useState(false);
 
   const moduleIdNum = useMemo(() => {
-    const n = sessionId ? parseInt(String(sessionId), 10) : NaN;
+    const n = routeModuleIdStr ? parseInt(String(routeModuleIdStr), 10) : NaN;
     return Number.isInteger(n) ? n : null;
-  }, [sessionId]);
+  }, [routeModuleIdStr]);
 
   const refreshCompletion = useCallback(async () => {
     if (!session?.user?.id || moduleIdNum == null) return;
@@ -93,7 +97,7 @@ export default function SessionExerciseList() {
 
   useEffect(() => {
     const loadExercises = async () => {
-      const moduleId = sessionId ? parseInt(String(sessionId), 10) : NaN;
+      const moduleId = routeModuleIdStr ? parseInt(String(routeModuleIdStr), 10) : NaN;
       if (!Number.isInteger(moduleId) || moduleId < 1) {
         setApiExercises([]);
         setApiLoading(false);
@@ -159,7 +163,7 @@ export default function SessionExerciseList() {
     };
 
     loadExercises();
-  }, [sessionId]);
+  }, [routeModuleIdStr]);
 
   const exercises = useMemo(() => apiExercises, [apiExercises]);
 
@@ -171,7 +175,8 @@ export default function SessionExerciseList() {
       pathname: "/screens/ExerciseDetail",
       params: {
         id: String(exercise.id),
-        sessionId: String(sessionId ?? ""),
+        moduleId: String(routeModuleIdStr ?? ""),
+        sessionId: String(routeModuleIdStr ?? ""),
         sessionName: headerTitle,
         planName: planName ?? "",
         exercisePosition: String(positionInSession),
@@ -181,7 +186,10 @@ export default function SessionExerciseList() {
     });
   };
 
-  const moduleIdValid = sessionId && Number.isInteger(parseInt(String(sessionId), 10)) && parseInt(String(sessionId), 10) > 0;
+  const moduleIdValid =
+    routeModuleIdStr &&
+    Number.isInteger(parseInt(String(routeModuleIdStr), 10)) &&
+    parseInt(String(routeModuleIdStr), 10) > 0;
 
   return (
     <>

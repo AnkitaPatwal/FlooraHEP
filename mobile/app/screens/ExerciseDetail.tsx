@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Video, AVPlaybackStatus } from "expo-av";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,20 +21,31 @@ import {
   type ExerciseApiResponse,
 } from "../../lib/exerciseApi";
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
+import { supabase } from "../../lib/supabaseClient";
 
 const ExerciseDetail = () => {
-  const { id, sessionName, videoUrl: paramVideoUrl, exercisePosition, sessionExerciseTotal } =
-    useLocalSearchParams<{
-      id?: string;
-      sessionName?: string;
-      fromApi?: string;
-      videoUrl?: string;
-      exercisePosition?: string;
-      sessionExerciseTotal?: string;
-    }>();
+  const {
+    id,
+    moduleId,
+    sessionId,
+    sessionName,
+    videoUrl: paramVideoUrl,
+    exercisePosition,
+    sessionExerciseTotal,
+  } = useLocalSearchParams<{
+    id?: string;
+    moduleId?: string;
+    sessionId?: string;
+    sessionName?: string;
+    fromApi?: string;
+    videoUrl?: string;
+    exercisePosition?: string;
+    sessionExerciseTotal?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const videoRef = useRef<Video>(null);
+  const sessionCompletionCalledRef = useRef(false);
   const [apiExercise, setApiExercise] = useState<ExerciseApiResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -43,6 +55,16 @@ const ExerciseDetail = () => {
 
   const exerciseId = id ?? "1";
   const tryBackend = isExerciseApiConfigured();
+
+  const moduleIdForSession = useMemo(() => {
+    const raw = moduleId ?? sessionId ?? "";
+    const n = parseInt(String(raw), 10);
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }, [moduleId, sessionId]);
+
+  useEffect(() => {
+    sessionCompletionCalledRef.current = false;
+  }, [exerciseId, moduleIdForSession]);
 
   useEffect(() => {
     if (!tryBackend) {
@@ -95,21 +117,61 @@ const ExerciseDetail = () => {
     null;
   const videoUi = getVideoUiState(playbackState, videoError, Boolean(videoUrl));
 
+  const progressTotalRaw = parseInt(String(sessionExerciseTotal ?? ""), 10);
+  const progressPositionRaw = parseInt(String(exercisePosition ?? ""), 10);
+  const progressTotal =
+    Number.isFinite(progressTotalRaw) && progressTotalRaw > 0 ? progressTotalRaw : 1;
+  const progressCurrent =
+    Number.isFinite(progressPositionRaw) && progressPositionRaw > 0
+      ? Math.min(progressPositionRaw, progressTotal)
+      : 1;
+  const isLastExerciseInSession =
+    progressCurrent === progressTotal && progressTotal > 0;
+
   useEffect(() => {
     if (videoUrl && playbackState === "idle") setPlaybackState("loading");
   }, [videoUrl, playbackState]);
 
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-    if (status.isBuffering) setPlaybackState("loading");
-    else if (status.error) {
-      setPlaybackState("error");
-      setVideoError(status.error || "Playback error");
-    } else {
-      setPlaybackState("ready");
-      setVideoError(null);
-    }
-  }, []);
+  const handlePlaybackStatusUpdate = useCallback(
+    (status: AVPlaybackStatus) => {
+      if (!status.isLoaded) return;
+      if (status.isBuffering) setPlaybackState("loading");
+      else if (status.error) {
+        setPlaybackState("error");
+        setVideoError(status.error || "Playback error");
+      } else {
+        setPlaybackState("ready");
+        setVideoError(null);
+      }
+
+      if (
+        status.isLoaded &&
+        status.didJustFinish &&
+        !sessionCompletionCalledRef.current &&
+        isLastExerciseInSession &&
+        moduleIdForSession != null
+      ) {
+        sessionCompletionCalledRef.current = true;
+        void (async () => {
+          const { error } = await supabase.rpc("complete_user_session", {
+            p_module_id: moduleIdForSession,
+          });
+          if (error) {
+            sessionCompletionCalledRef.current = false;
+            if (__DEV__) {
+              console.warn("[ExerciseDetail] complete_user_session:", error.message);
+            }
+            return;
+          }
+          Alert.alert(
+            "Session complete",
+            "The next session will unlock after the 7-day countdown."
+          );
+        })();
+      }
+    },
+    [isLastExerciseInSession, moduleIdForSession]
+  );
 
   const handleVideoError = useCallback((error: string) => {
     setPlaybackState("error");
@@ -169,15 +231,6 @@ const ExerciseDetail = () => {
 
   const sessionLabel =
     (sessionName as string) || (exerciseId ? `Session ${exerciseId}` : "Session");
-
-  const progressTotalRaw = parseInt(String(sessionExerciseTotal ?? ""), 10);
-  const progressPositionRaw = parseInt(String(exercisePosition ?? ""), 10);
-  const progressTotal =
-    Number.isFinite(progressTotalRaw) && progressTotalRaw > 0 ? progressTotalRaw : 1;
-  const progressCurrent =
-    Number.isFinite(progressPositionRaw) && progressPositionRaw > 0
-      ? Math.min(progressPositionRaw, progressTotal)
-      : 1;
 
   const heroSource =
     (displayExercise as any).thumbnail != null

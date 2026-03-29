@@ -236,6 +236,7 @@ describe("SessionExerciseList (ATH-428)", () => {
       pathname: "/screens/ExerciseDetail",
       params: {
         id: "10",
+        moduleId: "1",
         sessionId: "1",
         sessionName: "Test Module",
         planName: "Leakage",

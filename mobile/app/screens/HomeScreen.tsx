@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,8 +7,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  AppState,
+  type AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
@@ -167,8 +170,7 @@ const HomeScreen = () => {
   const [hasAssignedPlan, setHasAssignedPlan] = useState(false);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
 
-  useEffect(() => {
-    const fetchAssignedSessions = async () => {
+  const fetchAssignedSessions = useCallback(async () => {
       try {
         setLoading(true);
         setError("");
@@ -357,15 +359,31 @@ const HomeScreen = () => {
       } finally {
         setLoading(false);
       }
-    };
+  }, [session?.user?.id, authLoading, session?.user?.email]);
 
-    fetchAssignedSessions();
-  }, [session?.user?.id, authLoading]);
+  useEffect(() => {
+    void fetchAssignedSessions();
+  }, [fetchAssignedSessions]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchAssignedSessions();
+    }, [fetchAssignedSessions])
+  );
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
+      if (next === "active" && !authLoading && session?.user?.id) {
+        void fetchAssignedSessions();
+      }
+    });
+    return () => sub.remove();
+  }, [authLoading, fetchAssignedSessions, session?.user?.id]);
 
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: moduleId, sessionName },
+      params: { sessionId: moduleId, moduleId, sessionName },
     });
   };
 

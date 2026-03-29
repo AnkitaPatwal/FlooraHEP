@@ -4,6 +4,10 @@ import HomeScreen from "../HomeScreen";
 
 const mockPush = jest.fn();
 
+jest.mock("@react-navigation/native", () => ({
+  useFocusEffect: jest.fn(),
+}));
+
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     push: mockPush,
@@ -215,7 +219,7 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", sessionName: "week 1 foundations" },
+      params: { sessionId: "1", moduleId: "1", sessionName: "week 1 foundations" },
     });
   });
 });
