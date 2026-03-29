@@ -4,6 +4,8 @@ import AppLayout from "../../components/layouts/AppLayout";
 import { supabase } from "../../lib/supabase-client";
 import "./CreatePlan.css";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 interface Module {
   module_id: number;
   title: string;
@@ -68,7 +70,7 @@ export default function CreatePlan() {
   const fetchCategories = async () => {
     try {
       const headers = await authHeaders();
-      const res = await fetch("http://localhost:3000/api/admin/categories", { headers });
+      const res = await fetch(`${API_BASE}/api/admin/categories`, { headers });
       if (!res.ok) return;
       const data = await res.json();
       setCategories(Array.isArray(data) ? data : []);
@@ -85,7 +87,7 @@ export default function CreatePlan() {
     setError(null);
     try {
       const headers = await authHeaders();
-      const res = await fetch("http://localhost:3000/api/admin/categories", {
+      const res = await fetch("${API_BASE}/api/admin/categories", {
         method: "POST",
         headers,
         body: JSON.stringify({ name })
@@ -108,7 +110,7 @@ export default function CreatePlan() {
     setError(null);
     try {
       const headers = await authHeaders();
-      const res = await fetch(`http://localhost:3000/api/admin/categories/${categoryIdToDelete}`, {
+      const res = await fetch(`${API_BASE}/api/admin/categories/${categoryIdToDelete}`, {
         method: "DELETE",
         headers
       });
@@ -126,7 +128,7 @@ export default function CreatePlan() {
   const fetchModules = async () => {
     try {
       const headers = await authHeaders();
-      const res = await fetch("http://localhost:3000/api/admin/modules", { headers });
+      const res = await fetch(`${API_BASE}/api/admin/modules`, { headers });
       if (!res.ok) throw new Error("Failed to fetch modules");
       const data = await res.json();
       setAvailableModules(data.map(mapModuleToSession));
@@ -140,7 +142,7 @@ export default function CreatePlan() {
     try {
       setIsLoading(true);
       const headers = await authHeaders();
-      const res = await fetch(`http://localhost:3000/api/admin/plans/${planId}`, { headers });
+      const res = await fetch(`${API_BASE}/api/admin/plans/${planId}`, { headers });
       if (!res.ok) throw new Error("Failed to fetch plan");
       const data = await res.json();
       setTitle(data.title || "");
@@ -189,8 +191,8 @@ export default function CreatePlan() {
     try {
       const headers = await authHeaders();
       const url = isEditMode
-        ? `http://localhost:3000/api/admin/plans/${id}`
-        : "http://localhost:3000/api/admin/plans";
+        ? `${API_BASE}/api/admin/plans/${id}`
+        : `${API_BASE}/api/admin/plans`;
       const method = isEditMode ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -218,7 +220,7 @@ export default function CreatePlan() {
     try {
       setIsSaving(true);
       const headers = await authHeaders();
-      const res = await fetch(`http://localhost:3000/api/admin/plans/${id}`, {
+      const res = await fetch(`${API_BASE}/api/admin/plans/${id}`, {
         method: "DELETE",
         headers
       });

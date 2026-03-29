@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
 
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
 interface Module {
   module_id: number;
   title: string;
@@ -50,7 +52,7 @@ export default function Plan() {
     const loadPlans = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const res = await fetch("http://localhost:3000/api/admin/plans", {
+        const res = await fetch(`${API_BASE}/api/admin/plans`, {
           headers: {
             "Content-Type": "application/json",
             ...(session?.access_token
