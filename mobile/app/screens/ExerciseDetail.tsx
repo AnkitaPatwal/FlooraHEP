@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from "react-native";
-import { Video, AVPlaybackStatus } from "expo-av";
+import { useEventListener } from "expo";
+import { VideoView, useVideoPlayer } from "expo-video";
 import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -20,20 +22,80 @@ import {
   type ExerciseApiResponse,
 } from "../../lib/exerciseApi";
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
+import {
+  getMaxCompletedExercisePosition,
+  recordExerciseWatchedToEnd,
+} from "../../lib/sessionExerciseProgress";
+import { supabase } from "../../lib/supabaseClient";
+import { useAuth } from "../../providers/AuthProvider";
+
+type ExerciseVideoPlayerProps = {
+  uri: string;
+  onPlayToEnd: () => void | Promise<void>;
+  onStatus: (state: PlaybackState, errorMessage: string | null) => void;
+};
+
+/** expo-video player bound to a single source (parent uses key to reset on retry). */
+function ExerciseVideoPlayer({ uri, onPlayToEnd, onStatus }: ExerciseVideoPlayerProps) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+  });
+
+  useEventListener(player, "statusChange", ({ status, error }) => {
+    if (status === "loading") {
+      onStatus("loading", null);
+    } else if (status === "readyToPlay") {
+      onStatus("ready", null);
+    } else if (status === "error") {
+      onStatus("error", error?.message ?? "Playback error");
+    } else if (status === "idle") {
+      onStatus("idle", null);
+    }
+  });
+
+  useEventListener(player, "playToEnd", () => {
+    void onPlayToEnd();
+  });
+
+  return (
+    <VideoView
+      style={styles.heroImage}
+      player={player}
+      nativeControls
+      contentFit="contain"
+    />
+  );
+}
 
 const ExerciseDetail = () => {
-  const { id, sessionName, videoUrl: paramVideoUrl, exercisePosition, sessionExerciseTotal } =
-    useLocalSearchParams<{
-      id?: string;
-      sessionName?: string;
-      fromApi?: string;
-      videoUrl?: string;
-      exercisePosition?: string;
-      sessionExerciseTotal?: string;
-    }>();
+  const { session } = useAuth();
+  const {
+    id,
+    sessionName,
+    videoUrl: paramVideoUrl,
+    exercisePosition,
+    sessionExerciseTotal,
+    moduleId,
+    sessionId,
+    exerciseTitle: exerciseTitleParam,
+    exerciseDescription: exerciseDescriptionParam,
+    sessionCompleted: sessionCompletedParamRaw,
+  } = useLocalSearchParams<{
+    id?: string;
+    sessionName?: string;
+    fromApi?: string;
+    videoUrl?: string;
+    exercisePosition?: string;
+    sessionExerciseTotal?: string;
+    moduleId?: string;
+    sessionId?: string;
+    exerciseTitle?: string;
+    exerciseDescription?: string;
+    sessionCompleted?: string;
+  }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const videoRef = useRef<Video>(null);
+  const sessionCompletionRequestedRef = useRef(false);
   const [apiExercise, setApiExercise] = useState<ExerciseApiResponse | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -76,22 +138,51 @@ const ExerciseDetail = () => {
     [exerciseId]
   );
 
-  const displayExercise = useMemo(() => {
+  /** When the list already loaded title/video URL but GET /exercises/:id fails, use params so the screen still works. */
+  const displayExercise = useMemo((): Exercise | null => {
     if (apiExercise) {
       return {
         id: String(apiExercise.exercise_id),
         title: apiExercise.title,
         description: apiExercise.description ?? "",
-        videoSignedUrl: apiExercise.video_url ?? undefined,
+        tags: [],
+        videoSignedUrl: apiExercise.video_url ?? "",
       };
     }
-    return localExercise;
-  }, [apiExercise, localExercise]);
+    if (localExercise) return localExercise;
+
+    const titleFromRoute =
+      typeof exerciseTitleParam === "string" && exerciseTitleParam.trim() !== ""
+        ? exerciseTitleParam.trim()
+        : "";
+    const descFromRoute =
+      typeof exerciseDescriptionParam === "string" ? exerciseDescriptionParam : "";
+    const paramVideo =
+      typeof paramVideoUrl === "string" && paramVideoUrl.startsWith("http") ? paramVideoUrl : "";
+
+    if (titleFromRoute || paramVideo) {
+      return {
+        id: String(exerciseId),
+        title: titleFromRoute || `Exercise ${exerciseId}`,
+        description: descFromRoute,
+        tags: [],
+        videoSignedUrl: paramVideo,
+      };
+    }
+    return null;
+  }, [
+    apiExercise,
+    localExercise,
+    exerciseId,
+    exerciseTitleParam,
+    exerciseDescriptionParam,
+    paramVideoUrl,
+  ]);
 
   const videoUrl =
     apiExercise?.video_url ??
     (typeof paramVideoUrl === "string" && paramVideoUrl.startsWith("http") ? paramVideoUrl : null) ??
-    displayExercise?.videoSignedUrl ??
+    (displayExercise?.videoSignedUrl?.startsWith("http") ? displayExercise.videoSignedUrl : null) ??
     null;
   const videoUi = getVideoUiState(playbackState, videoError, Boolean(videoUrl));
 
@@ -99,21 +190,96 @@ const ExerciseDetail = () => {
     if (videoUrl && playbackState === "idle") setPlaybackState("loading");
   }, [videoUrl, playbackState]);
 
-  const handlePlaybackStatusUpdate = useCallback((status: AVPlaybackStatus) => {
-    if (!status.isLoaded) return;
-    if (status.isBuffering) setPlaybackState("loading");
-    else if (status.error) {
-      setPlaybackState("error");
-      setVideoError(status.error || "Playback error");
-    } else {
-      setPlaybackState("ready");
-      setVideoError(null);
-    }
-  }, []);
+  const progressTotalRaw = parseInt(String(sessionExerciseTotal ?? ""), 10);
+  const progressPositionRaw = parseInt(String(exercisePosition ?? ""), 10);
+  const progressTotal =
+    Number.isFinite(progressTotalRaw) && progressTotalRaw > 0 ? progressTotalRaw : 1;
+  const progressCurrent =
+    Number.isFinite(progressPositionRaw) && progressPositionRaw > 0
+      ? Math.min(progressPositionRaw, progressTotal)
+      : 1;
+  const moduleIdStr = moduleId ?? sessionId;
+  const moduleIdNum = useMemo(() => {
+    const n = moduleIdStr ? parseInt(String(moduleIdStr), 10) : NaN;
+    return Number.isInteger(n) && n > 0 ? n : null;
+  }, [moduleIdStr]);
 
-  const handleVideoError = useCallback((error: string) => {
-    setPlaybackState("error");
-    setVideoError(error);
+  const sessionCompletedFromPlan = sessionCompletedParamRaw === "1";
+
+  const [sequentialAccess, setSequentialAccess] = useState<"checking" | "allowed" | "denied">(() =>
+    sessionCompletedFromPlan || moduleIdNum == null ? "allowed" : "checking"
+  );
+
+  useEffect(() => {
+    sessionCompletionRequestedRef.current = false;
+  }, [exerciseId, moduleIdStr, progressCurrent, progressTotal]);
+
+  useEffect(() => {
+    if (sessionCompletedFromPlan || moduleIdNum == null || !session?.user?.id) {
+      setSequentialAccess("allowed");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+      if (cancelled) return;
+      if (progressCurrent > max + 1) {
+        setSequentialAccess("denied");
+        Alert.alert("Locked", "Complete the previous exercise in this session first.", [
+          { text: "OK", onPress: () => router.back() },
+        ]);
+      } else {
+        setSequentialAccess("allowed");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionCompletedFromPlan, moduleIdNum, session?.user?.id, progressCurrent, router]);
+
+  const completeSessionIfLastRpc = useCallback(async () => {
+    if (sessionCompletionRequestedRef.current) return;
+    if (moduleIdNum == null || !session?.user?.id) return;
+    if (progressCurrent !== progressTotal) return;
+
+    sessionCompletionRequestedRef.current = true;
+    const { error } = await supabase.rpc("complete_user_session", {
+      p_module_id: moduleIdNum,
+    });
+    if (error) {
+      sessionCompletionRequestedRef.current = false;
+      Alert.alert("Could not save progress", error.message);
+      return;
+    }
+    Alert.alert("Session complete", "The next session will unlock after the 7-day countdown.");
+  }, [moduleIdNum, session?.user?.id, progressCurrent, progressTotal]);
+
+  const handleVideoPlayToEnd = useCallback(async () => {
+    if (sessionCompletedFromPlan) {
+      return;
+    }
+    if (!session?.user?.id || moduleIdNum == null) {
+      if (progressCurrent === progressTotal) await completeSessionIfLastRpc();
+      return;
+    }
+    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    if (progressCurrent > max + 1) return;
+    await recordExerciseWatchedToEnd(session.user.id, moduleIdNum, progressCurrent);
+    if (progressCurrent === progressTotal) {
+      await completeSessionIfLastRpc();
+    }
+  }, [
+    sessionCompletedFromPlan,
+    session?.user?.id,
+    moduleIdNum,
+    progressCurrent,
+    progressTotal,
+    completeSessionIfLastRpc,
+  ]);
+
+  const handleVideoPlaybackStatus = useCallback((state: PlaybackState, errorMessage: string | null) => {
+    setPlaybackState(state);
+    setVideoError(errorMessage);
   }, []);
 
   const handleVideoRetry = useCallback(() => {
@@ -131,12 +297,6 @@ const ExerciseDetail = () => {
         .finally(() => setFetchLoading(false));
     }
   }, [tryBackend, exerciseId]);
-
-  const handleVideoPress = useCallback(() => {
-    if (videoRef.current && videoUrl) {
-      videoRef.current.playAsync().catch(() => {});
-    }
-  }, [videoUrl]);
 
   const handleBack = () => {
     if (router.canGoBack()) {
@@ -167,17 +327,28 @@ const ExerciseDetail = () => {
     );
   }
 
+  if (sequentialAccess === "checking") {
+    return (
+      <View style={[styles.center, styles.screen]}>
+        <ActivityIndicator size="large" color={COLORS.teal} />
+        <Text style={styles.loadingText}>Loading…</Text>
+      </View>
+    );
+  }
+
+  if (sequentialAccess === "denied") {
+    return (
+      <View style={[styles.center, styles.screen]}>
+        <Text style={styles.notFound}>This exercise is locked.</Text>
+        <TouchableOpacity onPress={handleBack}>
+          <Text style={styles.link}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const sessionLabel =
     (sessionName as string) || (exerciseId ? `Session ${exerciseId}` : "Session");
-
-  const progressTotalRaw = parseInt(String(sessionExerciseTotal ?? ""), 10);
-  const progressPositionRaw = parseInt(String(exercisePosition ?? ""), 10);
-  const progressTotal =
-    Number.isFinite(progressTotalRaw) && progressTotalRaw > 0 ? progressTotalRaw : 1;
-  const progressCurrent =
-    Number.isFinite(progressPositionRaw) && progressPositionRaw > 0
-      ? Math.min(progressPositionRaw, progressTotal)
-      : 1;
 
   const heroSource =
     (displayExercise as any).thumbnail != null
@@ -218,25 +389,13 @@ const ExerciseDetail = () => {
           </View>
 
           <View style={styles.heroWrapper}>
-            {videoUi.showVideo && !videoUi.showErrorFallback ? (
-              <TouchableOpacity
-                style={StyleSheet.absoluteFill}
-                onPress={handleVideoPress}
-                activeOpacity={1}
-              />
-            ) : null}
             {videoUi.showVideo ? (
               <>
-                <Video
-                  key={videoRetryKey}
-                  ref={videoRef}
-                  source={{ uri: videoUrl! }}
-                  style={styles.heroImage}
-                  useNativeControls
-                  resizeMode="contain"
-                  onPlaybackStatusUpdate={handlePlaybackStatusUpdate}
-                  onError={(e) => handleVideoError((e as { error?: string })?.error ?? "Video failed to load")}
-                  onLoad={() => setPlaybackState("loading")}
+                <ExerciseVideoPlayer
+                  key={`${videoUrl}-${videoRetryKey}`}
+                  uri={videoUrl!}
+                  onPlayToEnd={handleVideoPlayToEnd}
+                  onStatus={handleVideoPlaybackStatus}
                 />
                 {videoUi.showLoadingIndicator && (
                   <View style={styles.videoOverlay} pointerEvents="none">
