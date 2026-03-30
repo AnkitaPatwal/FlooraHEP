@@ -36,7 +36,10 @@ jest.mock("@react-navigation/native", () => {
 });
 
 const mockFrom = jest.fn();
-const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
+const mockRpc = jest.fn(
+  (_fnName?: string, _params?: Record<string, unknown>) =>
+    Promise.resolve({ data: null, error: null })
+);
 const mockGetPublicUrl = jest.fn(() => ({ data: { publicUrl: "https://storage.test/public.mp4" } }));
 
 jest.mock("../../../providers/AuthProvider", () => ({
@@ -45,8 +48,9 @@ jest.mock("../../../providers/AuthProvider", () => ({
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
-    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => mockFrom(table),
+    rpc: (fnName: string, params?: Record<string, unknown>) =>
+      params === undefined ? mockRpc(fnName) : mockRpc(fnName, params),
     storage: {
       from: () => ({ getPublicUrl: mockGetPublicUrl }),
     },
@@ -57,7 +61,7 @@ const mockFetchByModule = jest.fn();
 const mockIsApiConfigured = jest.fn(() => false);
 
 jest.mock("../../../lib/exerciseApi", () => ({
-  fetchExerciseListByModule: (...args: unknown[]) => mockFetchByModule(...args),
+  fetchExerciseListByModule: (moduleId: number) => mockFetchByModule(moduleId),
   isExerciseApiConfigured: () => mockIsApiConfigured(),
 }));
 

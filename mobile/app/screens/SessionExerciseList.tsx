@@ -90,7 +90,10 @@ export default function SessionExerciseList() {
     description: ex.description ?? "",
     tags: [],
     videoSignedUrl: ex.video_url ?? "",
-    thumbnail: ex.thumbnail_url ?? undefined,
+    thumbnail:
+      typeof ex.thumbnail_url === "string" && ex.thumbnail_url.startsWith("http")
+        ? { uri: ex.thumbnail_url }
+        : undefined,
   });
 
   useEffect(() => {
@@ -130,16 +133,24 @@ export default function SessionExerciseList() {
           .order("exercise_id", { ascending: true });
 
         if (!exError && exRows?.length) {
-          const ordered = meRows
-            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
-            .filter(Boolean) as {
+          type ExerciseRow = {
             exercise_id: number;
             title: string;
             description: string | null;
             thumbnail_url: string | null;
             video_url: string | null;
-            video: { bucket: string; object_key: string } | null;
-          }[];
+            video: { bucket: string; object_key: string } | { bucket: string; object_key: string }[] | null;
+          };
+
+          const ordered = meRows
+            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row))
+            .map((row) => {
+              const r = row as ExerciseRow;
+              const v = r.video;
+              const video = Array.isArray(v) ? (v[0] ?? null) : v ?? null;
+              return { ...r, video };
+            });
 
           setApiExercises(
             ordered.map((ex) => {
@@ -245,9 +256,15 @@ export default function SessionExerciseList() {
           </View>
         ) : (
           exercises.map((exercise, index) => {
-            const thumb = (exercise as Exercise & { thumbnail?: string }).thumbnail;
+            const thumb = exercise.thumbnail;
             const exerciseImage =
-              typeof thumb === "string" && thumb.startsWith("http") ? { uri: thumb } : session1Img;
+              thumb != null &&
+              typeof thumb === "object" &&
+              "uri" in thumb &&
+              typeof (thumb as { uri: string }).uri === "string" &&
+              (thumb as { uri: string }).uri.startsWith("http")
+                ? thumb
+                : session1Img;
             const position = index + 1;
             const total = exercises.length;
             const unlocked =
