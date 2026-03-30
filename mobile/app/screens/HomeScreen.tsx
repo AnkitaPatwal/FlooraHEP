@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -7,11 +8,8 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  AppState,
-  type AppStateStatus,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
@@ -359,11 +357,7 @@ const HomeScreen = () => {
       } finally {
         setLoading(false);
       }
-  }, [session?.user?.id, authLoading, session?.user?.email]);
-
-  useEffect(() => {
-    void fetchAssignedSessions();
-  }, [fetchAssignedSessions]);
+  }, [session, authLoading]);
 
   useFocusEffect(
     useCallback(() => {
@@ -371,19 +365,10 @@ const HomeScreen = () => {
     }, [fetchAssignedSessions])
   );
 
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (next: AppStateStatus) => {
-      if (next === "active" && !authLoading && session?.user?.id) {
-        void fetchAssignedSessions();
-      }
-    });
-    return () => sub.remove();
-  }, [authLoading, fetchAssignedSessions, session?.user?.id]);
-
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: moduleId, moduleId, sessionName },
+      params: { sessionId: moduleId, sessionName },
     });
   };
 

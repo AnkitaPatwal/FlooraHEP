@@ -4,15 +4,23 @@ import HomeScreen from "../HomeScreen";
 
 const mockPush = jest.fn();
 
-jest.mock("@react-navigation/native", () => ({
-  useFocusEffect: jest.fn(),
-}));
-
 jest.mock("expo-router", () => ({
   useRouter: () => ({
     push: mockPush,
   }),
 }));
+
+jest.mock("@react-navigation/native", () => {
+  const React = require("react");
+  return {
+    useFocusEffect: (cb: () => void | (() => void)) => {
+      React.useEffect(() => {
+        const cleanup = cb();
+        return typeof cleanup === "function" ? cleanup : undefined;
+      }, []);
+    },
+  };
+});
 
 const mockFrom = jest.fn();
 const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
@@ -219,7 +227,7 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", moduleId: "1", sessionName: "week 1 foundations" },
+      params: { sessionId: "1", sessionName: "week 1 foundations" },
     });
   });
 });
