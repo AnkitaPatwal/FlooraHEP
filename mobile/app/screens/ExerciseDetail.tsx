@@ -29,8 +29,6 @@ import {
 } from "../../lib/sessionExerciseProgress";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
-import { theme } from "../../constants/theme";
-import ScreenBackButton from "../../components/ScreenBackButton";
 import type { Exercise } from "../../types/exercise";
 
 type ExerciseVideoPlayerProps = {
