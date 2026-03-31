@@ -1,5 +1,6 @@
 // floora-web/src/pages/__tests__/AssignPackage.test.tsx
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AssignPackage from "../AssignPackage";
 
@@ -21,43 +22,93 @@ describe("AssignPackage auth", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "fetch",
-      vi.fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [{ id: "user-1", email: "test@example.com" }],
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => [{ plan_id: 1, title: "Starter Plan" }],
-        })
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => [],
+      }),
     );
   });
 
-  it("fetches users and plans with bearer token headers", async () => {
-    render(<AssignPackage />);
+  it("list page fetches users with bearer token", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "user-1",
+          email: "test@example.com",
+          full_name: "Test User",
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MemoryRouter initialEntries={["/assign-package"]}>
+        <Routes>
+          <Route path="/assign-package/*" element={<AssignPackage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
 
     await waitFor(() => {
-      expect(fetch).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(fetch).toHaveBeenNthCalledWith(
-      1,
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/api/assign-package/users"),
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: "Bearer test-token",
         }),
-      })
+      }),
+    );
+  });
+
+  it("list page shows client full name and hides manage subtitle", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "user-1",
+          email: "test@example.com",
+          full_name: "Test User",
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MemoryRouter initialEntries={["/assign-package"]}>
+        <Routes>
+          <Route path="/assign-package/*" element={<AssignPackage />} />
+        </Routes>
+      </MemoryRouter>,
     );
 
-    expect(fetch).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining("/api/assign-package/plans"),
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer test-token",
-        }),
-      })
+    expect(await screen.findByText("Test User")).toBeInTheDocument();
+    expect(screen.queryByText(/select to manage assigned plans/i)).toBeNull();
+  });
+
+  it("list page falls back to email if name missing", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => [
+        {
+          id: "user-1",
+          email: "test@example.com",
+        },
+      ],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <MemoryRouter initialEntries={["/assign-package"]}>
+        <Routes>
+          <Route path="/assign-package/*" element={<AssignPackage />} />
+        </Routes>
+      </MemoryRouter>,
     );
+
+    expect(await screen.findByText("test@example.com")).toBeInTheDocument();
   });
 });

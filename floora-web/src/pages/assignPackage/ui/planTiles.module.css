@@ -1,0 +1,160 @@
+/* Horizontal plan tiles — same shell as session rows (flooraCard) */
+
+.scroller {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 4px 16px;
+  margin: 0 -4px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: rgba(90, 142, 147, 0.4) transparent;
+  scrollbar-width: thin;
+}
+
+.scroller::-webkit-scrollbar {
+  height: 8px;
+}
+
+.scroller::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px;
+}
+
+.scroller::-webkit-scrollbar-thumb {
+  background: rgba(90, 142, 147, 0.38);
+  border-radius: 4px;
+}
+
+/* Matches .flooraCard — session list cards */
+.tile {
+  flex: 0 0 min(220px, 78vw);
+  max-width: 260px;
+  scroll-snap-align: start;
+  border-radius: 18px;
+  padding: 14px 16px;
+  box-sizing: border-box;
+  background: linear-gradient(165deg, #e8f4f7 0%, #dceef2 45%, #d4e8ed 100%);
+  border: 1px solid rgba(90, 142, 147, 0.32);
+  box-shadow: 0 1px 3px rgba(45, 74, 77, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 118px;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+  min-height: 0;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #1a2e32;
+  margin: 0;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.editLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid #5a8e93;
+  background: #fff;
+  color: #5a8e93;
+  font-weight: 600;
+  font-size: 13px;
+  text-decoration: none;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+  transition: background 0.15s ease;
+}
+
+.editLink:hover {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.deleteBtn {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(180, 40, 40, 0.45);
+  background: #fff;
+  color: #b22222;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.deleteBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.subtitle {
+  font-size: 13px;
+  line-height: 1.35;
+  color: #3d5a60;
+  opacity: 0.9;
+  margin: -6px 0 0;
+}
+
+.desc {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2c3e42;
+  opacity: 0.78;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fieldRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.miniLabel {
+  font-size: 12px;
+  color: #2c3e42;
+}
+
+.miniInput {
+  width: 56px;
+  min-height: 32px;
+  margin-top: 4px;
+  padding: 0 6px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 8px;
+  font-size: 14px;
+  box-sizing: border-box;
+  background: #fff;
+}
+
+.tileWide {
+  flex-basis: min(260px, 85vw);
+  max-width: 280px;
+  min-height: 140px;
+}

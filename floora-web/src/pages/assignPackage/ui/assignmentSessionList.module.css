@@ -1,0 +1,138 @@
+/* Vertical ordered session list — assign-package (clinician) */
+
+.sectionIntro {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3d4e52;
+  opacity: 0.92;
+  max-width: 52rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  border-radius: 16px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+  background: linear-gradient(165deg, #e8f4f7 0%, #dceef2 45%, #d4e8ed 100%);
+  border: 1px solid rgba(90, 142, 147, 0.32);
+  box-shadow: 0 1px 3px rgba(45, 74, 77, 0.07);
+}
+
+.stepRail {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 44px;
+}
+
+.stepBadge {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: #1a2e32;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(90, 142, 147, 0.35);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.35;
+  color: #1a2e32;
+  margin: 0;
+  word-break: break-word;
+}
+
+.chipBase {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.chipAvailable {
+  composes: chipBase;
+  background: rgba(46, 125, 50, 0.12);
+  color: #1b5e20;
+  border: 1px solid rgba(46, 125, 50, 0.28);
+}
+
+.chipScheduled {
+  composes: chipBase;
+  background: rgba(25, 118, 210, 0.1);
+  color: #0d47a1;
+  border: 1px solid rgba(25, 118, 210, 0.22);
+}
+
+.chipUnknown {
+  composes: chipBase;
+  background: rgba(0, 0, 0, 0.06);
+  color: #37474f;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.desc {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #2c3e42;
+  opacity: 0.78;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.orderNote {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #5a6a6e;
+  font-style: italic;
+}

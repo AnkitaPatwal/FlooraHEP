@@ -50,7 +50,7 @@ describe("UserApproval", () => {
   });
 
   // Shows the selected pending user name and email
-  it("shows the selected pending user name and email", () => {
+  it("shows the selected pending user name and email", async () => {
     const user: PendingClient = {
       user_id: 42,
       email: "remote-verify@example.com",
@@ -61,11 +61,15 @@ describe("UserApproval", () => {
 
     renderWithRouter("/user-approval", { user });
     // Check that the name and email are displayed
-    expect(screen.getByDisplayValue("Remote Verify")).toBeInTheDocument();
-    expect(screen.getByDisplayValue("remote-verify@example.com")).toBeInTheDocument();
-    expect(screen.getByText("Remote Verify")).toBeInTheDocument(); // subtitle
-    expect(screen.getByRole("button", { name: /approve/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /deny/i })).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Remote Verify")).toBeInTheDocument();
+    expect(
+      await screen.findByDisplayValue("remote-verify@example.com"),
+    ).toBeInTheDocument();
+    expect(await screen.findByText("Remote Verify")).toBeInTheDocument(); // subtitle
+    expect(
+      await screen.findByRole("button", { name: /approve/i }),
+    ).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /deny/i })).toBeInTheDocument();
   });
 
   it("shows initials in avatar when user has fname and lname", () => {
@@ -108,7 +112,9 @@ describe("UserApproval", () => {
     await waitFor(() => {
       expect(mockApproveClient).toHaveBeenCalledWith(1, 10);
     });
-    expect(screen.getByText("Users page")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Users page")).toBeInTheDocument();
+    });
   });
 
   it("calls denyClient and navigates to users when Deny is clicked", async () => {
@@ -127,6 +133,8 @@ describe("UserApproval", () => {
     await waitFor(() => {
       expect(mockDenyClient).toHaveBeenCalledWith(1, 20);
     });
-    expect(screen.getByText("Users page")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Users page")).toBeInTheDocument();
+    });
   });
 });

@@ -1,0 +1,51 @@
+import styles from "./assignContextStrip.module.css";
+
+type AssignContextStripProps = {
+  patientLabel: string | null;
+  patientLoading?: boolean;
+  /** Shown on the plan / sessions list page */
+  planName?: string | null;
+  /** Shown on the session (exercises) page — the session the user opened */
+  sessionName?: string | null;
+};
+
+/**
+ * Compact context: Patient | Plan or Patient | Session (Floora strip).
+ */
+export function AssignContextStrip({
+  patientLabel,
+  patientLoading,
+  planName,
+  sessionName,
+}: AssignContextStripProps) {
+  const patient =
+    patientLoading === true ? "…" : patientLabel?.trim() || "—";
+
+  const showPlan = Boolean(planName?.trim());
+  const showSession = Boolean(sessionName?.trim());
+
+  return (
+    <div
+      className={styles.strip}
+      role="status"
+      aria-label="Current patient and plan or session"
+    >
+      <span className={styles.key}>Patient:</span>{" "}
+      <strong>{patient}</strong>
+      {showPlan && (
+        <>
+          <span className={styles.sep}>|</span>
+          <span className={styles.key}>Plan:</span>{" "}
+          <strong>{planName!.trim()}</strong>
+        </>
+      )}
+      {showSession && (
+        <>
+          <span className={styles.sep}>|</span>
+          <span className={styles.key}>Session:</span>{" "}
+          <strong>{sessionName!.trim()}</strong>
+        </>
+      )}
+    </div>
+  );
+}

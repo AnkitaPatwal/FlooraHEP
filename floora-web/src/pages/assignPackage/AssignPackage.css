@@ -1,0 +1,255 @@
+/* === Assign Package (match main app styling) === */
+
+.assign-package-page {
+  padding-bottom: 48px;
+  box-sizing: border-box;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+.assign-package-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 28px;
+  margin-top: 20px;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.assign-package-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 240px;
+}
+
+.assign-package-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.assign-package-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.assign-package-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 0 0 24px 0;
+}
+
+/* Buttons (match Plan/Session/Users) */
+.assign-package-primary-btn {
+  background-color: #5a8e93;
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  width: fit-content;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.assign-package-primary-btn:hover:not(:disabled) {
+  background-color: #4f7d81;
+}
+
+.assign-package-primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assign-package-danger-btn {
+  background: #fff;
+  color: #b91c1c;
+  border: 1px solid rgba(185, 28, 28, 0.35);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.assign-package-danger-btn:hover:not(:disabled) {
+  background: rgba(185, 28, 28, 0.05);
+}
+
+.assign-package-danger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assign-package-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #5a8e93;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.assign-package-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* Search (match Plan/Session/Users) */
+.assign-package-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 340px;
+  max-width: 100%;
+}
+
+.assign-package-search-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.assign-package-search-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.assign-package-search-input {
+  border: 1px solid #d1d5db;
+  border-radius: 25px;
+  padding: 10px 14px 10px 44px;
+  width: 100%;
+  font-size: 15px;
+  color: #4b5563;
+  background-color: #ffffff;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05),
+    inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.assign-package-search-input::placeholder {
+  color: #9ca3af;
+}
+
+.assign-package-search-input:focus {
+  outline: none;
+  border-color: #bcd1d1;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.2);
+}
+
+.assign-package-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 28px;
+}
+
+.assign-package-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  text-decoration: none;
+  color: inherit;
+}
+
+.assign-package-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.assign-package-card-inner {
+  padding: 16px 18px;
+  width: 100%;
+  box-sizing: border-box;
+  display: grid;
+  gap: 4px;
+}
+
+.assign-package-card-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.assign-package-card-subtitle {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Simple form controls (match overall look) */
+.assign-package-form {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.assign-package-field label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 14px;
+  color: #111;
+  font-weight: 600;
+}
+
+.assign-package-input,
+.assign-package-select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 15px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.assign-package-input:focus,
+.assign-package-select:focus {
+  outline: none;
+  border-color: #bcd1d1;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.18);
+}
+
+.assign-package-hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.assign-package-status {
+  font-size: 14px;
+  margin: 0 0 16px 0;
+}
+
+.assign-package-status.error {
+  color: #b91c1c;
+}
+
+.assign-package-status.success {
+  color: #065f46;
+}
+

@@ -104,7 +104,7 @@ export default function App() {
             }
           />
           <Route
-            path="/assign-package"
+            path="/assign-package/*"
             element={
               <AppLayout>
                 <AssignPackage />
