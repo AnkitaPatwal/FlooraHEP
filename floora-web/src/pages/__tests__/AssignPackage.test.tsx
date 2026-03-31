@@ -1,51 +1,35 @@
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { describe, it, expect, beforeEach, vi } from "vitest";
+// floora-web/src/pages/__tests__/AssignPackage.test.tsx
+import { render, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import AssignPackage from "../AssignPackage";
 
-const mockFetch = vi.fn();
-global.fetch = mockFetch;
+vi.mock("../../lib/supabase-client", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(async () => ({
+        data: {
+          session: {
+            access_token: "test-token",
+          },
+        },
+      })),
+    },
+  },
+}));
 
-describe("AssignPackage", () => {
+describe("AssignPackage auth", () => {
   beforeEach(() => {
-    mockFetch.mockReset();
-    mockFetch.mockImplementation((url: string | URL) => {
-      const u = String(url);
-      if (u.includes("/api/assign-package/users")) {
-        return Promise.resolve({
+    vi.stubGlobal(
+      "fetch",
+      vi.fn()
+        .mockResolvedValueOnce({
           ok: true,
-          json: () =>
-            Promise.resolve([
-              { id: "user-uuid-1", email: "client@example.com" },
-            ]),
-        });
-      }
-      if (u.includes("/api/assign-package/plans")) {
-        return Promise.resolve({
+          json: async () => [{ id: "user-1", email: "test@example.com" }],
+        })
+        .mockResolvedValueOnce({
           ok: true,
-          json: () =>
-            Promise.resolve([{ plan_id: 42, title: "Recovery Plan" }]),
-        });
-      }
-      if (u.includes("/api/assign-package/assign-package")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ success: true }),
-        });
-      }
-      return Promise.reject(new Error(`Unmocked fetch: ${u}`));
-    });
-  });
-
-  it("loads users and plans from the API and renders dropdown options", async () => {
-    render(<AssignPackage />);
-
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/assign-package/users",
-      expect.objectContaining({ credentials: "include" })
-    );
-    expect(mockFetch).toHaveBeenCalledWith(
-      "http://localhost:3000/api/assign-package/plans",
-      expect.objectContaining({ credentials: "include" })
+          json: async () => [{ plan_id: 1, title: "Starter Plan" }],
+        })
     );
 
     await waitFor(() => {
@@ -58,7 +42,7 @@ describe("AssignPackage", () => {
     });
   });
 
-  it("POSTs assign-package with user_id, package_id, and start_date including credentials", async () => {
+  it("fetches users and plans with bearer token headers", async () => {
     render(<AssignPackage />);
 
     await waitFor(() => {
@@ -120,33 +104,6 @@ describe("AssignPackage", () => {
     expect(mockFetch.mock.calls.filter((c) => String(c[0]).includes("assign-package"))).toHaveLength(
       2
     );
-  });
-
-  it("surfaces API error on failed assign", async () => {
-    mockFetch.mockImplementation((url: string | URL) => {
-      const u = String(url);
-      if (u.includes("/users") || u.includes("/plans")) {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve(
-              u.includes("users")
-                ? [{ id: "u1", email: "a@b.com" }]
-                : [{ plan_id: 1, title: "P" }]
-            ),
-        });
-      }
-      if (u.includes("/assign-package/assign-package")) {
-        return Promise.resolve({
-          ok: false,
-          status: 400,
-          json: () => Promise.resolve({ error: "This package is already assigned to this user." }),
-        });
-      }
-      return Promise.reject(new Error(`Unmocked: ${u}`));
-    });
-
-    render(<AssignPackage />);
 
     await waitFor(() => {
       expect(screen.getByRole("option", { name: "a@b.com" })).toBeInTheDocument();

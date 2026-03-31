@@ -58,10 +58,13 @@ export default function AssignPackage() {
         setLoadError(null);
         setLoadingLists(true);
 
+        const headers = await authHeaders();
+
         const [usersRes, plansRes] = await Promise.all([
-          fetchWithAdminCookie(`${API_BASE}/api/assign-package/users`),
-          fetchWithAdminCookie(`${API_BASE}/api/assign-package/plans`),
+          fetch(`${API_BASE}/api/assign-package/users`, { headers }),
+          fetch(`${API_BASE}/api/assign-package/plans`, { headers }),
         ]);
+
         const usersData = await usersRes.json();
         const plansData = await plansRes.json();
 
@@ -111,13 +114,12 @@ export default function AssignPackage() {
     try {
       setLoading(true);
 
-      const res = await fetchWithAdminCookie(
+      const headers = await authHeaders();
+      const res = await fetch(
         `${API_BASE}/api/assign-package/assign-package`,
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify({
             user_id: userId,
             package_id: Number(planId),

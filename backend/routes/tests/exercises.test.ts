@@ -1,32 +1,16 @@
-// Set environment variables FIRST (before any imports)
+import express from "express";
+import request from "supertest";
+import exercisesRouter from "../exercises";
+import { supabaseServer } from "../../lib/supabaseServer";
+import { createSignedUrl } from "../../lib/signedUrl";
+
 process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
 process.env.LOCAL_SUPABASE_URL = "http://localhost:54321";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
 process.env.LOCAL_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
-process.env.ADMIN_JWT_SECRET = "test-jwt-secret-key-for-testing";
 
 let app: any;
 
-// Mock auth middleware
-jest.mock("../../middleware/requireAdminJwt", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-  return {
-    __esModule: true,
-    requireAdminJwt: passThrough,
-    default: passThrough,
-  };
-});
-
-jest.mock("../../lib/adminGuard", () => {
-  const passThrough = (_req: any, _res: any, next: any) => next();
-  return {
-    __esModule: true,
-    requireAdmin: passThrough,
-    default: passThrough,
-  };
-});
-
-// Mock supabaseServer
 jest.mock("../../lib/supabaseServer", () => ({
   supabaseServer: {
     from: jest.fn(),
@@ -36,18 +20,14 @@ jest.mock("../../lib/supabaseServer", () => ({
   },
 }));
 
-
-// Mock signedUrl
 jest.mock("../../lib/signedUrl", () => ({
   createSignedUrl: jest.fn(),
 }));
 
-import request from "supertest";
-import { supabaseServer } from "../../lib/supabaseServer";
-import { createSignedUrl } from "../../lib/signedUrl";
-
-beforeAll(() => {
-  app = require("../../server").default;
+beforeEach(() => {
+  app = express();
+  app.use(express.json());
+  app.use("/api/exercises", exercisesRouter);
 });
 
 afterEach(() => {
@@ -70,6 +50,7 @@ describe("GET /api/exercises", () => {
     ];
 
     const mockChain = {
+      or: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       range: jest.fn().mockResolvedValue({
         data: mockExercises,
@@ -82,7 +63,9 @@ describe("GET /api/exercises", () => {
       select: jest.fn().mockReturnValue(mockChain),
     });
 
-    (createSignedUrl as jest.Mock).mockResolvedValue("https://signed-url.com/video.mp4");
+    (createSignedUrl as jest.Mock).mockResolvedValue(
+      "https://signed-url.com/video.mp4"
+    );
 
     const res = await request(app).get("/api/exercises");
 
@@ -124,6 +107,7 @@ describe("GET /api/exercises", () => {
 
   it("returns 500 on database error", async () => {
     const mockChain = {
+      or: jest.fn().mockReturnThis(),
       order: jest.fn().mockReturnThis(),
       range: jest.fn().mockResolvedValue({
         data: null,
@@ -164,7 +148,9 @@ describe("GET /api/exercises/:id", () => {
       }),
     });
 
-    (createSignedUrl as jest.Mock).mockResolvedValue("https://signed-url.com/video.mp4");
+    (createSignedUrl as jest.Mock).mockResolvedValue(
+      "https://signed-url.com/video.mp4"
+    );
 
     const res = await request(app).get("/api/exercises/1");
 
@@ -198,4 +184,3 @@ describe("GET /api/exercises/:id", () => {
     expect(res.body).toEqual({ message: "Exercise not found" });
   });
 });
-

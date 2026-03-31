@@ -5,7 +5,6 @@ import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
-import { requireAdminCookie } from '../middleware/requireAdminCookie';
 import { requireAdmin, requireSuperAdmin } from './adminAuth';
 
 const SUPABASE_URL =
@@ -33,112 +32,6 @@ const supabaseAdmin = createClient(
 
 const router = express.Router();
 
-function requireSuperAdmin(req: express.Request, res: express.Response, next: express.NextFunction) {
-  const admin = (req as any).admin;
-  if (!admin) {
-    return res.status(401).json({ ok: false, error: "Missing admin context" });
-  }
-
-  if (admin.role !== "super_admin") {
-    return res.status(403).json({ ok: false, error: "Super admin required" });
-  }
-
-  next();
-}
-
-/**
- * PUBLIC ROUTE
- * Accept invite and create admin account (no cookie required)
- */
-router.post("/accept-invite", async (req, res) => {
-  try {
-    const { token, password } = req.body as {
-      token?: string;
-      password?: string;
-    };
-
-    if (!token) {
-      return res.status(400).json({ ok: false, error: "Missing invite token" });
-    }
-
-    if (!password || password.length < 8) {
-      return res.status(400).json({
-        ok: false,
-        error: "Password must be at least 8 characters",
-      });
-    }
-
-    // Verify invite token
-    let decoded: any;
-    try {
-      decoded = jwt.verify(token, ADMIN_JWT_SECRET!);
-    } catch (err) {
-      return res.status(401).json({
-        ok: false,
-        error: "Invalid or expired invite link",
-      });
-    }
-
-    if (decoded.type !== "admin_invite" || !decoded.email) {
-      return res.status(401).json({
-        ok: false,
-        error: "Invalid invite token",
-      });
-    }
-
-    const email = String(decoded.email).toLowerCase().trim();
-
-    // Check if admin already exists
-    const { data: existingAdmin, error: existingError } = await supabaseAdmin
-      .from("admin_users")
-      .select("email")
-      .eq("email", email)
-      .maybeSingle();
-
-    if (existingError) {
-      console.error("Supabase lookup error:", existingError);
-      return res.status(500).json({ ok: false, error: "Database error" });
-    }
-
-    if (existingAdmin) {
-      return res.status(409).json({
-        ok: false,
-        error: "Admin account already exists. Please log in.",
-      });
-    }
-
-    // Hash password and create admin user
-    const password_hash = await bcrypt.hash(password, 12);
-
-    const { error: insertError } = await supabaseAdmin
-      .from("admin_users")
-      .insert({
-        email,
-        role: "admin",
-        is_active: true,
-        password_hash,
-      });
-
-    if (insertError) {
-      console.error("Supabase insert error:", insertError);
-      return res.status(500).json({
-        ok: false,
-        error: "Failed to create admin account",
-      });
-    }
-
-    return res.status(200).json({ ok: true });
-  } catch (err) {
-    console.error("Accept invite error:", err);
-    return res.status(500).json({
-      ok: false,
-      error: "Something went wrong",
-    });
-  }
-});
-
-// PROTECTED ROUTES (everything below requires admin_token cookie)
-router.use(requireAdminCookie);
 // ALL ROUTES BELOW REQUIRE VALID SUPABASE SESSION TOKEN
 router.use(requireAdmin);
 
@@ -491,7 +384,46 @@ router.get('/clients/:userId/modules', async (req, res) => {
 });
 
 /**
- * List all plan categories (admin-only)
+ * ATH-413: Create a new module (admin-only)
+
+ * Fetch all modules/plans with exercises (admin-only)
+ */
+router.get('/modules', async (req, res) => {
+  try {
+    const modules = await getAllModulesWithExercises(supabaseServer)
+    return res.status(200).json(modules)
+  } catch (error) {
+    console.error('Failed to fetch modules:', error)
+    return res.status(500).json({ error: 'Failed to fetch modules' })
+  }
+});
+
+/**
+ * Save exercises for a module (admin-only). Replaces existing module_exercise rows.
+ * Body: { exercise_ids: number[] }
+ */
+router.put('/modules/:moduleId/exercises', async (req, res) => {
+  try {
+    const moduleId = parseInt(req.params.moduleId, 10);
+    if (!Number.isInteger(moduleId) || moduleId < 1) {
+      return res.status(400).json({ error: 'Invalid module id' });
+    }
+    const { exercise_ids } = req.body ?? {};
+    if (!Array.isArray(exercise_ids)) {
+      return res.status(400).json({ error: 'exercise_ids must be an array' });
+    }
+    await saveModuleExercises(supabaseAdmin, moduleId, exercise_ids);
+    return res.status(200).json({ message: 'Exercises saved', module_id: moduleId });
+  } catch (error) {
+    console.error('Failed to save module exercises:', error);
+    return res.status(500).json({
+      error: (error instanceof Error ? error.message : 'Failed to save module exercises'),
+    });
+  }
+});
+
+/**
+ * List all plan categories (admin-only). No seed data; admins create names.
  */
 router.get('/categories', async (req, res) => {
   try {

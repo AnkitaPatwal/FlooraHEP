@@ -5,7 +5,7 @@ import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
 
-const API_BASE = "http://localhost:3000";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 async function authHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();

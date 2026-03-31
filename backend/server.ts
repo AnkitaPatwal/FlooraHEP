@@ -24,6 +24,8 @@ app.use(
         origin === "http://localhost:5173" ||
         origin === "http://localhost:5174" ||
         origin === "http://localhost:8081" ||
+        origin === "https://floorahep-production-fec5.up.railway.app" ||  // ← frontend
+        origin === "https://floorahep-production.up.railway.app" || // ← backend
         /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/.test(origin);
       cb(null, allowed);
     },
