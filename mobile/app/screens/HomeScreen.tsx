@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import React, { useCallback, useState } from "react";
 import {
   View,
   Text,
@@ -167,8 +168,7 @@ const HomeScreen = () => {
   const [hasAssignedPlan, setHasAssignedPlan] = useState(false);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
 
-  useEffect(() => {
-    const fetchAssignedSessions = async () => {
+  const fetchAssignedSessions = useCallback(async () => {
       try {
         setLoading(true);
         setError("");
@@ -357,10 +357,13 @@ const HomeScreen = () => {
       } finally {
         setLoading(false);
       }
-    };
+  }, [session, authLoading]);
 
-    fetchAssignedSessions();
-  }, [session?.user?.id, authLoading]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchAssignedSessions();
+    }, [fetchAssignedSessions])
+  );
 
   const goToSession = (moduleId: string, sessionName: string) => {
     router.push({
