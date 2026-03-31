@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { InlineMaterialDatePicker } from "../components/InlineMaterialDatePicker";
+import { supabase } from "../lib/supabase-client";
 
 type User = {
   id: string;
@@ -21,16 +22,15 @@ function todayLocalIsoDate(): string {
   return `${y}-${m}-${day}`;
 }
 
-const fetchWithAdminCookie = (url: string, init?: RequestInit) =>
-  fetch(url, {
-    ...init,
-    credentials: "include",
-    headers: {
-      ...(init?.headers instanceof Headers
-        ? Object.fromEntries(init.headers.entries())
-        : (init?.headers as Record<string, string> | undefined) ?? {}),
-    },
-  });
+async function authHeaders(): Promise<HeadersInit> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  return {
+    "Content-Type": "application/json",
+    ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+  };
+}
 
 type AssignFeedback = { kind: "success" | "error"; text: string };
 
