@@ -1,3 +1,4 @@
+// app/screens/RoadMap.tsx
 import React from "react";
 import {
   ScrollView,
@@ -6,16 +7,79 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { FontAwesome } from "@expo/vector-icons";
 import colors from "../../constants/colors";
+import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
 
-// use any image you like
 import session1Img from "../../assets/images/prev-1.jpg";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function formatStartDate(raw: string | null): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
+// ── Session Card ──────────────────────────────────────────────────────────────
+
+type SessionCardProps = {
+  session: RoadmapSession;
+  index: number;
+  planName: string;
+  onPress: () => void;
+};
+
+function SessionCard({ session, index, onPress }: SessionCardProps) {
+  const label = session.title || `Session ${index + 1}`;
+  const locked = !session.isUnlocked;
+
+  return (
+    <Pressable
+      style={{ minHeight: 44 }}
+      onPress={locked ? undefined : onPress}
+      accessible
+      accessibilityLabel={locked ? `${label}, locked` : label}
+      accessibilityState={{ disabled: locked }}
+    >
+      <View style={styles.card}>
+        <Image
+          source={session1Img}
+          style={[styles.cardImage, locked && styles.cardImageLocked]}
+          resizeMode="cover"
+        />
+        {locked && (
+          <View style={styles.lockOverlay}>
+            <FontAwesome name="lock" size={36} color="#FFFFFF" />
+          </View>
+        )}
+        {session.isCompleted && !locked && (
+          <View style={styles.completedBadge}>
+            <Text style={styles.completedBadgeText}>✓ Done</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.caption, locked && styles.captionLocked]}>
+        <Text style={[styles.captionStrong, locked && styles.captionLocked]}>
+          {label}
+        </Text>
+        {locked ? <Text> | Locked</Text> : null}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function RoadMap() {
   const router = useRouter();
+  const { data, loading, error } = useRoadmap();
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -33,61 +97,92 @@ export default function RoadMap() {
         <View style={{ width: 18 }} />
       </View>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Plan heading */}
-        <Text style={styles.planTitle}>Leakage Plan</Text>
-        <Text style={styles.planSub}>Started 10/2/2025</Text>
+      {/* Loading */}
+      {loading && (
+        <View style={styles.stateContainer}>
+          <ActivityIndicator size="large" color="#0F9AA8" />
+          <Text style={styles.stateText}>Loading your roadmap…</Text>
+        </View>
+      )}
 
-        {/* Accent line */}
-        <View style={styles.accentLine} />
+      {/* Error */}
+      {!loading && error ? (
+        <View style={styles.stateContainer}>
+          <Text style={styles.stateText}>{error}</Text>
+        </View>
+      ) : null}
 
-        {/* Section */}
-        <Text style={styles.sectionTitle}>Restore</Text>
-        <Text style={styles.sectionSub}>Sessions 1-4</Text>
-
-        {/* Session 1 card -> session exercise list */}
-        <Pressable
-          style={{ minHeight: 44 }}
-          onPress={() =>
-            router.push({
-              pathname: "/screens/SessionExerciseList",
-              params: {
-                sessionId: "1",
-                sessionName: "Session 1",
-                planName: "Leakage",
-                subtitle: "Restore",
-              },
-            })
-          }
+      {/* Content */}
+      {!loading && !error && data && (
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          showsVerticalScrollIndicator={false}
         >
-          <View style={styles.card}>
-            <Image
-              source={session1Img}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          </View>
-          <Text style={styles.caption}>
-            <Text style={styles.captionStrong}>Session 1</Text>
-            <Text> | 3 Exercises</Text>
-          </Text>
-        </Pressable>
+          {/* Plan heading */}
+          <Text style={styles.planTitle}>{data.planName}</Text>
+          {data.startDate && (
+            <Text style={styles.planSub}>{formatStartDate(data.startDate)}</Text>
+          )}
 
-        {/* Duplicate this Pressable for Session 2, 3, etc with different params */}
-      </ScrollView>
+          {/* Accent line */}
+          <View style={styles.accentLine} />
+
+          {/* Sessions */}
+          {data.sessions.length === 0 ? (
+            <Text style={styles.emptyText}>No sessions assigned yet.</Text>
+          ) : (
+            data.sessions.map((session, index) => (
+              <SessionCard
+                key={session.module_id}
+                session={session}
+                index={index}
+                planName={data.planName}
+                onPress={() =>
+                  router.push({
+                    pathname: "/screens/SessionExerciseList",
+                    params: {
+                      sessionId: String(session.module_id),
+                      sessionName: session.title || `Session ${index + 1}`,
+                      planName: data.planName,
+                      subtitle: "Restore",
+                    },
+                  })
+                }
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
+
+// ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 16,
     backgroundColor: "#FFFFFF",
+  },
+  stateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+    backgroundColor: "#FFFFFF",
+  },
+  stateText: {
+    fontSize: 16,
+    color: "#374151",
+    textAlign: "center",
+    marginTop: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 8,
   },
 
   // Header
@@ -124,29 +219,16 @@ const styles = StyleSheet.create({
   },
   planSub: {
     fontSize: 16,
-    color: colors.brand, // teal subtext
+    color: colors.brand,
     marginBottom: 12,
   },
-
   accentLine: {
     width: 150,
     height: 6,
     borderRadius: 4,
-    backgroundColor: colors.accent, // soft teal line
+    backgroundColor: colors.accent,
     marginTop: 6,
     marginBottom: 22,
-  },
-
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    marginBottom: 4,
-  },
-  sectionSub: {
-    fontSize: 16,
-    color: colors.brand,
-    marginBottom: 12,
   },
 
   // Card
@@ -159,12 +241,42 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+    position: "relative",
   },
   cardImage: {
     width: "100%",
     aspectRatio: 16 / 9,
   },
+  cardImageLocked: {
+    opacity: 0.35,
+  },
+  lockOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 14,
+  },
+  completedBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: colors.brand,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  completedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 
+  // Caption
   caption: {
     fontSize: 20,
     color: "#374151",
@@ -174,5 +286,8 @@ const styles = StyleSheet.create({
   captionStrong: {
     fontWeight: "800",
     color: "#1F2937",
+  },
+  captionLocked: {
+    color: "#9CA3AF",
   },
 });

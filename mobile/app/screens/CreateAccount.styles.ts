@@ -19,6 +19,15 @@ export default StyleSheet.create({
     marginBottom: 28,
   },
 
+  backButtonCircle: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  header: {
+    marginBottom: 8,
+  },
+
   title: {
     fontSize: 26,
     fontWeight: "700",
