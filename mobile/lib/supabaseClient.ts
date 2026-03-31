@@ -16,6 +16,7 @@ const storage =
 
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
+const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!;
 
 /** Tunnel/LTE can leave PostgREST requests open forever; cap wait so UI can recover. */
 const SUPABASE_FETCH_TIMEOUT_MS = 22_000;

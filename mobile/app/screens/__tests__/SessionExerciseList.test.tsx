@@ -1,6 +1,6 @@
 import React from "react";
 import { render, waitFor, fireEvent } from "@testing-library/react-native";
-import { Alert } from "react-native";
+import { getMaxCompletedExercisePosition } from "../../../lib/sessionExerciseProgress";
 import SessionExerciseList from "../SessionExerciseList";
 
 const mockPush = jest.fn();
@@ -23,8 +23,23 @@ jest.mock("expo-router", () => ({
   Stack: { Screen: () => null },
 }));
 
+jest.mock("@react-navigation/native", () => {
+  const React = require("react");
+  return {
+    useFocusEffect: (cb: () => void | (() => void)) => {
+      React.useEffect(() => {
+        const cleanup = cb();
+        return typeof cleanup === "function" ? cleanup : undefined;
+      }, []);
+    },
+  };
+});
+
 const mockFrom = jest.fn();
-const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
+const mockRpc = jest.fn(
+  (_fnName?: string, _params?: Record<string, unknown>) =>
+    Promise.resolve({ data: null, error: null })
+);
 const mockGetPublicUrl = jest.fn(() => ({ data: { publicUrl: "https://storage.test/public.mp4" } }));
 
 jest.mock("../../../providers/AuthProvider", () => ({
@@ -33,8 +48,9 @@ jest.mock("../../../providers/AuthProvider", () => ({
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
-    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => mockFrom(table),
+    rpc: (fnName: string, params?: Record<string, unknown>) =>
+      params === undefined ? mockRpc(fnName) : mockRpc(fnName, params),
     storage: {
       from: () => ({ getPublicUrl: mockGetPublicUrl }),
     },
@@ -45,8 +61,14 @@ const mockFetchByModule = jest.fn();
 const mockIsApiConfigured = jest.fn(() => false);
 
 jest.mock("../../../lib/exerciseApi", () => ({
-  fetchExerciseListByModule: (...args: unknown[]) => mockFetchByModule(...args),
+  fetchExerciseListByModule: (moduleId: number) => mockFetchByModule(moduleId),
   isExerciseApiConfigured: () => mockIsApiConfigured(),
+}));
+
+jest.mock("../../../lib/sessionExerciseProgress", () => ({
+  getMaxCompletedExercisePosition: jest.fn(),
+  isExercisePositionUnlocked: (max: number, pos: number) => pos <= max + 1,
+  recordExerciseWatchedToEnd: jest.fn(() => Promise.resolve()),
 }));
 
 function makeModuleExerciseChain(rows: Array<{ exercise_id: number; order_index: number }>) {
@@ -83,6 +105,7 @@ function makeExerciseInChain(
 describe("SessionExerciseList (ATH-428)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.mocked(getMaxCompletedExercisePosition).mockResolvedValue(0);
     mockRpc.mockResolvedValue({ data: null, error: null });
     mockIsApiConfigured.mockReturnValue(false);
     mockFetchByModule.mockResolvedValue([]);
@@ -236,17 +259,22 @@ describe("SessionExerciseList (ATH-428)", () => {
       pathname: "/screens/ExerciseDetail",
       params: {
         id: "10",
+        moduleId: "1",
         sessionId: "1",
         sessionName: "Test Module",
         planName: "Leakage",
         exercisePosition: "1",
         sessionExerciseTotal: "2",
+        exerciseTitle: "First",
+        exerciseDescription: "",
+        sessionCompleted: "0",
         videoUrl: "https://v.example/a.mp4",
       },
     });
   });
 
   it("second exercise gets position 2 of total", async () => {
+    jest.mocked(getMaxCompletedExercisePosition).mockResolvedValue(1);
     mockIsApiConfigured.mockReturnValue(true);
     mockFetchByModule.mockResolvedValue([
       { exercise_id: 1, title: "A", description: "", video_url: null },
@@ -277,20 +305,4 @@ describe("SessionExerciseList (ATH-428)", () => {
     );
   });
 
-  it("calls complete_user_session when Mark session complete is pressed", async () => {
-    const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
-
-    const { getByText } = render(<SessionExerciseList />);
-    await waitFor(() => {
-      expect(getByText("Squats")).toBeTruthy();
-    });
-
-    fireEvent.press(getByText("Mark session complete"));
-
-    await waitFor(() => {
-      expect(mockRpc).toHaveBeenCalledWith("complete_user_session", { p_module_id: 1 });
-    });
-    expect(alertSpy).toHaveBeenCalled();
-    alertSpy.mockRestore();
-  });
 });

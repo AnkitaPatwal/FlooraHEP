@@ -10,20 +10,42 @@ jest.mock("expo-router", () => ({
   }),
 }));
 
+jest.mock("@react-navigation/native", () => {
+  const React = require("react");
+  return {
+    useFocusEffect: (cb: () => void | (() => void)) => {
+      React.useEffect(() => {
+        const cleanup = cb();
+        return typeof cleanup === "function" ? cleanup : undefined;
+      }, []);
+    },
+  };
+});
+
 const mockFrom = jest.fn();
-const mockRpc = jest.fn(() => Promise.resolve({ data: null, error: null }));
+const mockRpc = jest.fn(
+  (_fnName?: string, _params?: Record<string, unknown>) =>
+    Promise.resolve({ data: null, error: null })
+);
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
-    from: (...args: unknown[]) => mockFrom(...args),
-    rpc: (...args: unknown[]) => mockRpc(...args),
+    from: (table: string) => mockFrom(table),
+    rpc: (fnName: string, params?: Record<string, unknown>) =>
+      params === undefined ? mockRpc(fnName) : mockRpc(fnName, params),
   },
 }));
 
 const mockSession = {
   user: { id: "auth-uuid-123", email: "keshwa@example.com" },
 };
-const mockUseAuth = jest.fn(() => ({ session: mockSession, loading: false }));
+
+type MockAuthReturn = {
+  session: typeof mockSession | null;
+  loading: boolean;
+};
+
+const mockUseAuth = jest.fn((): MockAuthReturn => ({ session: mockSession, loading: false }));
 jest.mock("../../../providers/AuthProvider", () => ({
   useAuth: () => mockUseAuth(),
 }));

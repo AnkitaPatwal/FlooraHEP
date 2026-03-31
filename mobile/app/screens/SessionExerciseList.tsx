@@ -2,6 +2,9 @@
  * Session (Exercise List) — ATH-428
  * Lists exercises for a plan module (session) via module_exercise + exercise.
  * Dashboard and Roadmap navigate here with sessionId + sessionName.
+ *
+ * Plan session *sequence* is defined in Postgres: `plan_module.order_index` per plan.
+ * Unlock/completion (first session, then N+1 after 7 days) uses that order in RPC/triggers.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -15,10 +18,15 @@ import {
   Alert,
 } from "react-native";
 import ScreenBackButton from "../../components/ScreenBackButton";
+import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Exercise } from "../../types/exercise";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
 import { supabase } from "../../lib/supabaseClient";
+import {
+  getMaxCompletedExercisePosition,
+  isExercisePositionUnlocked,
+} from "../../lib/sessionExerciseProgress";
 import { useAuth } from "../../providers/AuthProvider";
 import session1Img from "../../assets/images/prev-1.jpg";
 import { theme } from "../../constants/theme";
@@ -40,7 +48,7 @@ export default function SessionExerciseList() {
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
   const [sessionCompleted, setSessionCompleted] = useState(false);
-  const [completeLoading, setCompleteLoading] = useState(false);
+  const [maxCompletedExercisePosition, setMaxCompletedExercisePosition] = useState(0);
 
   const moduleIdNum = useMemo(() => {
     const n = sessionId ? parseInt(String(sessionId), 10) : NaN;
@@ -58,27 +66,21 @@ export default function SessionExerciseList() {
     setSessionCompleted(!!data);
   }, [session?.user?.id, moduleIdNum]);
 
-  useEffect(() => {
-    refreshCompletion();
-  }, [refreshCompletion]);
-
-  const handleCompleteSession = async () => {
-    if (moduleIdNum == null || completeLoading || sessionCompleted) return;
-    setCompleteLoading(true);
-    try {
-      const { error } = await supabase.rpc("complete_user_session", {
-        p_module_id: moduleIdNum,
-      });
-      if (error) {
-        Alert.alert("Could not complete", error.message);
-        return;
-      }
-      setSessionCompleted(true);
-      Alert.alert("Session complete", "The next session will unlock after the 7-day countdown.");
-    } finally {
-      setCompleteLoading(false);
+  const loadExerciseProgress = useCallback(async () => {
+    if (!session?.user?.id || moduleIdNum == null) {
+      setMaxCompletedExercisePosition(0);
+      return;
     }
-  };
+    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    setMaxCompletedExercisePosition(max);
+  }, [session?.user?.id, moduleIdNum]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshCompletion();
+      void loadExerciseProgress();
+    }, [refreshCompletion, loadExerciseProgress])
+  );
 
   const mapToExercise = (ex: {
     exercise_id: number;
@@ -92,7 +94,10 @@ export default function SessionExerciseList() {
     description: ex.description ?? "",
     tags: [],
     videoSignedUrl: ex.video_url ?? "",
-    thumbnail: ex.thumbnail_url ?? undefined,
+    thumbnail:
+      typeof ex.thumbnail_url === "string" && ex.thumbnail_url.startsWith("http")
+        ? { uri: ex.thumbnail_url }
+        : undefined,
   });
 
   useEffect(() => {
@@ -132,16 +137,24 @@ export default function SessionExerciseList() {
           .order("exercise_id", { ascending: true });
 
         if (!exError && exRows?.length) {
-          const ordered = meRows
-            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
-            .filter(Boolean) as {
+          type ExerciseRow = {
             exercise_id: number;
             title: string;
             description: string | null;
             thumbnail_url: string | null;
             video_url: string | null;
-            video: { bucket: string; object_key: string } | null;
-          }[];
+            video: { bucket: string; object_key: string } | { bucket: string; object_key: string }[] | null;
+          };
+
+          const ordered = meRows
+            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row))
+            .map((row) => {
+              const r = row as ExerciseRow;
+              const v = r.video;
+              const video = Array.isArray(v) ? (v[0] ?? null) : v ?? null;
+              return { ...r, video };
+            });
 
           setApiExercises(
             ordered.map((ex) => {
@@ -169,20 +182,37 @@ export default function SessionExerciseList() {
 
   const headerTitle = sessionName || "Session";
 
-  const handleExercisePress = (exercise: Exercise, positionInSession: number, sessionTotal: number) => {
+  const openExerciseDetail = (exercise: Exercise, positionInSession: number, sessionTotal: number) => {
     const videoUrl = (exercise as { videoSignedUrl?: string }).videoSignedUrl;
+    const moduleIdParam = String(sessionId ?? "");
     router.push({
       pathname: "/screens/ExerciseDetail",
       params: {
         id: String(exercise.id),
-        sessionId: String(sessionId ?? ""),
+        moduleId: moduleIdParam,
+        sessionId: moduleIdParam,
         sessionName: headerTitle,
         planName: planName ?? "",
         exercisePosition: String(positionInSession),
         sessionExerciseTotal: String(sessionTotal),
+        exerciseTitle: exercise.title || "Exercise",
+        exerciseDescription: exercise.description ?? "",
+        sessionCompleted: sessionCompleted ? "1" : "0",
         ...(videoUrl ? { videoUrl } : {}),
       },
     });
+  };
+
+  const onExercisePress = (exercise: Exercise, positionInSession: number, sessionTotal: number) => {
+    if (sessionCompleted) {
+      openExerciseDetail(exercise, positionInSession, sessionTotal);
+      return;
+    }
+    if (!isExercisePositionUnlocked(maxCompletedExercisePosition, positionInSession)) {
+      Alert.alert("Locked", "Watch the previous exercise in this session first.");
+      return;
+    }
+    openExerciseDetail(exercise, positionInSession, sessionTotal);
   };
 
   const moduleIdValid = sessionId && Number.isInteger(parseInt(String(sessionId), 10)) && parseInt(String(sessionId), 10) > 0;
@@ -203,24 +233,9 @@ export default function SessionExerciseList() {
           <Text style={styles.sessionLabel}>{headerTitle}</Text>
           <Text style={styles.subtitle}>{subtitle || "Restore"}</Text>
           <View style={styles.accentLine} />
-          {moduleIdValid && !apiLoading && exercises.length > 0 ? (
+          {moduleIdValid && !apiLoading && exercises.length > 0 && sessionCompleted ? (
             <View style={styles.completeWrap}>
-              {sessionCompleted ? (
-                <Text style={styles.completedBanner}>Session completed</Text>
-              ) : (
-                <TouchableOpacity
-                  style={[styles.completeButton, completeLoading && styles.completeButtonDisabled]}
-                  onPress={handleCompleteSession}
-                  disabled={completeLoading}
-                  activeOpacity={0.85}
-                >
-                  {completeLoading ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.completeButtonText}>Mark session complete</Text>
-                  )}
-                </TouchableOpacity>
-              )}
+              <Text style={styles.completedBanner}>Session completed</Text>
             </View>
           ) : null}
         </View>
@@ -242,22 +257,35 @@ export default function SessionExerciseList() {
           </View>
         ) : (
           exercises.map((exercise, index) => {
-            const thumb = (exercise as Exercise & { thumbnail?: string }).thumbnail;
+            const thumb = exercise.thumbnail;
             const exerciseImage =
-              typeof thumb === "string" && thumb.startsWith("http") ? { uri: thumb } : session1Img;
+              thumb != null &&
+              typeof thumb === "object" &&
+              "uri" in thumb &&
+              typeof (thumb as { uri: string }).uri === "string" &&
+              (thumb as { uri: string }).uri.startsWith("http")
+                ? thumb
+                : session1Img;
             const position = index + 1;
             const total = exercises.length;
+            const unlocked =
+              sessionCompleted || isExercisePositionUnlocked(maxCompletedExercisePosition, position);
             return (
               <TouchableOpacity
                 key={exercise.id}
                 activeOpacity={0.9}
-                style={styles.card}
-                onPress={() => handleExercisePress(exercise, position, total)}
+                style={[styles.card, !unlocked && styles.cardLocked]}
+                onPress={() => onExercisePress(exercise, position, total)}
               >
                 <View style={styles.imageWrapper}>
                   <Image source={exerciseImage} style={styles.image} resizeMode="cover" />
-                  <View style={styles.playCircle}>
-                    <Text style={styles.playIcon}>▶</Text>
+                  {!unlocked ? (
+                    <View style={styles.lockOverlay}>
+                      <Text style={styles.lockOverlayText}>Locked</Text>
+                    </View>
+                  ) : null}
+                  <View style={[styles.playCircle, !unlocked && styles.playCircleLocked]}>
+                    <Text style={styles.playIcon}>{unlocked ? "▶" : ""}</Text>
                   </View>
                 </View>
                 <View style={styles.textBlock}>
@@ -338,7 +366,20 @@ const styles = StyleSheet.create({
     ...theme.shadow.exerciseCard,
     overflow: "hidden",
   },
+  cardLocked: { opacity: 0.7 },
   imageWrapper: { position: "relative" },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  lockOverlayText: {
+    fontFamily: fonts.bold,
+    fontSize: 16,
+    lineHeight: 20,
+    color: theme.color.overlayText,
+  },
   image: { width: "100%", aspectRatio: 16 / 9 },
   playCircle: {
     position: "absolute",
@@ -352,6 +393,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  playCircleLocked: { opacity: 0.5 },
   playIcon: { fontFamily: fonts.regular, fontSize: 22, color: theme.color.heading },
   textBlock: {
     paddingHorizontal: theme.space.screenHorizontal,

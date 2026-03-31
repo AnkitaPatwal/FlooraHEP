@@ -13,6 +13,13 @@ export default StyleSheet.create({
   backButtonContainer: {
     marginBottom: 28,
   },
+  backButtonCircle: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  header: {
+    marginBottom: 8,
+  },
   title: {
     fontFamily: fonts.bold,
     fontSize: 26,
