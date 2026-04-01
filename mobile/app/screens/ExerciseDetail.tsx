@@ -80,6 +80,8 @@ const ExerciseDetail = () => {
     exerciseTitle: exerciseTitleParam,
     exerciseDescription: exerciseDescriptionParam,
     sessionCompleted: sessionCompletedParamRaw,
+    sets: setsParam,
+    reps: repsParam,
   } = useLocalSearchParams<{
     id?: string;
     sessionName?: string;
@@ -92,6 +94,8 @@ const ExerciseDetail = () => {
     exerciseTitle?: string;
     exerciseDescription?: string;
     sessionCompleted?: string;
+    sets?: string;
+    reps?: string;
   }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -102,6 +106,7 @@ const ExerciseDetail = () => {
   const [playbackState, setPlaybackState] = useState<PlaybackState>("idle");
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
+  const [maxCompletedPosition, setMaxCompletedPosition] = useState(0);
 
   const exerciseId = id ?? "1";
   const tryBackend = isExerciseApiConfigured();
@@ -206,6 +211,15 @@ const ExerciseDetail = () => {
 
   const sessionCompletedFromPlan = sessionCompletedParamRaw === "1";
 
+  const sets = useMemo(() => {
+    const n = parseInt(String(setsParam ?? ""), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [setsParam]);
+  const reps = useMemo(() => {
+    const n = parseInt(String(repsParam ?? ""), 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [repsParam]);
+
   const [sequentialAccess, setSequentialAccess] = useState<"checking" | "allowed" | "denied">(() =>
     sessionCompletedFromPlan || moduleIdNum == null ? "allowed" : "checking"
   );
@@ -213,6 +227,25 @@ const ExerciseDetail = () => {
   useEffect(() => {
     sessionCompletionRequestedRef.current = false;
   }, [exerciseId, moduleIdStr, progressCurrent, progressTotal]);
+
+  useEffect(() => {
+    if (sessionCompletedFromPlan) {
+      setMaxCompletedPosition(progressTotal);
+      return;
+    }
+    if (!session?.user?.id || moduleIdNum == null) {
+      setMaxCompletedPosition(0);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+      if (!cancelled) setMaxCompletedPosition(max);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionCompletedFromPlan, session?.user?.id, moduleIdNum, progressTotal]);
 
   useEffect(() => {
     if (sessionCompletedFromPlan || moduleIdNum == null || !session?.user?.id) {
@@ -251,7 +284,7 @@ const ExerciseDetail = () => {
       Alert.alert("Could not save progress", error.message);
       return;
     }
-    Alert.alert("Session complete", "The next session will unlock after the 7-day countdown.");
+    Alert.alert("Session complete", "The next session will unlock soon.");
   }, [moduleIdNum, session?.user?.id, progressCurrent, progressTotal]);
 
   const handleVideoPlayToEnd = useCallback(async () => {
@@ -265,6 +298,7 @@ const ExerciseDetail = () => {
     const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
     if (progressCurrent > max + 1) return;
     await recordExerciseWatchedToEnd(session.user.id, moduleIdNum, progressCurrent);
+    setMaxCompletedPosition((prev) => Math.max(prev, progressCurrent));
     if (progressCurrent === progressTotal) {
       await completeSessionIfLastRpc();
     }
@@ -375,13 +409,16 @@ const ExerciseDetail = () => {
             </View>
             <View style={styles.sessionRight}>
               <Text style={styles.progressText}>
-                {progressCurrent}/{progressTotal}
+                {Math.min(maxCompletedPosition, progressTotal)}/{progressTotal}
               </Text>
               <View style={styles.dotsRow}>
                 {Array.from({ length: progressTotal }, (_, i) => (
                   <View
                     key={i}
-                    style={[styles.dot, i + 1 === progressCurrent ? styles.dotActive : null]}
+                    style={[
+                      styles.dot,
+                      i + 1 <= Math.min(maxCompletedPosition, progressTotal) ? styles.dotActive : null,
+                    ]}
                   />
                 ))}
               </View>
@@ -429,6 +466,13 @@ const ExerciseDetail = () => {
 
           <View style={styles.textBlock}>
             <Text style={styles.exerciseTitle}>{displayExercise.title}</Text>
+            {sets != null || reps != null ? (
+              <Text style={styles.prescriptionText}>
+                {sets != null ? `${sets} sets` : ""}
+                {sets != null && reps != null ? " • " : ""}
+                {reps != null ? `${reps} reps` : ""}
+              </Text>
+            ) : null}
             <Text style={styles.categoryText}>Category</Text>
             <Text style={styles.description}>{displayExercise.description}</Text>
           </View>
@@ -495,6 +539,7 @@ const styles = StyleSheet.create({
   },
   textBlock: { marginBottom: 24 },
   exerciseTitle: { fontSize: 28, fontWeight: "600", color: COLORS.textDark, marginBottom: 4 },
+  prescriptionText: { fontSize: 16, fontWeight: "600", color: COLORS.textDark, marginBottom: 10 },
   categoryText: { fontSize: 18, fontWeight: "600", color: COLORS.teal, marginBottom: 16 },
   description: { fontSize: 16, lineHeight: 24, color: COLORS.textMuted },
   center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: COLORS.bg },

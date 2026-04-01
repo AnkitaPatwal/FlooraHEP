@@ -596,7 +596,10 @@ router.get(
         return res.status(404).json({ error: "Assignment not found." });
       }
 
-      // Validate module is part of the plan for this assignment.
+      const assignmentIdValue =
+        /^\d+$/.test(assignmentId.trim()) ? Number(assignmentId) : assignmentId;
+
+      // Validate module is either in the template plan OR added for this assignment.
       const pmCheck = await supabaseServer
         .from("plan_module")
         .select("plan_module_id")
@@ -607,9 +610,22 @@ router.get(
         return res.status(500).json({ error: pmCheck.error.message });
       }
       if (!pmCheck.data) {
-        return res
-          .status(404)
-          .json({ error: "Module not found for this assignment." });
+        const uasCheck = await supabaseServer
+          .from("user_assignment_session")
+          .select("user_assignment_session_id")
+          .eq("assignment_id", assignmentIdValue as any)
+          .eq("module_id", moduleId)
+          .eq("user_id", userId)
+          .eq("is_removed", false)
+          .maybeSingle();
+        if (uasCheck.error) {
+          return res.status(500).json({ error: uasCheck.error.message });
+        }
+        if (!uasCheck.data) {
+          return res
+            .status(404)
+            .json({ error: "Module not found for this assignment." });
+        }
       }
 
       const meRes = await supabaseServer
@@ -657,7 +673,7 @@ router.get(
           )
         `,
         )
-        .eq("assignment_id", assignmentId)
+        .eq("assignment_id", assignmentIdValue as any)
         .eq("module_id", moduleId);
 
       if (uaxRes.error) {
@@ -852,7 +868,10 @@ router.post(
       const assignment = await getUserPackageAssignment(userId, assignmentId);
       if (!assignment) return res.status(404).json({ error: "Assignment not found." });
 
-      // Ensure module belongs to plan.
+      const assignmentIdValue =
+        /^\d+$/.test(assignmentId.trim()) ? Number(assignmentId) : assignmentId;
+
+      // Ensure module is either in the template plan OR added for this assignment.
       const pmCheck = await supabaseServer
         .from("plan_module")
         .select("plan_module_id")
@@ -860,9 +879,24 @@ router.post(
         .eq("module_id", moduleId)
         .maybeSingle();
       if (pmCheck.error) return res.status(500).json({ error: pmCheck.error.message });
-      if (!pmCheck.data) return res.status(404).json({ error: "Module not found for assignment." });
+      if (!pmCheck.data) {
+        const uasCheck = await supabaseServer
+          .from("user_assignment_session")
+          .select("user_assignment_session_id")
+          .eq("assignment_id", assignmentIdValue as any)
+          .eq("module_id", moduleId)
+          .eq("user_id", userId)
+          .eq("is_removed", false)
+          .maybeSingle();
+        if (uasCheck.error) return res.status(500).json({ error: uasCheck.error.message });
+        if (!uasCheck.data) {
+          return res.status(404).json({ error: "Module not found for assignment." });
+        }
+      }
 
-      // Prevent duplicates: if exercise already exists in template for this module, don't add again.
+      // If the exercise exists in the template for this module:
+      // - If it's been removed for this assignment, "restore" it (set is_removed=false).
+      // - Otherwise, it's already included; do not create a duplicate "added" row.
       const meDup = await supabaseServer
         .from("module_exercise")
         .select("module_exercise_id")
@@ -871,14 +905,33 @@ router.post(
         .maybeSingle();
       if (meDup.error) return res.status(500).json({ error: meDup.error.message });
       if (meDup.data) {
-        return res.status(409).json({ error: "This exercise is already in the session template." });
+        const existingOverride = await supabaseServer
+          .from("user_assignment_exercise")
+          .select("user_assignment_exercise_id, is_removed")
+          .eq("assignment_id", assignmentIdValue as any)
+          .eq("module_id", moduleId)
+          .eq("exercise_id", exercise_id)
+          .eq("source_module_exercise_id", (meDup.data as any).module_exercise_id)
+          .maybeSingle();
+        if (existingOverride.error) {
+          return res.status(500).json({ error: existingOverride.error.message });
+        }
+        if (existingOverride.data && (existingOverride.data as any).is_removed === true) {
+          const restore = await supabaseServer
+            .from("user_assignment_exercise")
+            .update({ is_removed: false })
+            .eq("user_assignment_exercise_id", (existingOverride.data as any).user_assignment_exercise_id);
+          if (restore.error) return res.status(500).json({ error: restore.error.message });
+          return res.status(200).json({ ok: true, restored_template: true });
+        }
+        return res.status(200).json({ ok: true, already_in_template: true });
       }
 
       // Prevent duplicates among added rows.
       const addDup = await supabaseServer
         .from("user_assignment_exercise")
         .select("user_assignment_exercise_id")
-        .eq("assignment_id", assignmentId)
+        .eq("assignment_id", assignmentIdValue as any)
         .eq("module_id", moduleId)
         .eq("exercise_id", exercise_id)
         .is("source_module_exercise_id", null)
@@ -892,7 +945,7 @@ router.post(
       const { data: existingAdds, error: addsErr } = await supabaseServer
         .from("user_assignment_exercise")
         .select("order_index")
-        .eq("assignment_id", assignmentId)
+        .eq("assignment_id", assignmentIdValue as any)
         .eq("module_id", moduleId)
         .is("source_module_exercise_id", null);
       if (addsErr) return res.status(500).json({ error: addsErr.message });
@@ -905,7 +958,7 @@ router.post(
         .from("user_assignment_exercise")
         .insert({
           user_id: userId,
-          assignment_id: assignmentId,
+          assignment_id: assignmentIdValue as any,
           module_id: moduleId,
           source_module_exercise_id: null,
           exercise_id,

@@ -8,6 +8,7 @@ import {
   Image,
   Pressable,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -79,7 +80,16 @@ function SessionCard({ session, index, onPress }: SessionCardProps) {
 
 export default function RoadMap() {
   const router = useRouter();
-  const { data, loading, error } = useRoadmap();
+  const { data, loading, error, reload } = useRoadmap();
+  const [refreshing, setRefreshing] = React.useState(false);
+  const lockedSessions = (data?.sessions ?? []).filter((s) => !s.isUnlocked);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    reload();
+    // Give the hook a moment to start; refresh control is purely UX.
+    setTimeout(() => setRefreshing(false), 600);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
@@ -118,6 +128,9 @@ export default function RoadMap() {
           style={styles.container}
           contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+          }
         >
           {/* Plan heading */}
           <Text style={styles.planTitle}>{data.planName}</Text>
@@ -129,10 +142,10 @@ export default function RoadMap() {
           <View style={styles.accentLine} />
 
           {/* Sessions */}
-          {data.sessions.length === 0 ? (
+          {lockedSessions.length === 0 ? (
             <Text style={styles.emptyText}>No sessions assigned yet.</Text>
           ) : (
-            data.sessions.map((session, index) => (
+            lockedSessions.map((session, index) => (
               <SessionCard
                 key={session.module_id}
                 session={session}

@@ -10,6 +10,7 @@ import {
   Alert,
   Platform,
   ScrollView,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Link, useRouter } from "expo-router";
@@ -38,6 +39,7 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const hasLoadedOnce = useRef(false);
 
@@ -104,6 +106,12 @@ export default function Profile() {
       void fetchProfile();
     }, [fetchProfile])
   );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchProfile();
+    setRefreshing(false);
+  }, [fetchProfile]);
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -292,6 +300,9 @@ export default function Profile() {
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A8E93" />
+        }
       >
         <Text style={styles.header}>Profile Settings</Text>
         <View style={styles.headerLine} />
