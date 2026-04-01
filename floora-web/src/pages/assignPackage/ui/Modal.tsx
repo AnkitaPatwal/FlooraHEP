@@ -26,6 +26,8 @@ const overlayStyle: CSSProperties = {
   padding: 16,
 };
 
+const MODAL_FONT = "'Poppins', sans-serif";
+
 const panelStyle: CSSProperties = {
   background: "#fff",
   borderRadius: 10,
@@ -34,6 +36,8 @@ const panelStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   boxShadow: "0 12px 40px rgba(0,0,0,0.18)",
+  fontFamily: MODAL_FONT,
+  color: "#1f2937",
 };
 
 export function Modal({
@@ -88,7 +92,12 @@ export function Modal({
         >
           <h2
             id="modal-title"
-            style={{ margin: 0, fontSize: "1.05rem", fontWeight: 700 }}
+            style={{
+              margin: 0,
+              fontSize: "1.05rem",
+              fontWeight: 700,
+              fontFamily: MODAL_FONT,
+            }}
           >
             {title}
           </h2>
@@ -105,6 +114,7 @@ export function Modal({
               cursor: "pointer",
               padding: 4,
               color: "#444",
+              fontFamily: MODAL_FONT,
             }}
           >
             ×

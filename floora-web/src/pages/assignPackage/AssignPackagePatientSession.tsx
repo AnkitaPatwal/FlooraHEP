@@ -6,6 +6,7 @@ import { LoadingHint } from "./ui/LoadingHint";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
 import { usePatientLabel } from "./usePatientLabel";
 import { AssignBackLink } from "./ui/AssignBackLink";
+import { ConfirmModal } from "./ui/ConfirmModal";
 import "./AssignPackage.css";
 
 type SessionRow = {
@@ -61,7 +62,12 @@ export default function AssignPackagePatientSession() {
   >([]);
   const [exercisesLoading, setExercisesLoading] = useState(true);
   const [exercisesError, setExercisesError] = useState("");
+  const [exercisesSuccess, setExercisesSuccess] = useState("");
   const [savingRowId, setSavingRowId] = useState<string | null>(null);
+  const [exerciseRemoveTarget, setExerciseRemoveTarget] = useState<{
+    rowId: string;
+    title: string;
+  } | null>(null);
   const [addingExerciseId, setAddingExerciseId] = useState("");
   const [addingBusy, setAddingBusy] = useState(false);
   const [library, setLibrary] = useState<Array<{ id: number; title: string }>>(
@@ -251,6 +257,7 @@ export default function AssignPackagePatientSession() {
   }, [userId, assignmentId, mid]);
 
   const updateDraft = (rowId: string, patch: Partial<{ sets: string; reps: string }>) => {
+    setExercisesSuccess("");
     setDraftByRowId((prev) => ({
       ...prev,
       [rowId]: { sets: prev[rowId]?.sets ?? "", reps: prev[rowId]?.reps ?? "", ...patch },
@@ -265,6 +272,7 @@ export default function AssignPackagePatientSession() {
     const hasSets = draft.sets.trim() !== "";
     const hasReps = draft.reps.trim() !== "";
     if (!hasSets && !hasReps) return;
+    setExercisesSuccess("");
     setSavingRowId(rowId);
     try {
       const headers = await authHeaders();
@@ -285,8 +293,10 @@ export default function AssignPackagePatientSession() {
         setExercisesError(body?.error || "Failed to save overrides.");
         return;
       }
+      setExercisesError("");
       setDraftByRowId((prev) => ({ ...prev, [rowId]: { sets: "", reps: "" } }));
       await reloadExercises();
+      setExercisesSuccess("Sets and reps saved for this client.");
     } catch {
       setExercisesError("Something went wrong.");
     } finally {
@@ -302,6 +312,7 @@ export default function AssignPackagePatientSession() {
     const hasSets = draft.sets.trim() !== "";
     const hasReps = draft.reps.trim() !== "";
     if (!hasSets && !hasReps) return;
+    setExercisesSuccess("");
     setSavingRowId(rowId);
     try {
       const headers = await authHeaders();
@@ -321,8 +332,10 @@ export default function AssignPackagePatientSession() {
         setExercisesError(body?.error || "Failed to save overrides.");
         return;
       }
+      setExercisesError("");
       setDraftByRowId((prev) => ({ ...prev, [rowId]: { sets: "", reps: "" } }));
       await reloadExercises();
+      setExercisesSuccess("Sets and reps saved for this client.");
     } catch {
       setExercisesError("Something went wrong.");
     } finally {
@@ -330,7 +343,7 @@ export default function AssignPackagePatientSession() {
     }
   };
 
-  const removeRow = async (rowId: string) => {
+  const executeRemoveExercise = async (rowId: string) => {
     if (!userId || !assignmentId || !Number.isFinite(mid)) return;
     const row = exercises.find((r) => r.rowId === rowId);
     if (!row) return;
@@ -352,7 +365,10 @@ export default function AssignPackagePatientSession() {
           setExercisesError(body?.error || "Failed to remove exercise.");
           return;
         }
+        setExerciseRemoveTarget(null);
+        setExercisesError("");
         await reloadExercises();
+        setExercisesSuccess("Exercise removed for this client.");
       } catch {
         setExercisesError("Something went wrong.");
       } finally {
@@ -374,7 +390,10 @@ export default function AssignPackagePatientSession() {
           setExercisesError(body?.error || "Failed to remove added exercise.");
           return;
         }
+        setExerciseRemoveTarget(null);
+        setExercisesError("");
         await reloadExercises();
+        setExercisesSuccess("Exercise removed for this client.");
       } catch {
         setExercisesError("Something went wrong.");
       } finally {
@@ -389,6 +408,7 @@ export default function AssignPackagePatientSession() {
     if (!Number.isFinite(exId)) return;
     setAddingBusy(true);
     setExercisesError("");
+    setExercisesSuccess("");
     try {
       const headers = await authHeaders();
       const res = await fetch(
@@ -406,6 +426,7 @@ export default function AssignPackagePatientSession() {
       }
       setAddingExerciseId("");
       await reloadExercises();
+      setExercisesSuccess("Exercise added for this client.");
     } catch {
       setExercisesError("Something went wrong.");
     } finally {
@@ -480,6 +501,11 @@ export default function AssignPackagePatientSession() {
         {exercisesError && (
           <p className="assign-package-status error" role="alert">
             {exercisesError}
+          </p>
+        )}
+        {exercisesSuccess && !exercisesError && (
+          <p className="assign-package-status success" role="status">
+            {exercisesSuccess}
           </p>
         )}
         {exercisesLoading && (
@@ -569,7 +595,13 @@ export default function AssignPackagePatientSession() {
                     <button
                       type="button"
                       className="assign-package-danger-btn"
-                      onClick={() => void removeRow(row.rowId)}
+                      onClick={() => {
+                        setExercisesSuccess("");
+                        setExerciseRemoveTarget({
+                          rowId: row.rowId,
+                          title: row.title,
+                        });
+                      }}
                       disabled={savingRowId === row.rowId}
                     >
                       {savingRowId === row.rowId ? "Removing…" : "Remove"}
@@ -621,6 +653,31 @@ export default function AssignPackagePatientSession() {
           </button>
         </div>
       </section>
+
+      <ConfirmModal
+        open={!!exerciseRemoveTarget}
+        title="Remove exercise for this client?"
+        message={
+          exerciseRemoveTarget
+            ? `Remove “${exerciseRemoveTarget.title}” from this session for this client? This won’t change the global exercise library.`
+            : ""
+        }
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        busy={
+          exerciseRemoveTarget != null &&
+          savingRowId === exerciseRemoveTarget.rowId
+        }
+        onConfirm={() => {
+          if (exerciseRemoveTarget) {
+            void executeRemoveExercise(exerciseRemoveTarget.rowId);
+          }
+        }}
+        onCancel={() => {
+          if (savingRowId === null) setExerciseRemoveTarget(null);
+        }}
+      />
     </div>
   );
 }

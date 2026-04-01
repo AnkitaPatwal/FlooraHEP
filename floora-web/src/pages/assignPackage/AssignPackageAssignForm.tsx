@@ -4,6 +4,7 @@ import { API_BASE, authHeaders } from "./authHeaders";
 import { assignPackageAssignmentSessionsPath } from "./assignPackagePaths";
 import { AssignBackLink } from "./ui/AssignBackLink";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
+import { ConfirmModal } from "./ui/ConfirmModal";
 import "./AssignPackage.css";
 
 type User = {
@@ -105,6 +106,7 @@ export default function AssignPackageAssignForm() {
   const [loadingPage, setLoadingPage] = useState(true);
   const [loadingAssign, setLoadingAssign] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [removeModal, setRemoveModal] = useState<Assignment | null>(null);
 
   const loadAssignments = useCallback(async (): Promise<Assignment[] | null> => {
     if (!userId) return null;
@@ -237,15 +239,9 @@ export default function AssignPackageAssignForm() {
     }
   };
 
-  const handleDeleteAssignment = async (a: Assignment) => {
-    if (!userId) return;
-    if (
-      !window.confirm(
-        `Remove "${a.title}" from this client? Session progress for this plan may be cleared.`,
-      )
-    ) {
-      return;
-    }
+  const runRemoveAssignment = async () => {
+    const a = removeModal;
+    if (!userId || !a) return;
     setMessage("");
     setDeletingId(a.id);
     try {
@@ -259,6 +255,7 @@ export default function AssignPackageAssignForm() {
         setMessage(data.error || "Failed to remove plan.");
         return;
       }
+      setRemoveModal(null);
       setMessage("Plan removed.");
       await loadAssignments();
     } catch {
@@ -334,7 +331,7 @@ export default function AssignPackageAssignForm() {
               <div
                 className="assign-package-grid"
                 role="list"
-                aria-label="Assigned plans"
+                aria-label="Current plans"
               >
                 {assignments.map((a) => (
                   <article
@@ -361,7 +358,7 @@ export default function AssignPackageAssignForm() {
                         <button
                           type="button"
                           className="assign-package-danger-btn"
-                          onClick={() => void handleDeleteAssignment(a)}
+                          onClick={() => setRemoveModal(a)}
                           disabled={deletingId === a.id}
                         >
                           {deletingId === a.id ? "Removing…" : "Remove"}
@@ -442,6 +439,24 @@ export default function AssignPackageAssignForm() {
           </section>
         </>
       )}
+
+      <ConfirmModal
+        open={!!removeModal}
+        title="Remove plan from this client?"
+        message={
+          removeModal
+            ? `Remove “${removeModal.title}” from this client? Session progress for this plan may be cleared.`
+            : ""
+        }
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        destructive
+        busy={deletingId !== null}
+        onConfirm={() => void runRemoveAssignment()}
+        onCancel={() => {
+          if (deletingId === null) setRemoveModal(null);
+        }}
+      />
     </div>
   );
 }

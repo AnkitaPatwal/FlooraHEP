@@ -5,6 +5,7 @@
   box-sizing: border-box;
   color: #1f2937;
   min-height: 100vh;
+  font-family: "Poppins", sans-serif;
 }
 
 .assign-package-header {
@@ -280,5 +281,6 @@
 
 .assign-package-status.success {
   color: #065f46;
+  font-weight: 500;
 }
 
