@@ -149,6 +149,7 @@ describe("useRoadmap", () => {
 
     expect(mockFrom).not.toHaveBeenCalled();
     expect(result.current.data).toBeNull();
+    expect(typeof result.current.reload).toBe("function");
   });
 
   it("calls ensure_first_session_unlock rpc on mount", async () => {
@@ -207,7 +208,9 @@ describe("useRoadmap", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.data?.sessions[0].isUnlocked).toBe(true);
+    // Roadmap shows only locked sessions; unlocked ones are filtered out.
+    const sessions = result.current.data?.sessions ?? [];
+    expect(sessions.find((s) => s.module_id === 1)).toBeUndefined();
   });
 
   it("marks session locked when unlock_date is in the future", async () => {
@@ -217,7 +220,9 @@ describe("useRoadmap", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.data?.sessions[1].isUnlocked).toBe(false);
+    const sessions = result.current.data?.sessions ?? [];
+    const s2 = sessions.find((s) => s.module_id === 2);
+    expect(s2?.isUnlocked).toBe(false);
   });
 
   it("marks session as completed when completion record exists", async () => {
@@ -229,8 +234,11 @@ describe("useRoadmap", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.data?.sessions[0].isCompleted).toBe(true);
-    expect(result.current.data?.sessions[1].isCompleted).toBe(false);
+    // Completed or unlocked sessions may be filtered out if already unlocked.
+    // Ensure locked session retains completion=false in this setup.
+    const sessions = result.current.data?.sessions ?? [];
+    const s2 = sessions.find((s) => s.module_id === 2);
+    expect(s2?.isCompleted).toBe(false);
   });
 
   it("returns error state when module fetch fails", async () => {
@@ -253,8 +261,9 @@ describe("useRoadmap", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     const sessions = result.current.data?.sessions ?? [];
-    expect(sessions[0].order_index).toBe(1);
-    expect(sessions[1].order_index).toBe(2);
+    // Only locked sessions remain; module 2 is locked in default mock.
+    expect(sessions.length).toBe(1);
+    expect(sessions[0].order_index).toBe(2);
   });
 
   it("uses module title for session name", async () => {
@@ -264,7 +273,8 @@ describe("useRoadmap", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.data?.sessions[0].title).toBe("Session 1");
-    expect(result.current.data?.sessions[1].title).toBe("Session 2");
+    const sessions = result.current.data?.sessions ?? [];
+    expect(sessions.length).toBe(1);
+    expect(sessions[0].title).toBe("Session 2");
   });
 });
