@@ -21,6 +21,7 @@ type Exercise = {
   exercise_id: number;
   title: string;
   description?: string;
+  thumbnail_url?: string | null;
 };
 
 type ModuleExercise = {
@@ -140,18 +141,22 @@ function Session() {
                   <div
                     className="session-card"
                     key={module.module_id}
-                    onClick={() => navigate(`/sessions/${module.module_id}/edit`)}
+                    onClick={() => navigate(`/sessions/${module.module_id}`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        navigate(`/sessions/${module.module_id}/edit`);
+                        navigate(`/sessions/${module.module_id}`);
                       }
                     }}
                     role="button"
                     tabIndex={0}
                   >
                     <img
-                      src={sessionImg}
+                      src={
+                        [...(module.module_exercise ?? [])]
+                          .sort((a, b) => a.order_index - b.order_index)[0]
+                          ?.exercise?.thumbnail_url || sessionImg
+                      }
                       alt=""
                       className="session-image"
                     />

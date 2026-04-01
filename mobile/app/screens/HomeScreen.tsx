@@ -26,6 +26,8 @@ type SessionItem = {
   completed: boolean;
 };
 
+const fallbackSessionImage = require("../../assets/images/current-session.jpg");
+
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -211,6 +213,7 @@ const HomeScreen = () => {
   const [hasAssignedPlan, setHasAssignedPlan] = useState(false);
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [sessionThumbs, setSessionThumbs] = useState<Record<string, string>>({});
 
   const fetchAssignedSessions = useCallback(async () => {
       try {
@@ -466,6 +469,36 @@ const HomeScreen = () => {
         // Keep deterministic ordering for UI computations (current = lowest order_index).
         visible.sort((a, b) => a.order_index - b.order_index);
         setSessions(visible);
+
+        // Session thumbnail = first exercise thumbnail (respect per-client overrides).
+        void (async () => {
+          try {
+            const entries = await Promise.all(
+              visible.map(async (s) => {
+                const { data: rows, error: rpcErr } = await supabase.rpc(
+                  "get_current_assigned_session_exercises",
+                  { p_module_id: Number(s.module_id) }
+                );
+                if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
+                  return [String(s.module_id), ""] as const;
+                }
+                const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+                return [String(s.module_id), thumb] as const;
+              })
+            );
+            setSessionThumbs((prev) => {
+              const next = { ...prev };
+              for (const [mid, url] of entries) {
+                if (typeof url === "string" && url.startsWith("http")) {
+                  next[mid] = url;
+                }
+              }
+              return next;
+            });
+          } catch {
+            // non-blocking: thumbnails are optional
+          }
+        })();
       } catch (err) {
         setError("Something went wrong.");
         setSessions([]);
@@ -570,7 +603,11 @@ const HomeScreen = () => {
                     </View>
                     <View style={styles.card}>
                       <Image
-                        source={require("../../assets/images/current-session.jpg")}
+                        source={
+                          sessionThumbs[String(currentSession.module_id)]
+                            ? { uri: sessionThumbs[String(currentSession.module_id)] }
+                            : fallbackSessionImage
+                        }
                         style={styles.cardImage}
                         resizeMode="cover"
                       />
@@ -613,7 +650,11 @@ const HomeScreen = () => {
                       </View>
                       <View style={styles.card}>
                         <Image
-                          source={require("../../assets/images/current-session.jpg")}
+                          source={
+                            sessionThumbs[String(sessionItem.module_id)]
+                              ? { uri: sessionThumbs[String(sessionItem.module_id)] }
+                              : fallbackSessionImage
+                          }
                           style={styles.cardImage}
                           resizeMode="cover"
                         />
