@@ -29,6 +29,7 @@ type SessionsPayload = {
   sessions: SessionRow[];
 };
 
+
 function sessionHeading(s: SessionRow): string {
   if (s.session_number != null) {
     return `Session ${s.session_number}: ${s.title}`;

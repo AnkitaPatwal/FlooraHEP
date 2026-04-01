@@ -177,6 +177,112 @@ router.post('/modules', async (req, res) => {
 });
 
 /**
+ * Update an existing module/session (admin-only)
+ * PUT /api/admin/modules/:id
+ * Body: { title?: string, description?: string, session_number?: number }
+ */
+router.put('/modules/:id', async (req, res) => {
+  try {
+    const moduleId = Number(req.params.id);
+    if (!Number.isFinite(moduleId) || moduleId < 1) {
+      return res.status(400).json({ error: 'Invalid module id.' });
+    }
+
+    const { title, description, session_number } = req.body ?? {};
+
+    const updatePayload: any = {};
+    if (title !== undefined) {
+      if (typeof title !== 'string' || !title.trim()) {
+        return res.status(400).json({ error: 'Title is required.' });
+      }
+      updatePayload.title = title.trim();
+    }
+    if (description !== undefined) {
+      if (typeof description !== 'string') {
+        return res.status(400).json({ error: 'Description must be a string.' });
+      }
+      updatePayload.description = description.trim();
+    }
+    if (session_number !== undefined) {
+      const n = Number(session_number);
+      if (!Number.isInteger(n) || n < 1) {
+        return res.status(400).json({ error: 'Session number must be a positive integer.' });
+      }
+      updatePayload.session_number = n;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return res.status(400).json({ error: 'No fields provided.' });
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from('module')
+      .update(updatePayload)
+      .eq('module_id', moduleId)
+      .select('module_id, title, description, session_number')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error updating module:', error);
+      return res.status(500).json({ error: 'Failed to update module.' });
+    }
+    if (!data) {
+      return res.status(404).json({ error: 'Module not found.' });
+    }
+
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error('Failed to update module:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
+ * Delete an existing module/session (admin-only)
+ * DELETE /api/admin/modules/:id
+ *
+ * Note: Removes dependent rows first to avoid FK errors.
+ */
+router.delete('/modules/:id', async (req, res) => {
+  try {
+    const moduleId = Number(req.params.id);
+    if (!Number.isFinite(moduleId) || moduleId < 1) {
+      return res.status(400).json({ error: 'Invalid module id.' });
+    }
+
+    // Remove relationships (best effort; ignore missing tables/rows).
+    const deletions = await Promise.all([
+      supabaseAdmin.from('plan_module').delete().eq('module_id', moduleId),
+      supabaseAdmin.from('module_exercise').delete().eq('module_id', moduleId),
+      supabaseAdmin.from('user_assignment_session').delete().eq('module_id', moduleId),
+      supabaseAdmin.from('user_session_unlock').delete().eq('module_id', moduleId),
+      supabaseAdmin.from('user_session_completion').delete().eq('module_id', moduleId),
+    ]);
+    for (const d of deletions) {
+      if ((d as any)?.error) {
+        console.error('Error deleting module dependencies:', (d as any).error);
+        return res.status(500).json({ error: 'Failed to delete module dependencies.' });
+      }
+    }
+
+    const { error: moduleError } = await supabaseAdmin
+      .from('module')
+      .delete()
+      .eq('module_id', moduleId);
+
+    if (moduleError) {
+      console.error('Error deleting module:', moduleError);
+      return res.status(500).json({ error: 'Failed to delete module.' });
+    }
+
+    return res.status(200).json({ ok: true });
+  } catch (error) {
+    console.error('Failed to delete module:', error);
+    return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+/**
  * Save exercises for a module/session (admin-only)
  * PUT /api/admin/modules/:id/exercises
  * Body: { exercise_ids: number[] }

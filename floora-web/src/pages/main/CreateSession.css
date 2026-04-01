@@ -1,5 +1,6 @@
 /* Create Session page (same pattern as Create Exercise) */
 .create-session-page {
+  padding: 24px;
   padding-bottom: 48px;
   box-sizing: border-box;
   color: #1f2937;
@@ -9,9 +10,9 @@
 .create-session-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 28px;
-  margin-top: 20px;
+  align-items: center;
+  margin-bottom: 18px;
+  margin-top: 8px;
 }
 
 .create-session-header-left h1,
@@ -20,6 +21,12 @@
   font-weight: 700;
   color: #1f2937;
   margin: 0;
+}
+
+.create-session-subtitle {
+  margin: 6px 0 0 0;
+  font-size: 13px;
+  color: #6b7280;
 }
 
 .create-session-header-right {
@@ -59,7 +66,12 @@
 }
 
 .create-session-section {
-  margin-bottom: 32px;
+  margin-bottom: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
 }
 
 .create-session-section h2 {
@@ -76,11 +88,20 @@
   margin: 0 0 12px 0;
 }
 
+.create-session-hint {
+  line-height: 1.45;
+}
+
 .create-session-form {
   display: flex;
   flex-direction: column;
   gap: 16px;
   max-width: 480px;
+}
+
+.create-session-form-wide {
+  max-width: 720px;
+  margin-bottom: 14px;
 }
 
 .create-session-form .input-group {
@@ -99,12 +120,19 @@
 .create-session-form input,
 .create-session-form textarea {
   border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border-radius: 10px;
   padding: 10px 14px;
   font-size: 15px;
   color: #1f2937;
   outline: none;
   background: #fff;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.create-session-form input:focus,
+.create-session-form textarea:focus {
+  border-color: #5a8e93;
+  box-shadow: 0 0 0 3px rgba(90, 142, 147, 0.18);
 }
 
 .create-session-form textarea {
@@ -138,7 +166,7 @@
 
 /* Search row */
 .create-session-search-row {
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .create-session-search-row label {
@@ -172,6 +200,7 @@
   color: #1f2937;
   outline: none;
   background: #fff;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .create-session-search-input:focus {
@@ -194,9 +223,10 @@
 .create-session-pool,
 .create-session-selected {
   border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border-radius: 12px;
   padding: 16px;
-  background: #fafafa;
+  background: #ffffff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
 }
 
 .create-session-pool h3,
@@ -207,10 +237,37 @@
   color: #374151;
 }
 
+.create-session-count {
+  font-weight: 500;
+  color: #6b7280;
+  margin-left: 6px;
+}
+
 .create-session-exercise-list {
   list-style: none;
   margin: 0 0 12px 0;
   padding: 0;
+  max-height: 360px;
+  overflow: auto;
+  padding-right: 6px; /* room for scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(90, 142, 147, 0.55) rgba(148, 163, 184, 0.18);
+}
+
+.create-session-exercise-list::-webkit-scrollbar {
+  width: 10px;
+}
+.create-session-exercise-list::-webkit-scrollbar-track {
+  background: rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+}
+.create-session-exercise-list::-webkit-scrollbar-thumb {
+  background: rgba(90, 142, 147, 0.55);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+}
+.create-session-exercise-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(90, 142, 147, 0.75);
 }
 
 .create-session-exercise-list li {
@@ -218,8 +275,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px solid #eee;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .create-session-exercise-list li:last-child {
@@ -229,17 +286,19 @@
 .create-session-add-btn {
   padding: 6px 10px;
   border: 1px solid #5a8e93;
-  border-radius: 6px;
+  border-radius: 10px;
   background: #fff;
   color: #5a8e93;
   font-size: 13px;
   cursor: pointer;
   text-align: left;
   width: 100%;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .create-session-add-btn:hover {
   background: #e8f2f3;
+  box-shadow: 0 2px 10px rgba(90, 142, 147, 0.14);
 }
 
 .create-session-exercise-name {
@@ -251,11 +310,12 @@
 .create-session-remove-btn {
   padding: 4px 10px;
   border: 1px solid #dc2626;
-  border-radius: 4px;
+  border-radius: 10px;
   background: #fff;
   color: #dc2626;
   font-size: 12px;
   cursor: pointer;
+  transition: background-color 0.15s ease;
 }
 
 .create-session-remove-btn:hover {

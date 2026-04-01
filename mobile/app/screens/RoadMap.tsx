@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import colors from "../../constants/colors";
 import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
+import { supabase } from "../../lib/supabaseClient";
 
 import session1Img from "../../assets/images/prev-1.jpg";
 
@@ -34,9 +35,10 @@ type SessionCardProps = {
   index: number;
   planName: string;
   onPress: () => void;
+  thumbnailUrl?: string;
 };
 
-function SessionCard({ session, index, onPress }: SessionCardProps) {
+function SessionCard({ session, index, onPress, thumbnailUrl }: SessionCardProps) {
   const label = session.title || `Session ${index + 1}`;
   const locked = !session.isUnlocked;
 
@@ -50,7 +52,7 @@ function SessionCard({ session, index, onPress }: SessionCardProps) {
     >
       <View style={styles.card}>
         <Image
-          source={session1Img}
+          source={thumbnailUrl && thumbnailUrl.startsWith("http") ? { uri: thumbnailUrl } : session1Img}
           style={[styles.cardImage, locked && styles.cardImageLocked]}
           resizeMode="cover"
         />
@@ -82,7 +84,39 @@ export default function RoadMap() {
   const router = useRouter();
   const { data, loading, error, reload } = useRoadmap();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [sessionThumbs, setSessionThumbs] = React.useState<Record<string, string>>({});
   const lockedSessions = (data?.sessions ?? []).filter((s) => !s.isUnlocked);
+
+  React.useEffect(() => {
+    const loadThumbs = async () => {
+      if (lockedSessions.length === 0) return;
+      try {
+        const entries = await Promise.all(
+          lockedSessions.map(async (s) => {
+            const { data: rows, error: rpcErr } = await supabase.rpc(
+              "get_current_assigned_session_exercises",
+              { p_module_id: Number(s.module_id) }
+            );
+            if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
+              return [String(s.module_id), ""] as const;
+            }
+            const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+            return [String(s.module_id), thumb] as const;
+          })
+        );
+        setSessionThumbs((prev) => {
+          const next = { ...prev };
+          for (const [mid, url] of entries) {
+            if (url && url.startsWith("http")) next[mid] = url;
+          }
+          return next;
+        });
+      } catch {
+        // non-blocking
+      }
+    };
+    void loadThumbs();
+  }, [lockedSessions]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -151,6 +185,7 @@ export default function RoadMap() {
                 session={session}
                 index={index}
                 planName={data.planName}
+                thumbnailUrl={sessionThumbs[String(session.module_id)]}
                 onPress={() =>
                   router.push({
                     pathname: "/screens/SessionExerciseList",
