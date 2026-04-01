@@ -10,7 +10,6 @@ import { ConfirmModal } from "./ui/ConfirmModal";
 import { LoadingHint } from "./ui/LoadingHint";
 import { AssignBackLink } from "./ui/AssignBackLink";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
-import { patientUnlockChip } from "./patientUnlockChip";
 import "./AssignPackage.css";
 
 type SessionRow = {
@@ -62,7 +61,6 @@ export default function AssignPackageAssignmentSessions() {
   const [moduleLibrary, setModuleLibrary] = useState<
     Array<{ module_id: number; title: string; session_number: number | null }>
   >([]);
-  const [moduleQuery, setModuleQuery] = useState("");
   const [moduleLoading, setModuleLoading] = useState(false);
   const [removeModal, setRemoveModal] = useState<{
     moduleId: number;
@@ -152,10 +150,8 @@ export default function AssignPackageAssignmentSessions() {
     [includedSessions],
   );
   const availableModulesToAdd = useMemo(() => {
-    const q = moduleQuery.trim().toLowerCase();
     return moduleLibrary
       .filter((m) => !includedIds.has(m.module_id))
-      .filter((m) => !q || m.title.toLowerCase().includes(q))
       .slice()
       .sort((a, b) => {
         const an = a.session_number ?? 999999;
@@ -163,7 +159,7 @@ export default function AssignPackageAssignmentSessions() {
         if (an !== bn) return an - bn;
         return a.title.localeCompare(b.title);
       });
-  }, [moduleLibrary, includedIds, moduleQuery]);
+  }, [moduleLibrary, includedIds]);
 
   useEffect(() => {
     setSelectedModuleId((prev) => {
@@ -265,12 +261,12 @@ export default function AssignPackageAssignmentSessions() {
       <div className="assign-package-page">
         <header className="assign-package-header">
           <div className="assign-package-header-left">
-            <h1 className="assign-package-title">Assign Package</h1>
+            <h1 className="assign-package-title">Assign Plans</h1>
             <p className="assign-package-subtitle">Missing user or assignment.</p>
           </div>
         </header>
         <hr className="assign-package-divider" />
-        <AssignBackLink to="/assign-package" className="assign-package-link-btn">
+        <AssignBackLink to="/assign-package" appearance="primary" className="assign-package-primary-btn">
           Back
         </AssignBackLink>
       </div>
@@ -288,13 +284,11 @@ export default function AssignPackageAssignmentSessions() {
       <header className="assign-package-header">
         <div className="assign-package-header-left">
           <h1 className="assign-package-title">Assigned sessions</h1>
-          <p className="assign-package-subtitle">
-            Add/remove sessions for this client’s plan.
-          </p>
         </div>
         <AssignBackLink
           to={assignPackageClientPath(userId)}
-          className="assign-package-link-btn"
+          appearance="primary"
+          className="assign-package-primary-btn"
         >
           Back to client
         </AssignBackLink>
@@ -321,13 +315,10 @@ export default function AssignPackageAssignmentSessions() {
 
           <section style={{ marginBottom: 18 }}>
             <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-              Plan start date
+              Edit Start date
             </h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
               <div style={{ minWidth: 220, flex: "0 1 260px" }}>
-                <label htmlFor="plan-start-date-edit" style={{ fontWeight: 600 }}>
-                  Start date
-                </label>
                 <input
                   id="plan-start-date-edit"
                   type="date"
@@ -335,7 +326,7 @@ export default function AssignPackageAssignmentSessions() {
                   value={startDateDraft}
                   onChange={(e) => setStartDateDraft(e.target.value)}
                   disabled={loading || savingStartDate}
-                  aria-label="Plan start date"
+                  aria-label="Edit plan start date"
                 />
               </div>
               <div style={{ alignSelf: "end" }}>
@@ -358,15 +349,8 @@ export default function AssignPackageAssignmentSessions() {
 
           <section style={{ marginBottom: 32 }}>
             <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-              Sessions for this client
+              Current sessions
             </h2>
-            <p className="assign-package-subtitle" style={{ marginTop: 6 }}>
-              Order matches this plan&apos;s template. The patient sees sessions
-              in this sequence; after they complete a session, the next one
-              unlocks in 7 days (the first session follows the plan start date
-              above). This page is only for this client—not the global plan
-              library.
-            </p>
             {loading && !initialLoad && (
               <LoadingHint inline message="Updating sessions…" />
             )}
@@ -377,10 +361,9 @@ export default function AssignPackageAssignmentSessions() {
               <div
                 className="assign-package-grid"
                 role="list"
-                aria-label="Sessions for this client, in unlock order"
+                aria-label="Current sessions"
               >
                 {includedSessions.map((s) => {
-                  const chip = patientUnlockChip(s.unlock_date);
                   return (
                     <article
                       key={s.module_id}
@@ -392,17 +375,6 @@ export default function AssignPackageAssignmentSessions() {
                         <p className="assign-package-card-title">
                           {sessionHeading(s)}
                         </p>
-                        <p className="assign-package-card-subtitle">
-                          {chip.label}
-                        </p>
-                        {s.description ? (
-                          <p
-                            className="assign-package-card-subtitle"
-                            style={{ marginTop: 6 }}
-                          >
-                            {s.description}
-                          </p>
-                        ) : null}
                         <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
                           <Link
                             to={assignPackagePatientSessionPath(
@@ -410,7 +382,7 @@ export default function AssignPackageAssignmentSessions() {
                               assignmentId,
                               s.module_id,
                             )}
-                            className="assign-package-link-btn"
+                            className="assign-package-outline-btn"
                           >
                             Edit
                           </Link>
@@ -436,12 +408,6 @@ export default function AssignPackageAssignmentSessions() {
                 })}
               </div>
             )}
-            {!loading && includedSessions.length > 1 ? (
-              <p className="assign-package-subtitle">
-                Top to bottom is the order the patient progresses through for
-                this assignment.
-              </p>
-            ) : null}
           </section>
 
           <section>
@@ -450,19 +416,6 @@ export default function AssignPackageAssignmentSessions() {
             </h2>
             <div className="assign-package-form">
               <div className="assign-package-field">
-                <label htmlFor="session-search">Search</label>
-                <input
-                  id="session-search"
-                  type="search"
-                  className="assign-package-input"
-                  value={moduleQuery}
-                  onChange={(e) => setModuleQuery(e.target.value)}
-                  placeholder="Search sessions…"
-                  disabled={moduleLoading || adding || loading}
-                />
-              </div>
-              <div className="assign-package-field">
-                <label htmlFor="add-session-select">Session</label>
                 <select
                   id="add-session-select"
                   className="assign-package-select"
@@ -474,7 +427,7 @@ export default function AssignPackageAssignmentSessions() {
                     moduleLoading ||
                     availableModulesToAdd.length === 0
                   }
-                  aria-label="Session to add"
+                  aria-label="Select session to add"
                 >
                   <option value="">
                     {loading || moduleLoading ? "Loading…" : "Select session"}

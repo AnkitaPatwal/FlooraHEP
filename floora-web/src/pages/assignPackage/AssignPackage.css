@@ -45,6 +45,10 @@
 
 /* Buttons (match Plan/Session/Users) */
 .assign-package-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background-color: #5a8e93;
   color: #fff;
   border: none;
@@ -54,11 +58,15 @@
   font-size: 14px;
   cursor: pointer;
   width: fit-content;
+  text-decoration: none;
+  font-family: inherit;
+  line-height: 1.2;
   transition: background-color 0.2s ease, opacity 0.2s ease;
 }
 
 .assign-package-primary-btn:hover:not(:disabled) {
   background-color: #4f7d81;
+  color: #fff;
 }
 
 .assign-package-primary-btn:disabled {
@@ -85,6 +93,27 @@
 .assign-package-danger-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.assign-package-outline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: #fff;
+  color: #5a8e93;
+  border: 1px solid rgba(90, 142, 147, 0.45);
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.assign-package-outline-btn:hover {
+  background: rgba(90, 142, 147, 0.08);
 }
 
 .assign-package-link-btn {

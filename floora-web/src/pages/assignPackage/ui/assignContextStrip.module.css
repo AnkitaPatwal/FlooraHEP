@@ -10,6 +10,16 @@
   box-shadow: 0 1px 3px rgba(45, 74, 77, 0.06);
 }
 
+/* No tinted bar — text only (e.g. client plan page header) */
+.stripPlain {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0 0 4px 0;
+  margin-bottom: 16px;
+  border-radius: 0;
+}
+
 .key {
   font-weight: 600;
   color: #2d4a4d;

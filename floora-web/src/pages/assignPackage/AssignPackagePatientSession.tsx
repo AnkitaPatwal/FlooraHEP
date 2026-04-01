@@ -68,7 +68,6 @@ export default function AssignPackagePatientSession() {
     [],
   );
   const [libraryLoading, setLibraryLoading] = useState(false);
-  const [libraryQuery, setLibraryQuery] = useState("");
   const [draftByRowId, setDraftByRowId] = useState<
     Record<string, { sets: string; reps: string }>
   >({});
@@ -421,23 +420,20 @@ export default function AssignPackagePatientSession() {
   }, [exercises]);
 
   const availableLibrary = useMemo(() => {
-    const q = libraryQuery.trim().toLowerCase();
-    return library
-      .filter((e) => !assignedExerciseIds.has(e.id))
-      .filter((e) => !q || e.title.toLowerCase().includes(q));
-  }, [library, assignedExerciseIds, libraryQuery]);
+    return library.filter((e) => !assignedExerciseIds.has(e.id));
+  }, [library, assignedExerciseIds]);
 
   if (!userId || !assignmentId || !Number.isFinite(mid)) {
     return (
       <div className="assign-package-page">
         <header className="assign-package-header">
           <div className="assign-package-header-left">
-            <h1 className="assign-package-title">Assign Package</h1>
+            <h1 className="assign-package-title">Assign Plans</h1>
             <p className="assign-package-subtitle">Missing route parameters.</p>
           </div>
         </header>
         <hr className="assign-package-divider" />
-        <AssignBackLink to="/assign-package" className="assign-package-link-btn">
+        <AssignBackLink to="/assign-package" appearance="primary" className="assign-package-primary-btn">
           Back
         </AssignBackLink>
       </div>
@@ -452,10 +448,9 @@ export default function AssignPackagePatientSession() {
     <div className="assign-package-page">
       <header className="assign-package-header">
         <div className="assign-package-header-left">
-          <h1 className="assign-package-title">Session details</h1>
-          <p className="assign-package-subtitle">Manage exercises for this client</p>
+          <h1 className="assign-package-title">Exercise details</h1>
         </div>
-        <AssignBackLink to={backSessions} className="assign-package-link-btn">
+        <AssignBackLink to={backSessions} appearance="primary" className="assign-package-primary-btn">
           Back to sessions
         </AssignBackLink>
       </header>
@@ -589,29 +584,17 @@ export default function AssignPackagePatientSession() {
 
       <section>
         <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-          Add/remove exercises
+          Add Exercise
         </h2>
         <div className="assign-package-form">
           <div className="assign-package-field">
-            <label htmlFor="exercise-search">Search</label>
-            <input
-              id="exercise-search"
-              type="search"
-              className="assign-package-input"
-              value={libraryQuery}
-              onChange={(e) => setLibraryQuery(e.target.value)}
-              placeholder="Search exercises…"
-              disabled={libraryLoading || addingBusy}
-            />
-          </div>
-          <div className="assign-package-field">
-            <label htmlFor="add-exercise">Exercise</label>
             <select
               id="add-exercise"
               className="assign-package-select"
               value={addingExerciseId}
               onChange={(e) => setAddingExerciseId(e.target.value)}
               disabled={libraryLoading || addingBusy}
+              aria-label="Select exercise to add"
             >
               <option value="">
                 {libraryLoading ? "Loading…" : "Select exercise"}
@@ -624,7 +607,7 @@ export default function AssignPackagePatientSession() {
             </select>
             {!libraryLoading && library.length > 0 && availableLibrary.length === 0 && (
               <p className="assign-package-hint">
-                No exercises available to add (all are already in this session, or none match your search).
+                No exercises available to add (all are already in this session).
               </p>
             )}
           </div>
@@ -634,12 +617,8 @@ export default function AssignPackagePatientSession() {
             onClick={() => void addExercise()}
             disabled={addingBusy || libraryLoading || !addingExerciseId}
           >
-            {addingBusy ? "Adding…" : "Add exercise"}
+            {addingBusy ? "Adding…" : "Add Exercise"}
           </button>
-          <p className="assign-package-hint">
-            These changes are stored per patient+plan assignment and won’t affect the
-            global plan template.
-          </p>
         </div>
       </section>
     </div>

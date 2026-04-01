@@ -59,7 +59,7 @@ describe("SideNav", () => {
     renderWithRouter();
 
     expect(screen.getByText("Dashboard")).toBeInTheDocument();
-    expect(screen.getByText("Assign Package")).toBeInTheDocument();
+    expect(screen.getByText("Assign Plans")).toBeInTheDocument();
     expect(screen.getByText("Users")).toBeInTheDocument();
     expect(screen.getByText("Plans")).toBeInTheDocument();
     expect(screen.getByText("Sessions")).toBeInTheDocument();

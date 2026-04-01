@@ -56,7 +56,7 @@ export default function AssignPackageUserList() {
     <div className="assign-package-page">
       <header className="assign-package-header">
         <div className="assign-package-header-left">
-          <h1 className="assign-package-title">Assign Package</h1>
+          <h1 className="assign-package-title">Assign Plans</h1>
           <p className="assign-package-subtitle">
             {loading ? "Loading clients…" : `${users.length} Clients`}
           </p>

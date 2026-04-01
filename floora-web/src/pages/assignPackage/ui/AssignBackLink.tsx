@@ -1,11 +1,21 @@
 import { Link, type LinkProps } from "react-router-dom";
 import styles from "./assignBackButton.module.css";
 
-export function AssignBackLink({ className = "", ...props }: LinkProps) {
+export type AssignBackLinkProps = LinkProps & {
+  /** outline = bordered ghost; primary = solid teal (same as Add plan) */
+  appearance?: "outline" | "primary";
+};
+
+export function AssignBackLink({
+  className = "",
+  appearance = "outline",
+  ...props
+}: AssignBackLinkProps) {
+  const base = appearance === "primary" ? "" : styles.link;
   return (
     <Link
       {...props}
-      className={[styles.link, className].filter(Boolean).join(" ")}
+      className={[base, className].filter(Boolean).join(" ")}
     />
   );
 }

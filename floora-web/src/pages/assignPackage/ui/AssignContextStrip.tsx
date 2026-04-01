@@ -7,6 +7,8 @@ type AssignContextStripProps = {
   planName?: string | null;
   /** Shown on the session (exercises) page — the session the user opened */
   sessionName?: string | null;
+  /** default = gradient bar; plain = text only */
+  variant?: "default" | "plain";
 };
 
 /**
@@ -17,6 +19,7 @@ export function AssignContextStrip({
   patientLoading,
   planName,
   sessionName,
+  variant = "default",
 }: AssignContextStripProps) {
   const patient =
     patientLoading === true ? "…" : patientLabel?.trim() || "—";
@@ -24,9 +27,14 @@ export function AssignContextStrip({
   const showPlan = Boolean(planName?.trim());
   const showSession = Boolean(sessionName?.trim());
 
+  const stripClass =
+    variant === "plain"
+      ? `${styles.strip} ${styles.stripPlain}`
+      : styles.strip;
+
   return (
     <div
-      className={styles.strip}
+      className={stripClass}
       role="status"
       aria-label="Current patient and plan or session"
     >

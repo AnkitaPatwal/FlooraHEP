@@ -50,6 +50,29 @@ function displayName(user: User): string {
   return user.email || user.id;
 }
 
+/** e.g. 2026-03-31 → "March 31, 2026" */
+function formatPlanStartDate(iso: string): string {
+  const s = iso.trim().slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  if (!m) return s || "—";
+  const y = Number(m[1]);
+  const mo = Number(m[2]) - 1;
+  const d = Number(m[3]);
+  const dt = new Date(y, mo, d);
+  if (
+    dt.getFullYear() !== y ||
+    dt.getMonth() !== mo ||
+    dt.getDate() !== d
+  ) {
+    return s;
+  }
+  return dt.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 function normalizeAssignmentRow(row: AssignmentApiRow): Assignment | null {
   const rawId = row.id ?? row.assignment_id;
   const id = rawId == null ? "" : String(rawId).trim();
@@ -250,12 +273,12 @@ export default function AssignPackageAssignForm() {
       <div className="assign-package-page">
         <header className="assign-package-header">
           <div className="assign-package-header-left">
-            <h1 className="assign-package-title">Assign Package</h1>
+            <h1 className="assign-package-title">Assign Plans</h1>
             <p className="assign-package-subtitle">Missing user.</p>
           </div>
         </header>
         <hr className="assign-package-divider" />
-        <AssignBackLink to=".." className="assign-package-link-btn">
+        <AssignBackLink to=".." appearance="primary" className="assign-package-primary-btn">
           Back
         </AssignBackLink>
       </div>
@@ -266,13 +289,13 @@ export default function AssignPackageAssignForm() {
     <div className="assign-package-page">
       <header className="assign-package-header">
         <div className="assign-package-header-left">
-          <h1 className="assign-package-title">Assign Package</h1>
+          <h1 className="assign-package-title">Assign Plans</h1>
           <p className="assign-package-subtitle">
             Manage plans for a client
           </p>
         </div>
         <div>
-          <AssignBackLink to=".." className="assign-package-link-btn">
+          <AssignBackLink to=".." appearance="primary" className="assign-package-primary-btn">
             Back
           </AssignBackLink>
         </div>
@@ -297,11 +320,8 @@ export default function AssignPackageAssignForm() {
         <>
           <section style={{ marginBottom: 26 }}>
             <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-              Assigned plans
+              Current plans
             </h2>
-            <p className="assign-package-subtitle">
-              Edit sessions per patient or remove a plan.
-            </p>
 
             {loadingPage && <p className="assign-package-status">Loading…</p>}
             {!loadingPage && assignments.length === 0 && (
@@ -326,12 +346,15 @@ export default function AssignPackageAssignForm() {
                     <div className="assign-package-card-inner">
                       <p className="assign-package-card-title">{a.title}</p>
                       <p className="assign-package-card-subtitle">
-                        Start date: {a.start_date?.slice(0, 10) || "—"}
+                        Start date:{" "}
+                        {a.start_date
+                          ? formatPlanStartDate(a.start_date)
+                          : "—"}
                       </p>
                       <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
                         <Link
                           to={assignPackageAssignmentSessionsPath(userId, a.id)}
-                          className="assign-package-link-btn"
+                          className="assign-package-outline-btn"
                         >
                           Edit
                         </Link>
