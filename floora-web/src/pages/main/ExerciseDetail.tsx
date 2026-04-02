@@ -27,7 +27,8 @@ interface Exercise {
   video_url?: string;
   thumbnail_url?: string;
   tags?: string[];
-  assigned_user_count?: number;
+  assigned_user_count?: number | null;
+  assigned_count_rpc_unavailable?: boolean;
 }
 
 function ExerciseDetail() {
@@ -153,6 +154,14 @@ function ExerciseDetail() {
 
             <h1 className="exercise-detail-title">{exercise.title}</h1>
 
+            {exercise.assigned_count_rpc_unavailable && (
+              <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
+                Plan-based client counts are unavailable (database function missing or failed). Run migrations
+                including <code>20260412000000_count_assigned_clients_per_exercise.sql</code> on Supabase,
+                then restart the API. The number shown may not include assigned plans.
+              </div>
+            )}
+
             {exercise.body_part && (
               <p className="exercise-detail-category">{exercise.body_part}</p>
             )}
@@ -202,7 +211,16 @@ function ExerciseDetail() {
               ) : (
                 <div className="exercise-detail-delete-confirm">
                   <span>
-                    {exercise.assigned_user_count ?? 0} users are assigned this exercise. Do you want to delete it?
+                    {exercise.assigned_user_count == null ? (
+                      <>Client assignment count could not be loaded (counts may be incomplete). </>
+                    ) : (
+                      <>
+                        {exercise.assigned_user_count}{" "}
+                        {exercise.assigned_user_count === 1 ? "client is" : "clients are"} assigned this
+                        exercise.{" "}
+                      </>
+                    )}
+                    Do you want to delete it?
                   </span>
                   <div className="exercise-detail-delete-buttons">
                     <button

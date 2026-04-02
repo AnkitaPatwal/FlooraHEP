@@ -46,6 +46,7 @@ jest.mock("../../lib/supabaseServer", () => ({
   supabaseServer: {
     storage: { from: jest.fn() },
     from: jest.fn(),
+    rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
   },
 }));
 

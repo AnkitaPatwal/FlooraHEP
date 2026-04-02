@@ -30,6 +30,12 @@ export interface Exercise {
   tags?: string[];
   created_at?: string;
   updated_at?: string;
+  /** Distinct clients (assigned packages / overrides); null when counts failed to load */
+  assigned_user_count?: number | null;
+}
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
 
 function ExerciseDashboard() {
@@ -39,7 +45,21 @@ function ExerciseDashboard() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [assignmentCountsError, setAssignmentCountsError] = useState(false);
+  const [assignmentCountsRpcUnavailable, setAssignmentCountsRpcUnavailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  /** Bumped when the tab becomes visible again so counts refresh after Assign Package (other tab or flow). */
+  const [listRefreshToken, setListRefreshToken] = useState(0);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setListRefreshToken((n) => n + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
 
   useEffect(() => {
     const fetchExercises = async () => {
@@ -54,6 +74,8 @@ function ExerciseDashboard() {
 
         const json = await res.json();
         setExercises(json.data || []);
+        setAssignmentCountsError(Boolean(json.meta?.assignmentCountsError));
+        setAssignmentCountsRpcUnavailable(Boolean(json.meta?.assignmentCountsRpcUnavailable));
         setError(null);
       } catch (err: unknown) {
         console.error("Failed to fetch exercises:", err);
@@ -65,7 +87,7 @@ function ExerciseDashboard() {
 
     const debounce = setTimeout(fetchExercises, 300);
     return () => clearTimeout(debounce);
-  }, [searchQuery, location.key]);
+  }, [searchQuery, location.key, listRefreshToken]);
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
     const category = exercise.body_part || exercise.category || "Uncategorized";
@@ -127,6 +149,20 @@ function ExerciseDashboard() {
           </div>
         )}
 
+        {assignmentCountsRpcUnavailable && !error && !loading && (
+          <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
+            Plan-based client counts are unavailable (database function missing or error). Run migrations
+            including <code>20260412000000_count_assigned_clients_per_exercise.sql</code> on your Supabase
+            project, then restart the API. Until then, numbers may stay at 0 even after you assign plans.
+          </div>
+        )}
+
+        {assignmentCountsError && !assignmentCountsRpcUnavailable && !error && !loading && (
+          <div className="exercise-assignment-counts-banner" role="alert">
+            Could not load client assignment counts. The exercise list is still shown; refresh the page to try again.
+          </div>
+        )}
+
         {loading && (
           <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
             Loading exercises...
@@ -149,6 +185,15 @@ function ExerciseDashboard() {
                     onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
                     onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
                   >
+                    <div className="exercise-card-assignment-row" aria-live="polite">
+                      {assignmentCountsError ? (
+                        <span className="exercise-card-assignment-error">Assignment count unavailable</span>
+                      ) : (
+                        <span className="exercise-card-assignment-count">
+                          {clientsAssignedLabel(exercise.assigned_user_count ?? 0)}
+                        </span>
+                      )}
+                    </div>
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
                       alt={exercise.title}
