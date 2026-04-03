@@ -7,6 +7,25 @@ import { linkVideoToExercise, BUCKET_NAME } from '../services/videoService';
 
 const router = express.Router();
 
+/** PostgREST often serializes bigint `exercise_id` as string; Map keys must match lookup type. */
+function normalizeExerciseId(id: unknown): number | null {
+  if (id == null) return null;
+  if (typeof id === 'bigint') {
+    const n = Number(id);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+  }
+  const n = typeof id === 'number' ? id : Number(String(id).trim());
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+function rpcExerciseCountRows(data: unknown): { exercise_id: unknown; client_count: unknown }[] {
+  if (Array.isArray(data)) return data as { exercise_id: unknown; client_count: unknown }[];
+  if (data && typeof data === 'object' && data !== null && 'exercise_id' in data) {
+    return [data as { exercise_id: unknown; client_count: unknown }];
+  }
+  return [];
+}
+
 type ResolvedAssignmentCounts = {
   counts: Map<number, number>;
   /** True when row-level user_exercise fallback also failed */
@@ -15,7 +34,10 @@ type ResolvedAssignmentCounts = {
   assignmentCountsRpcUnavailable: boolean;
 };
 
-/** Distinct auth users with this exercise in their merged assignment (plan + overrides). */
+/**
+ * Distinct auth users with this exercise in their merged assignment — same pattern as plan counts:
+ * `count_assigned_clients_for_exercises` RPC, then a simple table fallback if the RPC is unavailable.
+ */
 async function resolveAssignmentCounts(exerciseIds: number[]): Promise<ResolvedAssignmentCounts> {
   if (exerciseIds.length === 0) {
     return {
@@ -25,17 +47,26 @@ async function resolveAssignmentCounts(exerciseIds: number[]): Promise<ResolvedA
     };
   }
 
-  const { data, error } = await supabaseServer.rpc('count_assigned_clients_for_exercises', {
-    p_exercise_ids: exerciseIds,
+  const idsForRpc = [...new Set(exerciseIds.map((id) => normalizeExerciseId(id)).filter((id): id is number => id != null))];
+  if (idsForRpc.length === 0) {
+    return {
+      counts: new Map(),
+      assignmentCountsError: false,
+      assignmentCountsRpcUnavailable: false,
+    };
+  }
+
+  const { data: rpcData, error: rpcError } = await supabaseServer.rpc('count_assigned_clients_for_exercises', {
+    p_exercise_ids: idsForRpc,
   });
 
-  if (!error) {
+  if (!rpcError) {
     const counts = new Map<number, number>();
-    for (const id of exerciseIds) counts.set(id, 0);
-    for (const row of data ?? []) {
-      const eid = Number((row as { exercise_id: number }).exercise_id);
-      const cnt = Number((row as { client_count: number }).client_count ?? 0);
-      if (Number.isFinite(eid)) counts.set(eid, cnt);
+    for (const id of idsForRpc) counts.set(id, 0);
+    for (const row of rpcExerciseCountRows(rpcData)) {
+      const eid = normalizeExerciseId(row.exercise_id);
+      const cnt = Number(row.client_count ?? 0);
+      if (eid != null) counts.set(eid, cnt);
     }
     return {
       counts,
@@ -45,8 +76,8 @@ async function resolveAssignmentCounts(exerciseIds: number[]): Promise<ResolvedA
   }
 
   console.error(
-    'count_assigned_clients_for_exercises RPC failed. Apply migration 20260412000000_count_assigned_clients_per_exercise.sql (and 20260412100000 if present), then restart API. PostgREST message:',
-    (error as { message?: string }).message || error,
+    'count_assigned_clients_for_exercises RPC failed, using user_exercise fallback. Apply migration 20260412000000_count_assigned_clients_per_exercise.sql (and 20260412100000 if present), then restart API. PostgREST:',
+    (rpcError as { message?: string })?.message ?? rpcError,
   );
 
   const legacy = await legacyUserExerciseRowCounts(exerciseIds);
@@ -61,18 +92,20 @@ async function legacyUserExerciseRowCounts(
   exerciseIds: number[]
 ): Promise<{ counts: Map<number, number>; error: boolean }> {
   const counts = new Map<number, number>();
-  for (const id of exerciseIds) counts.set(id, 0);
-  if (exerciseIds.length === 0) return { counts, error: false };
+  const normalized = [...new Set(exerciseIds.map((id) => normalizeExerciseId(id)).filter((id): id is number => id != null))];
+  for (const id of normalized) counts.set(id, 0);
+  if (normalized.length === 0) return { counts, error: false };
   const { data: ueRows, error: ueError } = await supabaseServer
     .from('user_exercise')
     .select('exercise_id')
-    .in('exercise_id', exerciseIds);
+    .in('exercise_id', normalized);
   if (ueError) {
     console.error('legacy user_exercise counts error:', ueError);
     return { counts, error: true };
   }
   for (const row of ueRows ?? []) {
-    const eid = row.exercise_id as number;
+    const eid = normalizeExerciseId((row as { exercise_id: unknown }).exercise_id);
+    if (eid == null) continue;
     counts.set(eid, (counts.get(eid) ?? 0) + 1);
   }
   return { counts, error: false };
@@ -164,12 +197,17 @@ router.get('/', async (req, res) => {
     const assignmentCountsError = resolved.assignmentCountsError;
     const assignmentCountsRpcUnavailable = resolved.assignmentCountsRpcUnavailable;
 
-    const withAssignments = withSigned.map((row: { exercise_id: number }) => ({
-      ...row,
-      assigned_user_count: assignmentCountsError
-        ? null
-        : (assignmentCountByExerciseId.get(row.exercise_id) ?? 0),
-    }));
+    const withAssignments = withSigned.map((row: { exercise_id: unknown }) => {
+      const eid = normalizeExerciseId(row.exercise_id);
+      return {
+        ...row,
+        assigned_user_count: assignmentCountsError
+          ? null
+          : eid != null
+            ? (assignmentCountByExerciseId.get(eid) ?? 0)
+            : 0,
+      };
+    });
 
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));

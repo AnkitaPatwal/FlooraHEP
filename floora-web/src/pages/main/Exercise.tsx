@@ -1,10 +1,16 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Exercise.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -40,7 +46,12 @@ function clientsAssignedLabel(count: number): string {
 
 function ExerciseDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
   const { isSuperAdmin, isAuthLoading } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,27 +59,24 @@ function ExerciseDashboard() {
   const [assignmentCountsError, setAssignmentCountsError] = useState(false);
   const [assignmentCountsRpcUnavailable, setAssignmentCountsRpcUnavailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  /** Bumped when the tab becomes visible again so counts refresh after Assign Package (other tab or flow). */
-  const [listRefreshToken, setListRefreshToken] = useState(0);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        setListRefreshToken((n) => n + 1);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, []);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchExercises = async () => {
       try {
         setLoading(true);
         const params = new URLSearchParams({ pageSize: "100" });
-        if (searchQuery.trim()) params.set("search", searchQuery.trim());
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
         const headers = await authHeaders();
-        const res = await fetch(`${API_URL}/api/exercises?${params}`, { headers });
+        const res = await fetch(`${API_URL}/api/exercises?${params}`, {
+          headers,
+          cache: "no-store",
+        });
 
         if (!res.ok) throw new Error(`Failed to fetch exercises (${res.status})`);
 
@@ -85,9 +93,8 @@ function ExerciseDashboard() {
       }
     };
 
-    const debounce = setTimeout(fetchExercises, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery, location.key, listRefreshToken]);
+    void fetchExercises();
+  }, [debouncedSearch, location.key, refreshToken, countsVersion]);
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
     const category = exercise.body_part || exercise.category || "Uncategorized";
@@ -185,15 +192,6 @@ function ExerciseDashboard() {
                     onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
                     onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
                   >
-                    <div className="exercise-card-assignment-row" aria-live="polite">
-                      {assignmentCountsError ? (
-                        <span className="exercise-card-assignment-error">Assignment count unavailable</span>
-                      ) : (
-                        <span className="exercise-card-assignment-count">
-                          {clientsAssignedLabel(exercise.assigned_user_count ?? 0)}
-                        </span>
-                      )}
-                    </div>
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
                       alt={exercise.title}
@@ -201,19 +199,16 @@ function ExerciseDashboard() {
                     />
                     <div className="exercise-info">
                       <h3>{exercise.title}</h3>
-                      <p>{exercise.body_part || exercise.category || "General"}</p>
-                      {exercise.tags && exercise.tags.length > 0 && (
-                        <div className="exercise-tags-row">
-                          {exercise.tags.map((t) => (
-                            <span key={t} className="exercise-tag-chip">{t}</span>
-                          ))}
-                        </div>
-                      )}
-                      <span className="exercise-tag">
-                        <span className="material-symbols-outlined">vital_signs</span>
-                        {exercise.default_sets != null && exercise.default_reps != null
-                          ? `${exercise.default_sets} sets × ${exercise.default_reps} reps`
-                          : "Varies"}
+                      <p className="exercise-info-category">
+                        {exercise.body_part || exercise.category || "General"}
+                      </p>
+                      <span className="exercise-tag" aria-live="polite">
+                        <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                        {assignmentCountsError ? (
+                          <span className="exercise-card-assignment-error">Count unavailable</span>
+                        ) : (
+                          clientsAssignedLabel(exercise.assigned_user_count ?? 0)
+                        )}
                       </span>
                     </div>
                   </div>

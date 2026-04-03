@@ -36,7 +36,7 @@ afterEach(() => {
 });
 
 describe("GET /api/exercises", () => {
-  it("returns 200 with exercises list and assigned_user_count from RPC merge count", async () => {
+  it("returns 200 with exercises list and assigned_user_count from RPC", async () => {
     const mockExercises = [
       {
         exercise_id: 1,
@@ -90,6 +90,47 @@ describe("GET /api/exercises", () => {
       totalPages: 1,
       assignmentCountsError: false,
       assignmentCountsRpcUnavailable: false,
+    });
+  });
+
+  it("uses RPC counts when exercise_id is a string (PostgREST bigint)", async () => {
+    const mockExercises = [
+      {
+        exercise_id: "1",
+        title: "Plank",
+        description: "",
+        video_id: null,
+        video: null,
+      },
+    ];
+
+    const mockChain = {
+      or: jest.fn().mockReturnThis(),
+      order: jest.fn().mockReturnThis(),
+      range: jest.fn().mockResolvedValue({
+        data: mockExercises,
+        error: null,
+        count: 1,
+      }),
+    };
+
+    (supabaseServer.from as jest.Mock).mockImplementation(() => ({
+      select: jest.fn().mockReturnValue(mockChain),
+    }));
+
+    (supabaseServer.rpc as jest.Mock).mockResolvedValue({
+      data: [{ exercise_id: 1, client_count: 3 }],
+      error: null,
+    });
+
+    (createSignedUrl as jest.Mock).mockResolvedValue(null);
+
+    const res = await request(app).get("/api/exercises");
+
+    expect(res.status).toBe(200);
+    expect(res.body.data[0].assigned_user_count).toBe(3);
+    expect(supabaseServer.rpc).toHaveBeenCalledWith("count_assigned_clients_for_exercises", {
+      p_exercise_ids: [1],
     });
   });
 

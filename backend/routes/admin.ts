@@ -32,6 +32,238 @@ const supabaseAdmin = createClient(
 
 const router = express.Router();
 
+async function resolvePlanAssignedCounts(planIds: number[]): Promise<Map<number, number>> {
+  const map = new Map<number, number>();
+  for (const id of planIds) map.set(id, 0);
+  if (planIds.length === 0) return map;
+  const { data, error } = await supabaseServer.rpc('count_assigned_clients_for_plans', {
+    p_plan_ids: planIds,
+  });
+  if (!error && data) {
+    for (const row of data as { plan_id: number; client_count: number }[]) {
+      map.set(Number(row.plan_id), Number(row.client_count ?? 0));
+    }
+    return map;
+  }
+  console.error(
+    'count_assigned_clients_for_plans RPC failed, using user_packages fallback. PostgREST:',
+    (error as { message?: string })?.message || error,
+  );
+  const { data: rows, error: upErr } = await supabaseServer
+    .from('user_packages')
+    .select('package_id, user_id')
+    .in('package_id', planIds);
+  if (upErr || !rows) {
+    console.error('plan count fallback user_packages error:', upErr);
+    return map;
+  }
+  const per = new Map<number, Set<string>>();
+  for (const id of planIds) per.set(id, new Set());
+  for (const r of rows as { package_id: number; user_id: string }[]) {
+    const pid = Number(r.package_id);
+    const set = per.get(pid);
+    if (set) set.add(String(r.user_id));
+  }
+  for (const [pid, set] of per) map.set(pid, set.size);
+  return map;
+}
+
+/** Match assignment ids when PostgREST returns number vs string (aligned with SQL ::text joins). */
+function assignmentIdsEqual(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  const sa = String(a ?? '').trim();
+  const sb = String(b ?? '').trim();
+  if (sa === sb) return true;
+  const na = Number(sa);
+  const nb = Number(sb);
+  return Number.isFinite(na) && Number.isFinite(nb) && na === nb;
+}
+
+async function selectInChunks<T extends Record<string, unknown>>(
+  table: string,
+  column: string,
+  values: number[],
+  select: string,
+  chunkSize: number,
+): Promise<T[]> {
+  const out: T[] = [];
+  const uniq = [...new Set(values.filter((n) => Number.isFinite(n) && n > 0))];
+  for (let i = 0; i < uniq.length; i += chunkSize) {
+    const chunk = uniq.slice(i, i + chunkSize);
+    const { data, error } = await supabaseServer.from(table).select(select).in(column, chunk);
+    if (error) {
+      console.error(`module counts: ${table}.${column} chunk`, error);
+      continue;
+    }
+    out.push(...((data ?? []) as unknown as T[]));
+  }
+  return out;
+}
+
+/**
+ * Distinct “clients” per module (session tile), aligned with plan + user_assignment_session merge
+ * and legacy user_module — computed in Node so it does not depend on count_assigned_clients_for_modules existing.
+ *
+ * Only loads rows for plans that include the requested modules (not a global LIMIT), so counts stay correct
+ * as assignment tables grow.
+ */
+async function resolveModuleAssignedCounts(moduleIds: number[]): Promise<Map<number, number>> {
+  const result = new Map<number, number>();
+  const normalizedIds = moduleIds.map((n) => Number(n)).filter((n) => Number.isFinite(n) && n > 0);
+  for (const id of normalizedIds) result.set(id, 0);
+  if (normalizedIds.length === 0) return result;
+
+  const midSet = new Set(normalizedIds);
+  const sets = new Map<number, Set<string>>();
+  for (const id of normalizedIds) sets.set(id, new Set());
+
+  const cap = 100000;
+
+  type PlanMod = { plan_module_id: number; plan_id: number; module_id: number };
+  type UpRow = { id: string | number; user_id: string; package_id: number };
+  type UasRow = {
+    assignment_id: string | number;
+    user_id: string;
+    module_id: number;
+    source_plan_module_id: number | null;
+    is_removed: boolean | null;
+  };
+
+  const { data: pmTouchRows, error: touchErr } = await supabaseServer
+    .from('plan_module')
+    .select('plan_id')
+    .in('module_id', normalizedIds);
+  if (touchErr) console.error('module counts: plan_module (plans touching modules)', touchErr);
+
+  const planIdsTouching = [
+    ...new Set(
+      (pmTouchRows ?? [])
+        .map((r) => Number((r as { plan_id: number }).plan_id))
+        .filter((n) => Number.isFinite(n) && n > 0),
+    ),
+  ];
+
+  let pms: PlanMod[] = [];
+  if (planIdsTouching.length > 0) {
+    pms = await selectInChunks<PlanMod>(
+      'plan_module',
+      'plan_id',
+      planIdsTouching,
+      'plan_module_id, plan_id, module_id',
+      120,
+    );
+  }
+
+  const pmByPlan = new Map<number, { plan_module_id: number; module_id: number }[]>();
+  for (const pm of pms) {
+    const pid = Number(pm.plan_id);
+    if (!Number.isFinite(pid)) continue;
+    if (!pmByPlan.has(pid)) pmByPlan.set(pid, []);
+    pmByPlan.get(pid)!.push({
+      plan_module_id: Number(pm.plan_module_id),
+      module_id: Number(pm.module_id),
+    });
+  }
+
+  let ups: UpRow[] = [];
+  if (planIdsTouching.length > 0) {
+    ups = await selectInChunks<UpRow>(
+      'user_packages',
+      'package_id',
+      planIdsTouching,
+      'id, user_id, package_id',
+      120,
+    );
+  }
+
+  const allPlanModuleIds = [
+    ...new Set(pms.map((pm) => Number(pm.plan_module_id)).filter((n) => Number.isFinite(n))),
+  ];
+
+  const uasKeySeen = new Set<string>();
+  const uasList: UasRow[] = [];
+
+  const { data: uasDirect, error: uasDirectErr } = await supabaseServer
+    .from('user_assignment_session')
+    .select('assignment_id, user_id, module_id, source_plan_module_id, is_removed')
+    .in('module_id', normalizedIds)
+    .is('source_plan_module_id', null)
+    .limit(cap);
+  if (uasDirectErr) console.error('module counts: user_assignment_session (direct)', uasDirectErr);
+  for (const row of uasDirect ?? []) {
+    const r = row as UasRow;
+    const k = `d:${String(r.assignment_id)}:${r.user_id}:${r.module_id}`;
+    if (uasKeySeen.has(k)) continue;
+    uasKeySeen.add(k);
+    uasList.push(r);
+  }
+
+  if (allPlanModuleIds.length > 0) {
+    const overrideRows = await selectInChunks<UasRow>(
+      'user_assignment_session',
+      'source_plan_module_id',
+      allPlanModuleIds,
+      'assignment_id, user_id, module_id, source_plan_module_id, is_removed',
+      120,
+    );
+    for (const r of overrideRows) {
+      const k = `o:${String(r.assignment_id)}:${r.user_id}:${r.source_plan_module_id}`;
+      if (uasKeySeen.has(k)) continue;
+      uasKeySeen.add(k);
+      uasList.push(r);
+    }
+  }
+
+  for (const up of ups) {
+    const aid = (up as UpRow).id;
+    const uid = String((up as UpRow).user_id);
+    const packageId = Number((up as UpRow).package_id);
+    if (!Number.isFinite(packageId)) continue;
+
+    const planMods = pmByPlan.get(packageId) ?? [];
+
+    for (const pm of planMods) {
+      const mid = pm.module_id;
+      if (!midSet.has(mid)) continue;
+      const override = uasList.find(
+        (r) =>
+          assignmentIdsEqual(r.assignment_id, aid) &&
+          String(r.user_id) === uid &&
+          r.source_plan_module_id != null &&
+          Number(r.source_plan_module_id) === pm.plan_module_id,
+      );
+      if (override && override.is_removed === true) continue;
+      sets.get(mid)!.add(uid);
+    }
+  }
+
+  // Extra sessions (source_plan_module_id null): count even when no plan row lists this module or ups was empty.
+  for (const r of uasList) {
+    if (r.source_plan_module_id != null) continue;
+    if (r.is_removed === true) continue;
+    const mid = Number(r.module_id);
+    if (!midSet.has(mid)) continue;
+    sets.get(mid)!.add(String(r.user_id));
+  }
+
+  const { data: umRows, error: umErr } = await supabaseServer
+    .from('user_module')
+    .select('module_id, user_id')
+    .in('module_id', normalizedIds)
+    .limit(cap);
+  if (umErr) console.error('module counts: user_module', umErr);
+  for (const r of umRows ?? []) {
+    const mid = Number((r as { module_id: number }).module_id);
+    if (!midSet.has(mid)) continue;
+    sets.get(mid)!.add(`um:${String((r as { user_id: number }).user_id)}`);
+  }
+
+  for (const id of normalizedIds) {
+    result.set(id, sets.get(id)?.size ?? 0);
+  }
+  return result;
+}
+
 // ALL ROUTES BELOW REQUIRE VALID SUPABASE SESSION TOKEN
 router.use(requireAdmin);
 
@@ -134,7 +366,13 @@ router.post('/clients/:id/deny', async (req, res) => {
 router.get('/modules', async (_req, res) => {
   try {
     const modules = await getAllModulesWithExercises(supabaseServer);
-    return res.status(200).json(modules);
+    const moduleIds = (modules as { module_id: number }[]).map((m) => m.module_id).filter((id) => id != null);
+    const counts = await resolveModuleAssignedCounts(moduleIds);
+    const enriched = (modules as { module_id: number }[]).map((m) => ({
+      ...m,
+      assigned_user_count: counts.get(m.module_id) ?? 0,
+    }));
+    return res.status(200).json(enriched);
   } catch (error) {
     console.error('Failed to fetch modules:', error);
     return res.status(500).json({ error: 'Failed to fetch modules' });
@@ -490,21 +728,6 @@ router.get('/clients/:userId/modules', async (req, res) => {
 });
 
 /**
- * ATH-413: Create a new module (admin-only)
-
- * Fetch all modules/plans with exercises (admin-only)
- */
-router.get('/modules', async (req, res) => {
-  try {
-    const modules = await getAllModulesWithExercises(supabaseServer)
-    return res.status(200).json(modules)
-  } catch (error) {
-    console.error('Failed to fetch modules:', error)
-    return res.status(500).json({ error: 'Failed to fetch modules' })
-  }
-});
-
-/**
  * Save exercises for a module (admin-only). Replaces existing module_exercise rows.
  * Body: { exercise_ids: number[] }
  */
@@ -662,7 +885,14 @@ router.get('/plans', async (req, res) => {
       return res.status(500).json({ error: 'Failed to fetch plans' });
     }
 
-    return res.status(200).json(plans);
+    const planIds = (plans ?? []).map((p: { plan_id: number }) => Number(p.plan_id)).filter((id) => Number.isFinite(id));
+    const counts = await resolvePlanAssignedCounts(planIds);
+    const enriched = (plans ?? []).map((p: { plan_id: number }) => ({
+      ...p,
+      assigned_user_count: counts.get(Number(p.plan_id)) ?? 0,
+    }));
+
+    return res.status(200).json(enriched);
   } catch (error) {
     console.error('Failed to fetch plans:', error);
     return res.status(500).json({ error: 'Internal server error.' });

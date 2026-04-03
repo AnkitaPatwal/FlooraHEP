@@ -147,21 +147,8 @@
   word-break: break-all;
 }
 
-.exercise-card-assignment-row {
-  padding: 8px 12px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
-  flex-shrink: 0;
-}
-
-.exercise-card-assignment-count {
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-}
-
 .exercise-card-assignment-error {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
   color: #b45309;
 }
@@ -202,42 +189,28 @@
   margin-bottom: 4px;
 }
 
-.exercise-info p {
+.exercise-info-category {
   font-size: 12px;
   color: #999;
-  margin-bottom: 8px;
+  margin: 0 0 10px 0;
 }
 
+/* Same chip as `.plan-tag` / `.session-tag` */
 .exercise-tag {
-  display: inline-flex;  
-  align-items: center;   
-  gap: 4px;             
-  background-color: #d4e8e8;
-  color: #5a8e93;
-  font-size: 11px;
-  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  background-color: #e6fffa;
+  color: #2c7a7b;
   padding: 4px 8px;
   border-radius: 6px;
-}
-
-.exercise-tag .material-symbols-outlined {
-  font-size: 14px;
-}
-
-.exercise-tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 6px;
-}
-
-.exercise-tag-chip {
-  font-size: 11px;
-  background-color: #d4e8e8;
-  color: #5a8e93;
-  padding: 2px 8px;
-  border-radius: 6px;
+  font-size: 12px;
   font-weight: 500;
+  width: fit-content;
+  gap: 4px;
+}
+
+.exercise-tag .assignment-count-pulse-icon {
+  flex-shrink: 0;
 }
 
 .play-btn {
