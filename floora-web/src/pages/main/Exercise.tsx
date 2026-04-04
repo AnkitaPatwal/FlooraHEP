@@ -1,6 +1,6 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/main/Exercise.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
@@ -9,7 +9,9 @@ import { supabase } from "../../lib/supabase-client";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return {
     ...(session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` }
@@ -40,13 +42,22 @@ function ExerciseDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchExercises = async () => {
       try {
         setLoading(true);
         const params = new URLSearchParams({ pageSize: "100" });
-        if (searchQuery.trim()) params.set("search", searchQuery.trim());
+        if (debouncedSearchQuery) params.set("search", debouncedSearchQuery);
         const headers = await authHeaders();
         const res = await fetch(`${API_URL}/api/exercises?${params}`, { headers });
 
@@ -63,11 +74,31 @@ function ExerciseDashboard() {
       }
     };
 
-    const debounce = setTimeout(fetchExercises, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery, location.key]);
+    fetchExercises();
+  }, [debouncedSearchQuery, location.key]);
 
-  const groupedExercises = exercises.reduce((acc, exercise) => {
+  const filteredExercises = useMemo(() => {
+    const q = debouncedSearchQuery.toLowerCase();
+    if (!q) return exercises;
+
+    return exercises.filter((exercise) => {
+      const title = (exercise.title ?? "").toLowerCase();
+      const description = (exercise.description ?? "").toLowerCase();
+      const bodyPart = (exercise.body_part ?? "").toLowerCase();
+      const category = (exercise.category ?? "").toLowerCase();
+      const tags = (exercise.tags ?? []).join(" ").toLowerCase();
+
+      return (
+        title.includes(q) ||
+        description.includes(q) ||
+        bodyPart.includes(q) ||
+        category.includes(q) ||
+        tags.includes(q)
+      );
+    });
+  }, [exercises, debouncedSearchQuery]);
+
+  const groupedExercises = filteredExercises.reduce((acc, exercise) => {
     const category = exercise.body_part || exercise.category || "Uncategorized";
     if (!acc[category]) acc[category] = [];
     acc[category].push(exercise);
@@ -81,7 +112,7 @@ function ExerciseDashboard() {
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
             <p className="exercise-count">
-              {loading ? "Loading..." : `${exercises.length} Exercises`}
+              {loading ? "Loading..." : `${filteredExercises.length} Exercises`}
             </p>
             {!isAuthLoading && isSuperAdmin && (
               <Link to="/exercises/create">
@@ -122,18 +153,33 @@ function ExerciseDashboard() {
         <hr className="divider" />
 
         {error && (
-          <div style={{ padding: "20px", color: "#b91c1c", backgroundColor: "#fee", borderRadius: "8px", margin: "20px 0" }}>
+          <div
+            style={{
+              padding: "20px",
+              color: "#b91c1c",
+              backgroundColor: "#fee",
+              borderRadius: "8px",
+              margin: "20px 0",
+            }}
+          >
             {error}
           </div>
         )}
 
         {loading && (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+          <div
+            style={{
+              padding: "40px",
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
             Loading exercises...
           </div>
         )}
 
-        {!loading && !error &&
+        {!loading &&
+          !error &&
           Object.entries(groupedExercises).map(([category, items]) => (
             <section className="category-section" key={category}>
               <h2 className="category-title">
@@ -147,7 +193,10 @@ function ExerciseDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
-                    onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" &&
+                      navigate(`/exercises/${exercise.exercise_id}`)
+                    }
                   >
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
@@ -160,13 +209,18 @@ function ExerciseDashboard() {
                       {exercise.tags && exercise.tags.length > 0 && (
                         <div className="exercise-tags-row">
                           {exercise.tags.map((t) => (
-                            <span key={t} className="exercise-tag-chip">{t}</span>
+                            <span key={t} className="exercise-tag-chip">
+                              {t}
+                            </span>
                           ))}
                         </div>
                       )}
                       <span className="exercise-tag">
-                        <span className="material-symbols-outlined">vital_signs</span>
-                        {exercise.default_sets != null && exercise.default_reps != null
+                        <span className="material-symbols-outlined">
+                          vital_signs
+                        </span>
+                        {exercise.default_sets != null &&
+                        exercise.default_reps != null
                           ? `${exercise.default_sets} sets × ${exercise.default_reps} reps`
                           : "Varies"}
                       </span>
