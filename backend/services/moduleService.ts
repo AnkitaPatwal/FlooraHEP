@@ -9,6 +9,7 @@ export async function getAllModulesWithExercises(
       module_id,
       title,
       description,
+      category,
       session_number,
       created_at,
       module_exercise (

@@ -83,20 +83,27 @@ describe("PUT /api/admin/modules/:id", () => {
   it("updates module fields", async () => {
     mockEq.mockReturnThis();
     mockMaybeSingle.mockResolvedValueOnce({
-      data: { module_id: 12, title: "New", description: "Desc", session_number: 3 },
+      data: {
+        module_id: 12,
+        title: "New",
+        description: "",
+        category: "Mobility",
+        session_number: 3,
+      },
       error: null,
     });
 
     const res = await request(app)
       .put("/api/admin/modules/12")
       .set("Authorization", "Bearer fake-token")
-      .send({ title: " New ", description: "Desc", session_number: 3 });
+      .send({ title: " New ", category: "Mobility", session_number: 3 });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       module_id: 12,
       title: "New",
-      description: "Desc",
+      description: "",
+      category: "Mobility",
       session_number: 3,
     });
   });

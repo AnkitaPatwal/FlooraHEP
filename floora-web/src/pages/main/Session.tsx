@@ -33,10 +33,16 @@ type ModuleExercise = {
 type Module = {
   module_id: number;
   title: string;
-  description: string;
+  description?: string;
+  category?: string;
   session_number: number;
-  module_exercise: ModuleExercise[];
+  module_exercise?: ModuleExercise[];
 };
+
+function moduleCategoryLabel(m: Module): string {
+  const c = m.category?.trim() || m.description?.trim();
+  return c || "Uncategorized";
+}
 
 function Session() {
   const navigate = useNavigate();
@@ -66,15 +72,36 @@ function Session() {
     loadModules();
   }, []);
 
-  const filteredModules = modules.filter(
-    (m) => !search.trim() || m.title.toLowerCase().includes(search.toLowerCase())
-  );
-  const groupedBySession = filteredModules.reduce((acc, m) => {
-    const key = `Session ${m.session_number}`;
+  const q = search.trim().toLowerCase();
+  const filteredModules = modules.filter((m) => {
+    if (!q) return true;
+    const title = m.title.toLowerCase();
+    const cat = moduleCategoryLabel(m).toLowerCase();
+    return title.includes(q) || cat.includes(q);
+  });
+
+  const groupedByCategory = filteredModules.reduce((acc, m) => {
+    const key = moduleCategoryLabel(m);
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
     return acc;
   }, {} as Record<string, Module[]>);
+
+  const sortedCategoryGroups = Object.entries(groupedByCategory)
+    .map(([label, items]) => [
+      label,
+      [...items].sort((a, b) => {
+        if (a.session_number !== b.session_number) {
+          return a.session_number - b.session_number;
+        }
+        return a.title.localeCompare(b.title);
+      }),
+    ] as const)
+    .sort(([a], [b]) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    });
 
   return (
     <AppLayout>
@@ -131,21 +158,21 @@ function Session() {
             No sessions yet. Click &quot;+ New Session&quot; to create one.
           </p>
         ) : (
-          Object.entries(groupedBySession).map(([category, items]) => (
-            <section className="session-category-section" key={category}>
+          sortedCategoryGroups.map(([categoryLabel, items]) => (
+            <section className="session-category-section" key={categoryLabel}>
               <h2 className="session-category-title">
-                {category} <span>{items.length} Sessions</span>
+                {categoryLabel} <span>{items.length} Sessions</span>
               </h2>
               <div className="session-grid">
                 {items.map((module) => (
                   <div
                     className="session-card"
                     key={module.module_id}
-                    onClick={() => navigate(`/sessions/${module.module_id}`)}
+                    onClick={() => navigate(`/sessions/${module.module_id}/edit`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        navigate(`/sessions/${module.module_id}`);
+                        navigate(`/sessions/${module.module_id}/edit`);
                       }
                     }}
                     role="button"
@@ -162,7 +189,7 @@ function Session() {
                     />
                     <div className="session-info">
                       <h3>{module.title}</h3>
-                      <p>Session {module.session_number}</p>
+                      <p className="session-card-category">{moduleCategoryLabel(module)}</p>
                       <span className="session-tag">
                         <span className="material-symbols-outlined">vital_signs</span>
                         {module.module_exercise?.length ?? 0} exercise

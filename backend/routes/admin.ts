@@ -147,21 +147,36 @@ router.get('/modules', async (_req, res) => {
 router.post('/modules', async (req, res) => {
   try {
     const adminId = (req as any).admin?.id;
-    const { title, description, session_number } = req.body;
+    const { title, category } = req.body;
 
     if (!title || typeof title !== 'string' || !title.trim()) {
       return res.status(400).json({ error: 'Title is required.' });
     }
 
+    const cat = typeof category === 'string' ? category.trim() : '';
+
+    const { data: maxRow } = await supabaseAdmin
+      .from('module')
+      .select('session_number')
+      .order('session_number', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const nextSession =
+      maxRow && typeof (maxRow as { session_number?: number }).session_number === 'number'
+        ? (maxRow as { session_number: number }).session_number + 1
+        : 1;
+
     const { data, error } = await supabaseAdmin
       .from('module')
       .insert({
         title: title.trim(),
-        description: description?.trim() ?? '',
-        session_number: session_number ?? 1,
+        description: '',
+        category: cat,
+        session_number: nextSession,
         created_by_admin_id: adminId ?? null,
       })
-      .select('module_id, title, description, session_number')
+      .select('module_id, title, description, category, session_number')
       .single();
 
     if (error) {
@@ -179,7 +194,7 @@ router.post('/modules', async (req, res) => {
 /**
  * Update an existing module/session (admin-only)
  * PUT /api/admin/modules/:id
- * Body: { title?: string, description?: string, session_number?: number }
+ * Body: { title?: string, category?: string, description?: string, session_number?: number }
  */
 router.put('/modules/:id', async (req, res) => {
   try {
@@ -188,7 +203,7 @@ router.put('/modules/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid module id.' });
     }
 
-    const { title, description, session_number } = req.body ?? {};
+    const { title, category, description, session_number } = req.body ?? {};
 
     const updatePayload: any = {};
     if (title !== undefined) {
@@ -196,6 +211,12 @@ router.put('/modules/:id', async (req, res) => {
         return res.status(400).json({ error: 'Title is required.' });
       }
       updatePayload.title = title.trim();
+    }
+    if (category !== undefined) {
+      if (typeof category !== 'string') {
+        return res.status(400).json({ error: 'Category must be a string.' });
+      }
+      updatePayload.category = category.trim();
     }
     if (description !== undefined) {
       if (typeof description !== 'string') {
@@ -219,7 +240,7 @@ router.put('/modules/:id', async (req, res) => {
       .from('module')
       .update(updatePayload)
       .eq('module_id', moduleId)
-      .select('module_id, title, description, session_number')
+      .select('module_id, title, description, category, session_number')
       .maybeSingle();
 
     if (error) {

@@ -39,7 +39,7 @@ router.get("/modules", async (_req, res) => {
   try {
     const { data, error } = await supabaseServer
       .from("module")
-      .select("module_id, title, description, session_number")
+      .select("module_id, title, description, category, session_number")
       .order("session_number", { ascending: true });
 
     if (error) {

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate, useParams } from "react-router-dom";
 import { useEffect } from "react";
 import AdminVideoUpload from "./pages/AdminVideoUpload";
 import { AuthProvider } from "./lib/auth";
@@ -15,7 +15,6 @@ import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
 import CreateSession from "./pages/main/CreateSession";
-import SessionDetail from "./pages/main/SessionDetail";
 import CreateExercise from "./components/main/CreateExercise";
 import EditExercise from "./components/main/EditExercise";
 import ExerciseDetail from "./pages/main/ExerciseDetail";
@@ -28,6 +27,11 @@ import PlanDetail from "./pages/main/PlanDetail";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import AppLayout from "./components/layouts/AppLayout";
+
+function SessionIdToEditRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/sessions/${id}/edit`} replace />;
+}
 
 function AuthRedirectHandler() {
   const navigate = useNavigate();
@@ -76,7 +80,7 @@ export default function App() {
           <Route path="/sessions" element={<SessionDashboard />} />
           <Route path="/sessions/create" element={<CreateSession />} />
           <Route path="/sessions/:id/edit" element={<CreateSession />} />
-          <Route path="/sessions/:id" element={<SessionDetail />} />
+          <Route path="/sessions/:id" element={<SessionIdToEditRedirect />} />
           <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
           <Route
             path="/exercises/create"

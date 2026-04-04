@@ -12,6 +12,52 @@ function intParam(v: unknown, fallback: number) {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
 }
 
+/** Distinct users assigned an exercise (legacy user_exercise + user_assignment_exercise). */
+async function fetchAssignedUserCountsForExercises(exerciseIds: number[]): Promise<Map<number, number>> {
+  const sets = new Map<number, Set<string>>();
+  for (const id of exerciseIds) {
+    sets.set(id, new Set());
+  }
+  if (exerciseIds.length === 0) {
+    return new Map();
+  }
+
+  try {
+    const { data: legacy, error: le } = await supabaseServer
+      .from('user_exercise')
+      .select('exercise_id, user_id')
+      .in('exercise_id', exerciseIds);
+    if (!le && legacy) {
+      for (const row of legacy as { exercise_id: number; user_id: number }[]) {
+        sets.get(row.exercise_id)?.add(`legacy:${row.user_id}`);
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    const { data: assigned, error: ae } = await supabaseServer
+      .from('user_assignment_exercise')
+      .select('exercise_id, user_id, is_removed')
+      .in('exercise_id', exerciseIds);
+    if (!ae && assigned) {
+      for (const row of assigned as { exercise_id: number; user_id: string; is_removed?: boolean | null }[]) {
+        if (row.is_removed === true) continue;
+        sets.get(row.exercise_id)?.add(`asg:${row.user_id}`);
+      }
+    }
+  } catch {
+    /* table may be missing in older DBs */
+  }
+
+  const out = new Map<number, number>();
+  for (const id of exerciseIds) {
+    out.set(id, sets.get(id)?.size ?? 0);
+  }
+  return out;
+}
+
 router.get('/', async (req, res) => {
   try {
     const page = intParam(req.query.page, 1);
@@ -74,12 +120,17 @@ router.get('/', async (req, res) => {
       return res.status(500).json({ message: 'Failed to fetch exercises' });
     }
 
+    const rows = data ?? [];
+    const exerciseIds = rows.map((r: any) => r.exercise_id).filter((id: unknown) => Number.isFinite(id)) as number[];
+    const assignedByExerciseId = await fetchAssignedUserCountsForExercises(exerciseIds);
+
     const withSigned = await Promise.all(
-      (data ?? []).map(async (row: any) => {
+      rows.map(async (row: any) => {
         const video_url = await createSignedUrl(row.video);
         return {
           ...row,
           video_url,
+          assigned_user_count: assignedByExerciseId.get(row.exercise_id) ?? 0,
         };
       })
     );
@@ -140,16 +191,8 @@ router.get('/:id', async (req, res) => {
 
     const video_url = await createSignedUrl(data.video);
 
-    let assigned_user_count = 0;
-    try {
-      const { count } = await supabaseServer
-        .from('user_exercise')
-        .select('*', { count: 'exact', head: true })
-        .eq('exercise_id', id);
-      assigned_user_count = count ?? 0;
-    } catch {
-      /* mock 0 if table missing */
-    }
+    const countMap = await fetchAssignedUserCountsForExercises([id]);
+    const assigned_user_count = countMap.get(id) ?? 0;
 
     const result = {
       ...data,

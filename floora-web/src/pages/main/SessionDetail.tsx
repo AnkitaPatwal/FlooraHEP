@@ -33,7 +33,8 @@ type ModuleExercise = {
 type Module = {
   module_id: number;
   title: string;
-  description: string;
+  description?: string;
+  category?: string;
   session_number: number;
   module_exercise: ModuleExercise[];
 };
@@ -190,15 +191,12 @@ export default function SessionDetail() {
               <div className="session-detail-hero-inner">
                 <img className="session-detail-hero-img" src={sessionThumbnailUrl} alt="" />
                 <div className="session-detail-hero-title">
-                  <div className="session-detail-kicker">Session {session.session_number}</div>
+                  <div className="session-detail-kicker">
+                    {session.category?.trim() || session.description?.trim() || "Uncategorized"}
+                  </div>
                   <h1 className="session-detail-title">{session.title}</h1>
                 </div>
               </div>
-            </div>
-
-            <div className="session-detail-description">
-              <h3>Description</h3>
-              <p>{session.description || "No description."}</p>
             </div>
 
             <div className="session-detail-exercises">

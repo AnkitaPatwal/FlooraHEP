@@ -16,12 +16,13 @@ interface Module {
 }
 
 function mapModuleToSession(module: any) {
+  const cat = module.category ?? module.description ?? "";
   return {
     module_id: module.module_id,
     title: module.title,
-    type: module.description,
+    type: cat,
     image: "",
-    description: module.description,
+    description: cat,
     session_number: module.session_number ?? 0
   };
 }
