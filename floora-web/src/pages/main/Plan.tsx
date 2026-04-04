@@ -46,12 +46,16 @@ function mapDataToPlan(plan: PlanData): Plan {
 
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
     const loadPlans = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         const res = await fetch(`${API_BASE}/api/admin/plans`, {
           headers: {
             "Content-Type": "application/json",
@@ -77,7 +81,26 @@ export default function Plan() {
     loadPlans();
   }, []);
 
-  const groupedPlans = (plans ?? []).reduce((acc, plan) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim().toLowerCase());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filteredPlans = (plans ?? []).filter((plan) => {
+    if (!debouncedSearch) return true;
+
+    const title = (plan.title ?? "").toLowerCase();
+    const category = (plan.category ?? "").toLowerCase();
+
+    return (
+      title.includes(debouncedSearch) || category.includes(debouncedSearch)
+    );
+  });
+
+  const groupedPlans = filteredPlans.reduce((acc, plan) => {
     const category = plan.category ?? "Uncategorized";
     if (!acc[category]) acc[category] = [];
     acc[category].push(plan);
@@ -92,7 +115,7 @@ export default function Plan() {
         <header className="plan-header">
           <div className="plan-header-left">
             <h1 className="plan-title">Plans</h1>
-            <p className="plan-count">{plans.length} Plans</p>
+            <p className="plan-count">{filteredPlans.length} Plans</p>
             <button
               className="plan-new-plan-btn"
               onClick={() => navigate("/plan-dashboard/create")}
@@ -123,6 +146,8 @@ export default function Plan() {
                 type="text"
                 className="plan-search-bar"
                 placeholder="Search plans..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
           </div>
