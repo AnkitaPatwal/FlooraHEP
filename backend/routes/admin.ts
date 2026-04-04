@@ -3,7 +3,12 @@ import { createClient } from '@supabase/supabase-js';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
-import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
+import {
+  getAllModulesWithExercises,
+  attachAssignedUserCountsToModules,
+  createModule,
+  saveModuleExercises,
+} from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
 import { requireAdmin, requireSuperAdmin } from './adminAuth';
 
@@ -134,6 +139,7 @@ router.post('/clients/:id/deny', async (req, res) => {
 router.get('/modules', async (_req, res) => {
   try {
     const modules = await getAllModulesWithExercises(supabaseServer);
+    await attachAssignedUserCountsToModules(supabaseAdmin, modules as Record<string, unknown>[]);
     return res.status(200).json(modules);
   } catch (error) {
     console.error('Failed to fetch modules:', error);
@@ -511,21 +517,6 @@ router.get('/clients/:userId/modules', async (req, res) => {
 });
 
 /**
- * ATH-413: Create a new module (admin-only)
-
- * Fetch all modules/plans with exercises (admin-only)
- */
-router.get('/modules', async (req, res) => {
-  try {
-    const modules = await getAllModulesWithExercises(supabaseServer)
-    return res.status(200).json(modules)
-  } catch (error) {
-    console.error('Failed to fetch modules:', error)
-    return res.status(500).json({ error: 'Failed to fetch modules' })
-  }
-});
-
-/**
  * Save exercises for a module (admin-only). Replaces existing module_exercise rows.
  * Body: { exercise_ids: number[] }
  */
@@ -673,7 +664,17 @@ router.get('/plans', async (req, res) => {
           name
         ),
         plan_module (
-          module_id
+          order_index,
+          module_id,
+          module (
+            module_id,
+            module_exercise (
+              order_index,
+              exercise (
+                thumbnail_url
+              )
+            )
+          )
         )
       `)
       .order('plan_id', { ascending: false });
@@ -681,6 +682,17 @@ router.get('/plans', async (req, res) => {
     if (error) {
       console.error('Error fetching plans:', error);
       return res.status(500).json({ error: 'Failed to fetch plans' });
+    }
+
+    if (Array.isArray(plans)) {
+      for (const p of plans as any[]) {
+        if (Array.isArray(p.plan_module)) {
+          p.plan_module.sort(
+            (a: { order_index: number }, b: { order_index: number }) =>
+              a.order_index - b.order_index
+          );
+        }
+      }
     }
 
     return res.status(200).json(plans);
@@ -702,9 +714,7 @@ router.post('/plans', async (req, res) => {
       return res.status(400).json({ error: 'Title is required.' });
     }
 
-    if (!description || typeof description !== 'string') {
-      return res.status(400).json({ error: 'Description is required.' });
-    }
+    const planDescription = typeof description === 'string' ? description : '';
 
     if (!Array.isArray(moduleIds)) {
       return res.status(400).json({ error: 'moduleIds must be an array.' });
@@ -712,7 +722,7 @@ router.post('/plans', async (req, res) => {
 
     const planRow: any = {
       title,
-      description,
+      description: planDescription,
       created_by_admin_id: adminId,
     };
     if (categoryId != null && categoryId !== '') {
@@ -817,9 +827,7 @@ router.put('/plans/:id', async (req, res) => {
       return res.status(400).json({ error: 'Title is required.' });
     }
 
-    if (!description || typeof description !== 'string') {
-      return res.status(400).json({ error: 'Description is required.' });
-    }
+    const planDescription = typeof description === 'string' ? description : '';
 
     if (!Array.isArray(moduleIds)) {
       return res.status(400).json({ error: 'moduleIds must be an array.' });
@@ -827,7 +835,7 @@ router.put('/plans/:id', async (req, res) => {
 
     const updatePayload: any = {
       title,
-      description,
+      description: planDescription,
       updated_at: new Date().toISOString(),
     };
     if (categoryId !== undefined) {

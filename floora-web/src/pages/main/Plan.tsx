@@ -3,6 +3,7 @@ import "../../components/main/Plan.css";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import sessionImg from "../../assets/exercise.jpg";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -23,13 +24,39 @@ interface Plan {
   image: string;
 }
 
+type PlanModuleRow = {
+  order_index: number;
+  module_id: number;
+  module?: {
+    module_id: number;
+    module_exercise?: {
+      order_index: number;
+      exercise?: { thumbnail_url?: string | null } | null;
+    }[];
+  } | null;
+};
+
 interface PlanData {
   plan_id: number;
   title: string;
   description: string;
   category_id: number | null;
   plan_category: { category_id: number; name: string } | null;
-  plan_module: any[];
+  plan_module?: PlanModuleRow[];
+}
+
+/** Thumbnail from the first session in plan order → first exercise in that session. */
+function planListThumbnailUrl(plan: PlanData): string {
+  const rows = [...(plan.plan_module ?? [])].sort(
+    (a, b) => a.order_index - b.order_index
+  );
+  const firstModule = rows[0]?.module;
+  if (!firstModule) return sessionImg;
+  const exercises = [...(firstModule.module_exercise ?? [])].sort(
+    (a, b) => a.order_index - b.order_index
+  );
+  const url = exercises[0]?.exercise?.thumbnail_url?.trim();
+  return url || sessionImg;
 }
 
 function mapDataToPlan(plan: PlanData): Plan {
@@ -40,7 +67,7 @@ function mapDataToPlan(plan: PlanData): Plan {
     category: categoryName,
     type: plan.description ?? "Plan",
     sessionCount: plan.plan_module ? plan.plan_module.length : 0,
-    image: "",
+    image: planListThumbnailUrl(plan),
   };
 }
 
@@ -65,9 +92,7 @@ export default function Plan() {
           },
         });
         const data: unknown = await res.json();
-        console.log("RAW DATA:", data);
         if (!Array.isArray(data)) {
-          console.error("Expected array from API, got:", typeof data);
           setPlans([]);
           return;
         }
@@ -106,8 +131,6 @@ export default function Plan() {
     acc[category].push(plan);
     return acc;
   }, {} as Record<string, Plan[]>);
-
-  console.log("PLANS STATE:", plans);
 
   return (
     <AppLayout>
@@ -169,11 +192,24 @@ export default function Plan() {
                 <div
                   className="plan-card"
                   key={plan.id}
-                  onClick={() => navigate(`/plan-dashboard/${plan.id}`)}
+                  onClick={() => navigate(`/plan-dashboard/${plan.id}/edit`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      navigate(`/plan-dashboard/${plan.id}/edit`);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
                 >
+                  <img
+                    src={plan.image}
+                    alt=""
+                    className="plan-image"
+                  />
                   <div className="plan-info">
                     <h3>{plan.title}</h3>
-                    <p>{plan.category}</p>
+                    <p className="plan-card-category">{plan.category}</p>
                     <span className="plan-tag">
                       <span className="material-symbols-outlined">
                         vital_signs

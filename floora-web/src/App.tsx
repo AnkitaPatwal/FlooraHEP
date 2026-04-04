@@ -23,7 +23,6 @@ import CreateAdmin from "./pages/CreateAdmin";
 import AdminAcceptInvite from "./pages/AdminAcceptInvite";
 import ResetPassword from "./pages/ResetPassword";
 import CreatePlan from "./pages/main/CreatePlan";
-import PlanDetail from "./pages/main/PlanDetail";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import AppLayout from "./components/layouts/AppLayout";
@@ -31,6 +30,11 @@ import AppLayout from "./components/layouts/AppLayout";
 function SessionIdToEditRedirect() {
   const { id } = useParams();
   return <Navigate to={`/sessions/${id}/edit`} replace />;
+}
+
+function PlanIdToEditRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/plan-dashboard/${id}/edit`} replace />;
 }
 
 function AuthRedirectHandler() {
@@ -69,7 +73,7 @@ export default function App() {
           } />
           <Route path="/plan-dashboard/:id" element={
             <AdminRoute>
-              <PlanDetail />
+              <PlanIdToEditRedirect />
             </AdminRoute>
           } />
           <Route path="/plan-dashboard/:id/edit" element={

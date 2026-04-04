@@ -85,7 +85,7 @@ afterEach(() => {
 });
 
 describe("POST /api/admin/plans", () => {
-  it("returns 400 if title or description is missing", async () => {
+  it("returns 400 if title is missing", async () => {
     const res = await request(app)
       .post("/api/admin/plans")
       .set("Authorization", "Bearer fake-token")

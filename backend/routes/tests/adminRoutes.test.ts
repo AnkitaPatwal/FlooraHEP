@@ -53,13 +53,20 @@ describe("GET /api/admin/modules", () => {
     jest
       .spyOn(moduleService, "getAllModulesWithExercises")
       .mockResolvedValue(mockModules as any);
+    jest
+      .spyOn(moduleService, "attachAssignedUserCountsToModules")
+      .mockImplementation(async (_c, mods) => {
+        for (const m of mods) (m as { assigned_user_count?: number }).assigned_user_count = 0;
+      });
 
     const res = await request(app)
       .get("/api/admin/modules")
       .set("Authorization", "Bearer fake-token");
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockModules);
+    expect(res.body).toEqual([
+      { module_id: 1, title: "Week 1", module_exercise: [], assigned_user_count: 0 },
+    ]);
   });
 
   it("returns 500 if service throws", async () => {

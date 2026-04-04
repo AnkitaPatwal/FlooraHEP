@@ -3,8 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import CreatePlan from "../main/CreatePlan";
 
-// Mock Supabase client
-vi.mock("../lib/supabase-client", () => ({
+vi.mock("../../lib/supabase-client", () => ({
   supabase: {
     auth: {
       getSession: vi.fn().mockResolvedValue({
@@ -29,12 +28,26 @@ vi.mock("../lib/supabase-client", () => ({
 const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
+const moduleRow = (id: number, title: string, cat: string) => ({
+  module_id: id,
+  title,
+  description: cat,
+  session_number: id,
+  module_exercise: [
+    {
+      module_exercise_id: id,
+      order_index: 1,
+      exercise: { exercise_id: id, title: "Ex", thumbnail_url: null },
+    },
+  ],
+});
+
 const renderWithRouter = (ui: React.ReactElement, { route = "/plan-dashboard/create" } = {}) => {
   return render(
     <MemoryRouter initialEntries={[route]}>
       <Routes>
         <Route path="/plan-dashboard/create" element={ui} />
-        <Route path="/plan-dashboard/:id" element={ui} />
+        <Route path="/plan-dashboard/:id/edit" element={ui} />
         <Route path="/plan-dashboard" element={<div>Dashboard</div>} />
       </Routes>
     </MemoryRouter>
@@ -44,80 +57,58 @@ const renderWithRouter = (ui: React.ReactElement, { route = "/plan-dashboard/cre
 describe("CreatePlan component", () => {
   beforeEach(() => {
     mockFetch.mockClear();
-    mockFetch.mockImplementation((url) => {
+    mockFetch.mockImplementation((url: string) => {
       if (url.includes("/api/admin/modules")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([
-            { module_id: 1, title: "Lower Back Mobility", description: "Back Pain session focusing on mobility" },
-            { module_id: 2, title: "Gentle Stretch", description: "Gentle stretching for back pain relief" },
-            { module_id: 3, title: "Relax & Release", description: "Relax and release tension in the back" },
-          ]),
+          json: () =>
+            Promise.resolve([
+              moduleRow(1, "Lower Back Mobility", "Back Pain"),
+              moduleRow(2, "Gentle Stretch", "Back Pain"),
+            ]),
         });
       }
-      return Promise.reject(new Error("not mocked"));
+      return Promise.reject(new Error(`not mocked: ${url}`));
     });
   });
 
-  it("renders the form and fetches available sessions", async () => {
+  it("renders create flow and loads sessions grid", async () => {
     renderWithRouter(<CreatePlan />);
 
-    expect(screen.getByText("Create Plan")).toBeInTheDocument();
-    
-    await waitFor(() => {
-      expect(screen.getByText("Lower Back Mobility")).toBeInTheDocument();
-      expect(screen.getByText("Gentle Stretch")).toBeInTheDocument();
-    });
-  });
-
-  it("adds a session to the plan", async () => {
-    renderWithRouter(<CreatePlan />);
+    expect(screen.getByText("Create New Plan")).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Lower Back Mobility")).toBeInTheDocument();
     });
-
-    const addButtons = screen.getAllByText("Add");
-    fireEvent.click(addButtons[0]);
-
-    expect(screen.getByText("1. Lower Back Mobility")).toBeInTheDocument();
   });
 
-  it("removes a session from the plan", async () => {
+  it("selects a session from the grid", async () => {
     renderWithRouter(<CreatePlan />);
 
     await waitFor(() => {
       expect(screen.getByText("Lower Back Mobility")).toBeInTheDocument();
     });
 
-    const addButtons = screen.getAllByText("Add");
-    fireEvent.click(addButtons[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Lower Back Mobility/i }));
 
-    expect(screen.getByText("1. Lower Back Mobility")).toBeInTheDocument();
-
-    const removeButton = screen.getByText("Remove");
-    fireEvent.click(removeButton);
-
-    expect(screen.queryByText("1. Lower Back Mobility")).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /1 session in this plan/i })).toBeInTheDocument();
   });
 
-  it("handles saving the plan successfully", async () => {
-    mockFetch.mockImplementation((url) => {
+  it("saves a new plan and navigates to dashboard", async () => {
+    mockFetch.mockImplementation((url: string) => {
       if (url.includes("/api/admin/modules")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([
-            { module_id: 1, title: "Lower Back Mobility", description: "Back Pain session focusing on mobility" },
-          ]),
+          json: () => Promise.resolve([moduleRow(1, "Lower Back Mobility", "Back Pain")]),
         });
       }
-      if (url.includes("/api/admin/plans")) {
+      if (url.includes("/api/admin/plans") && !url.match(/\/plans\/\d+/)) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ message: "Success", planId: 1 }),
+          json: () => Promise.resolve({ message: "Plan created successfully.", planId: 1 }),
         });
       }
-      return Promise.reject(new Error("not mocked"));
+      return Promise.reject(new Error(`not mocked: ${url}`));
     });
 
     renderWithRouter(<CreatePlan />);
@@ -126,40 +117,31 @@ describe("CreatePlan component", () => {
       expect(screen.getByText("Lower Back Mobility")).toBeInTheDocument();
     });
 
-    const titleInput = screen.getByPlaceholderText("e.g. Pelvic Floor Recovery");
-    fireEvent.change(titleInput, { target: { value: "New Plan" } });
+    fireEvent.change(screen.getByPlaceholderText("Title"), { target: { value: "New Plan" } });
+    fireEvent.click(screen.getByRole("button", { name: /Lower Back Mobility/i }));
 
-    const descInput = screen.getByPlaceholderText("Enter plan description...");
-    fireEvent.change(descInput, { target: { value: "A description" } });
-
-    const addButtons = screen.getAllByText("Add");
-    fireEvent.click(addButtons[0]);
-
-    const saveButton = screen.getByText("Save Plan");
-    fireEvent.click(saveButton);
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
 
     await waitFor(() => {
       expect(screen.getByText("Dashboard")).toBeInTheDocument();
     });
   });
 
-  it("handles failure when saving a plan", async () => {
-    mockFetch.mockImplementation((url) => {
+  it("shows error when save fails", async () => {
+    mockFetch.mockImplementation((url: string) => {
       if (url.includes("/api/admin/modules")) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve([
-            { module_id: 1, title: "Lower Back Mobility", description: "Back Pain session focusing on mobility" },
-          ]),
+          json: () => Promise.resolve([moduleRow(1, "Lower Back Mobility", "Back Pain")]),
         });
       }
-      if (url.includes("/api/admin/plans")) {
+      if (url.includes("/api/admin/plans") && !url.match(/\/plans\/\d+/)) {
         return Promise.resolve({
           ok: false,
           json: () => Promise.resolve({ error: "Failed to create plan in DB" }),
         });
       }
-      return Promise.reject(new Error("not mocked"));
+      return Promise.reject(new Error(`not mocked: ${url}`));
     });
 
     renderWithRouter(<CreatePlan />);
@@ -168,14 +150,8 @@ describe("CreatePlan component", () => {
       expect(screen.getByText("Lower Back Mobility")).toBeInTheDocument();
     });
 
-    const titleInput = screen.getByPlaceholderText("e.g. Pelvic Floor Recovery");
-    fireEvent.change(titleInput, { target: { value: "New Plan" } });
-
-    const descInput = screen.getByPlaceholderText("Enter plan description...");
-    fireEvent.change(descInput, { target: { value: "A description" } });
-
-    const saveButton = screen.getByText("Save Plan");
-    fireEvent.click(saveButton);
+    fireEvent.change(screen.getByPlaceholderText("Title"), { target: { value: "New Plan" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Save$/ }));
 
     await waitFor(() => {
       expect(screen.getByText("Failed to create plan in DB")).toBeInTheDocument();
