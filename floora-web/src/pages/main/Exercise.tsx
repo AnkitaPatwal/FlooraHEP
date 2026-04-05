@@ -1,7 +1,7 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Exercise.css";
-import { useState, useEffect, useSyncExternalStore, useMemo } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
@@ -61,14 +61,11 @@ function ExerciseDashboard() {
   const [assignmentCountsError, setAssignmentCountsError] = useState(false);
   const [assignmentCountsRpcUnavailable, setAssignmentCountsRpcUnavailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   useEffect(() => {
-    const debounce = setTimeout(() => {
-      setDebouncedSearchQuery(searchQuery.trim());
-    }, 300);
-
-    return () => clearTimeout(debounce);
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
   }, [searchQuery]);
 
   useEffect(() => {
@@ -76,7 +73,7 @@ function ExerciseDashboard() {
       try {
         setLoading(true);
         const params = new URLSearchParams({ pageSize: "100" });
-        if (debouncedSearchQuery) params.set("search", debouncedSearchQuery);
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
         const headers = await authHeaders();
         const res = await fetch(`${API_URL}/api/exercises?${params}`, {
           headers,
@@ -99,30 +96,9 @@ function ExerciseDashboard() {
     };
 
     void fetchExercises();
-  }, [debouncedSearchQuery, location.key, refreshToken, countsVersion]);
+  }, [debouncedSearch, location.key, refreshToken, countsVersion]);
 
-  const filteredExercises = useMemo(() => {
-    const q = debouncedSearchQuery.toLowerCase();
-    if (!q) return exercises;
-
-    return exercises.filter((exercise) => {
-      const title = (exercise.title ?? "").toLowerCase();
-      const description = (exercise.description ?? "").toLowerCase();
-      const bodyPart = (exercise.body_part ?? "").toLowerCase();
-      const category = (exercise.category ?? "").toLowerCase();
-      const tags = (exercise.tags ?? []).join(" ").toLowerCase();
-
-      return (
-        title.includes(q) ||
-        description.includes(q) ||
-        bodyPart.includes(q) ||
-        category.includes(q) ||
-        tags.includes(q)
-      );
-    });
-  }, [exercises, debouncedSearchQuery]);
-
-  const groupedExercises = filteredExercises.reduce((acc, exercise) => {
+  const groupedExercises = exercises.reduce((acc, exercise) => {
     const category = exercise.body_part || exercise.category || "Uncategorized";
     if (!acc[category]) acc[category] = [];
     acc[category].push(exercise);
@@ -136,7 +112,7 @@ function ExerciseDashboard() {
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
             <p className="exercise-count">
-              {loading ? "Loading..." : `${filteredExercises.length} Exercises`}
+              {loading ? "Loading..." : `${exercises.length} Exercises`}
             </p>
             {!isAuthLoading && isSuperAdmin && (
               <Link to="/exercises/create">
