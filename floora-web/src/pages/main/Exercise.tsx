@@ -112,7 +112,7 @@ function ExerciseDashboard() {
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
             <p className="exercise-count">
-              {loading ? "Loading..." : `${filteredExercises.length} Exercises`}
+              {loading ? "Loading..." : `${exercises.length} Exercises`}
             </p>
             {!isAuthLoading && isSuperAdmin && (
               <Link to="/exercises/create">
