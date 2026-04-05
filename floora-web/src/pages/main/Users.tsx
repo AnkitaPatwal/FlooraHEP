@@ -412,39 +412,6 @@ export default function Users() {
           </div>
         </section>
 
-        <section className="user-section" aria-labelledby="denied-users-title">
-          <h2 id="denied-users-title" className="user-section-title">
-            Denied Users
-          </h2>
-
-          {deniedError && (
-            <div className="user-error-wrap">
-              <p className="user-error" role="alert">
-                {deniedError}
-              </p>
-              <button
-                type="button"
-                className="user-retry-btn"
-                onClick={loadDeniedClients}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          <div className="user-grid">
-            {deniedLoading ? (
-              <div className="user-empty">Loading denied users…</div>
-            ) : deniedFiltered.length ? (
-              deniedFiltered.map((c) => (
-                <DeniedUserCard key={c.user_id} client={c} />
-              ))
-            ) : (
-              <div className="user-empty">No denied users</div>
-            )}
-          </div>
-        </section>
-
         <section className="user-section" aria-labelledby="active-users-title">
           <h2 id="active-users-title" className="user-section-title">
             Active Users
@@ -476,6 +443,39 @@ export default function Users() {
               ))
             ) : (
               <div className="user-empty">No active users</div>
+            )}
+          </div>
+        </section>
+
+        <section className="user-section" aria-labelledby="denied-users-title">
+          <h2 id="denied-users-title" className="user-section-title">
+            Denied Users
+          </h2>
+
+          {deniedError && (
+            <div className="user-error-wrap">
+              <p className="user-error" role="alert">
+                {deniedError}
+              </p>
+              <button
+                type="button"
+                className="user-retry-btn"
+                onClick={loadDeniedClients}
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          <div className="user-grid">
+            {deniedLoading ? (
+              <div className="user-empty">Loading denied users…</div>
+            ) : deniedFiltered.length ? (
+              deniedFiltered.map((c) => (
+                <DeniedUserCard key={c.user_id} client={c} />
+              ))
+            ) : (
+              <div className="user-empty">No denied users</div>
             )}
           </div>
         </section>
