@@ -2,6 +2,7 @@ import {
   getPlanWithHierarchy,
   verifyAdminAccess,
   isAdminUser,
+  getAssignableUsers,
   assignPackageToUser,
   parseAssignStartDate,
   PlanWithHierarchy,
@@ -527,5 +528,65 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
     await expect(
       assignPackageToUser(mockSupabase, "", 0, "2026-03-21")
     ).rejects.toThrow("Please select both user and package.");
+  });
+});
+
+describe("getAssignableUsers", () => {
+  it("builds full_name from fname/lname and does not select full_name column", async () => {
+    const approvedRows = [
+      { email: "a@example.com", fname: "A", lname: "Z" },
+      { email: "b@example.com", fname: "B", lname: "" },
+    ];
+
+    const userChain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: approvedRows, error: null }),
+    };
+
+    const listUsers = jest.fn().mockResolvedValue({
+      data: {
+        users: [
+          { id: "u-b", email: "b@example.com" },
+          { id: "u-a", email: "a@example.com" },
+          // should be filtered out (not approved)
+          { id: "u-x", email: "x@example.com" },
+        ],
+      },
+      error: null,
+    });
+
+    const supabase: any = {
+      from: jest.fn((table: string) => {
+        if (table === "user") return userChain;
+        return {};
+      }),
+      auth: { admin: { listUsers } },
+    };
+
+    const users = await getAssignableUsers(supabase);
+
+    expect(userChain.select).toHaveBeenCalledWith("email, fname, lname");
+    expect(users).toEqual([
+      { id: "u-a", email: "a@example.com", full_name: "A Z" },
+      { id: "u-b", email: "b@example.com", full_name: "B" },
+    ]);
+  });
+
+  it("returns empty list when no approved users exist", async () => {
+    const userChain: any = {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    const listUsers = jest.fn();
+    const supabase: any = {
+      from: jest.fn(() => userChain),
+      auth: { admin: { listUsers } },
+    };
+
+    const users = await getAssignableUsers(supabase);
+    expect(users).toEqual([]);
+    expect(listUsers).not.toHaveBeenCalled();
   });
 });

@@ -15,6 +15,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
 import CreateSession from "./pages/main/CreateSession";
+import SessionDetail from "./pages/main/SessionDetail";
 import CreateExercise from "./components/main/CreateExercise";
 import EditExercise from "./components/main/EditExercise";
 import ExerciseDetail from "./pages/main/ExerciseDetail";
@@ -23,6 +24,7 @@ import CreateAdmin from "./pages/CreateAdmin";
 import AdminAcceptInvite from "./pages/AdminAcceptInvite";
 import ResetPassword from "./pages/ResetPassword";
 import CreatePlan from "./pages/main/CreatePlan";
+import PlanDetail from "./pages/main/PlanDetail";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import AppLayout from "./components/layouts/AppLayout";
@@ -63,12 +65,18 @@ export default function App() {
           } />
           <Route path="/plan-dashboard/:id" element={
             <AdminRoute>
+              <PlanDetail />
+            </AdminRoute>
+          } />
+          <Route path="/plan-dashboard/:id/edit" element={
+            <AdminRoute>
               <CreatePlan />
             </AdminRoute>
           } />
           <Route path="/sessions" element={<SessionDashboard />} />
           <Route path="/sessions/create" element={<CreateSession />} />
           <Route path="/sessions/:id/edit" element={<CreateSession />} />
+          <Route path="/sessions/:id" element={<SessionDetail />} />
           <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
           <Route
             path="/exercises/create"
@@ -104,7 +112,7 @@ export default function App() {
             }
           />
           <Route
-            path="/assign-package"
+            path="/assign-package/*"
             element={
               <AppLayout>
                 <AssignPackage />

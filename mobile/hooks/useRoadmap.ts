@@ -22,6 +22,7 @@ type UseRoadmapResult = {
   data: RoadmapData | null;
   loading: boolean;
   error: string;
+  reload: () => void;
 };
 
 export function useRoadmap(): UseRoadmapResult {
@@ -29,6 +30,9 @@ export function useRoadmap(): UseRoadmapResult {
   const [data, setData] = useState<RoadmapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadNonce, setReloadNonce] = useState(0);
+
+  const reload = () => setReloadNonce((n) => n + 1);
 
   useEffect(() => {
     if (!session?.user?.id) {
@@ -69,32 +73,77 @@ export function useRoadmap(): UseRoadmapResult {
 
         const planName = planRow?.title ?? "Your Plan";
 
-        const { data: planModules, error: planModulesError } = await supabase
-          .from("plan_module")
-          .select("module_id, order_index")
-          .eq("plan_id", planId)
-          .order("order_index", { ascending: true });
+        // ── 4. Fetch sessions list (prefer per-assignment overrides) ──────────
+        type AssignedSessionRow = { module_id: number; order_index: number; title: string };
+        let sessionsSource:
+          | { type: "assigned"; rows: AssignedSessionRow[] }
+          | { type: "template"; rows: { module_id: number; order_index: number }[] }
+          | null = null;
 
-        if (planModulesError || !planModules || planModules.length === 0) {
-          setData({ planName, startDate, sessions: [] });
-          return;
+        try {
+          const { data: assignedRows, error: assignedErr } = await supabase.rpc("get_current_assigned_sessions");
+          if (!assignedErr && Array.isArray(assignedRows) && assignedRows.length > 0) {
+            sessionsSource = {
+              type: "assigned",
+              rows: (assignedRows as any[]).map((r) => ({
+                module_id: Number((r as any).module_id),
+                order_index: Number((r as any).order_index),
+                title: String((r as any).title ?? ""),
+              })),
+            };
+          }
+        } catch {
+          // fall back to template plan_module ordering
         }
 
-        const moduleIds = planModules.map((pm: any) => pm.module_id);
+        if (!sessionsSource) {
+          const { data: planModules, error: planModulesError } = await supabase
+            .from("plan_module")
+            .select("module_id, order_index")
+            .eq("plan_id", planId)
+            .order("order_index", { ascending: true });
 
-        const { data: modules, error: modulesError } = await supabase
-          .from("module")
-          .select("module_id, title")
-          .in("module_id", moduleIds);
+          if (planModulesError || !planModules || planModules.length === 0) {
+            setData({ planName, startDate, sessions: [] });
+            return;
+          }
 
-        if (modulesError) {
-          setError("Failed to load sessions.");
-          return;
+          sessionsSource = {
+            type: "template",
+            rows: (planModules as any[]).map((pm) => ({
+              module_id: Number((pm as any).module_id),
+              order_index: Number((pm as any).order_index),
+            })),
+          };
         }
 
-        const moduleMap = new Map(
-          (modules ?? []).map((m: any) => [m.module_id, m.title])
-        );
+        const moduleIds =
+          sessionsSource.type === "assigned"
+            ? sessionsSource.rows.map((r) => r.module_id)
+            : sessionsSource.rows.map((r) => r.module_id);
+
+        const titleByModuleId =
+          sessionsSource.type === "assigned"
+            ? new Map<number, string>(sessionsSource.rows.map((r) => [r.module_id, r.title]))
+            : null;
+
+        // ── 5. Fetch module titles if not provided by RPC ─────────────────────
+        let moduleMap: Map<number, string>;
+        if (titleByModuleId) {
+          moduleMap = titleByModuleId;
+        } else {
+          const { data: modules, error: modulesError } = await supabase
+            .from("module")
+            .select("module_id, title")
+            .in("module_id", moduleIds);
+
+          if (modulesError) {
+            setError("Failed to load sessions.");
+            return;
+          }
+
+          moduleMap = new Map((modules ?? []).map((m: any) => [m.module_id, m.title]));
+        }
 
         const { data: exercises, error: exercisesError } = await supabase
           .from("exercise")
@@ -138,7 +187,13 @@ export function useRoadmap(): UseRoadmapResult {
           (completionRows ?? []).map((r: any) => r.module_id)
         );
 
-        const sessions: RoadmapSession[] = planModules.map((pm: any) => ({
+        // ── 8. Assemble sessions in plan order ────────────────────────────────
+        const rows =
+          sessionsSource.type === "assigned"
+            ? sessionsSource.rows
+            : sessionsSource.rows;
+
+        const sessions: RoadmapSession[] = rows.map((pm: any) => ({
           module_id: pm.module_id,
           title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
           order_index: pm.order_index,
@@ -147,7 +202,10 @@ export function useRoadmap(): UseRoadmapResult {
           isCompleted: completedSet.has(pm.module_id),
         }));
 
-        setData({ planName, startDate, sessions });
+        // Product requirement: Roadmap shows only locked sessions.
+        const lockedSessions = sessions.filter((s) => !s.isUnlocked);
+
+        setData({ planName, startDate, sessions: lockedSessions });
       } catch (err) {
         setError("Something went wrong loading your roadmap.");
       } finally {
@@ -156,7 +214,7 @@ export function useRoadmap(): UseRoadmapResult {
     };
 
     load();
-  }, [session?.user?.id]);
+  }, [session?.user?.id, reloadNonce]);
 
-  return { data, loading, error };
+  return { data, loading, error, reload };
 }

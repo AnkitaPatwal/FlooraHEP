@@ -21,7 +21,7 @@ jest.mock("../../lib/supabaseServer", () => ({
 
 jest.mock("../../services/relationshipService", () => ({
   getAssignableUsers: jest.fn(async () => [
-    { id: "user-1", email: "test@example.com" },
+    { id: "user-1", email: "test@example.com", full_name: "Test User" },
   ]),
   getAssignablePlans: jest.fn(async () => [
     { plan_id: 1, title: "Starter Plan" },
@@ -63,7 +63,7 @@ describe("assignPackage auth regression", () => {
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual([
-      { id: "user-1", email: "test@example.com" },
+      { id: "user-1", email: "test@example.com", full_name: "Test User" },
     ]);
   });
 
@@ -93,5 +93,54 @@ describe("assignPackage auth regression", () => {
       ok: true,
       message: "assigned",
     });
+  });
+
+  it("loads assigned packages for a user", async () => {
+    const { supabaseServer } = require("../../lib/supabaseServer");
+
+    const userPackagesChain = {
+      select: jest.fn(() => userPackagesChain),
+      eq: jest.fn(() => userPackagesChain),
+      order: jest.fn(async () => ({
+        data: [
+          {
+            id: "up-1",
+            package_id: 1,
+            start_date: "2026-03-24",
+            created_at: "2026-03-24T00:00:00Z",
+          },
+        ],
+        error: null,
+      })),
+    };
+
+    const planChain = {
+      select: jest.fn(() => planChain),
+      in: jest.fn(async () => ({
+        data: [{ plan_id: 1, title: "Starter Plan" }],
+        error: null,
+      })),
+    };
+
+    supabaseServer.from = jest.fn((table) => {
+      if (table === "user_packages") return userPackagesChain;
+      if (table === "plan") return planChain;
+      throw new Error(`Unexpected table: ${table}`);
+    });
+
+    const res = await request(app)
+      .get("/api/assign-package/users/user-1/packages")
+      .set("Authorization", "Bearer fake-token");
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      {
+        id: "up-1",
+        package_id: 1,
+        title: "Starter Plan",
+        start_date: "2026-03-24",
+        created_at: "2026-03-24T00:00:00Z",
+      },
+    ]);
   });
 });

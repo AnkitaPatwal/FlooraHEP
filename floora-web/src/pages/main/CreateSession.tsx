@@ -58,6 +58,22 @@ export default function CreateSession() {
   const [savingMapping, setSavingMapping] = useState(false);
   const [removeConfirmId, setRemoveConfirmId] = useState<number | null>(null);
 
+  const saveSessionMeta = async (moduleId: number) => {
+    const headers = await authHeaders();
+    const res = await fetch(`${API_BASE}/api/admin/modules/${moduleId}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify({
+        title: newTitle.trim(),
+        description: newDescription.trim(),
+        session_number: newSessionNumber,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Failed to update session");
+    return data as Module;
+  };
+
   const loadModules = async () => {
     setLoadingModules(true);
     setError("");
@@ -209,6 +225,9 @@ export default function CreateSession() {
     setSavingMapping(true);
     setMessage("");
     try {
+      // Persist session title/description/session_number first.
+      await saveSessionMeta(moduleId);
+
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/admin/modules/${moduleId}/exercises`, {
         method: "PUT",
@@ -235,8 +254,11 @@ export default function CreateSession() {
         <header className="create-session-header">
           <div className="create-session-header-left">
             <h1 className="create-session-title">
-              {isEditMode ? `Edit Session: ${editingModule?.title ?? ""}` : "Add New Session"}
+              {isEditMode ? "Edit Session" : "Add New Session"}
             </h1>
+            {isEditMode && editingModule?.title ? (
+              <p className="create-session-subtitle">{editingModule.title}</p>
+            ) : null}
           </div>
           <div className="create-session-header-right">
             <button
@@ -246,6 +268,16 @@ export default function CreateSession() {
             >
               Back
             </button>
+            {Boolean(editingModule) && (
+              <button
+                type="button"
+                className="save-btn"
+                onClick={handleSaveExercises}
+                disabled={savingMapping}
+              >
+                {savingMapping ? "Saving…" : "Save"}
+              </button>
+            )}
           </div>
         </header>
 
@@ -306,6 +338,41 @@ export default function CreateSession() {
               </p>
             )}
 
+            {isEditMode && editingModule && (
+              <div className="create-session-form create-session-form-wide">
+                <div className="input-group">
+                  <label htmlFor="session-title-edit">Title *</label>
+                  <input
+                    id="session-title-edit"
+                    type="text"
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    placeholder="e.g. Week 1 Foundations"
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="session-desc-edit">Description</label>
+                  <textarea
+                    id="session-desc-edit"
+                    value={newDescription}
+                    onChange={(e) => setNewDescription(e.target.value)}
+                    placeholder="Optional"
+                    rows={2}
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="session-num-edit">Session number</label>
+                  <input
+                    id="session-num-edit"
+                    type="number"
+                    min={1}
+                    value={newSessionNumber}
+                    onChange={(e) => setNewSessionNumber(Number(e.target.value) || 1)}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="create-session-search-row">
               <label htmlFor="exercise-search">Search exercises</label>
               <div className="create-session-search-wrapper">
@@ -330,7 +397,7 @@ export default function CreateSession() {
             ) : (
               <div className="create-session-two-col">
                 <div className="create-session-pool">
-                  <h3>Available exercises</h3>
+                  <h3>Available exercises <span className="create-session-count">({availableExercises.length})</span></h3>
                   <ul className="create-session-exercise-list">
                     {availableExercises.map((e) => (
                       <li key={e.exercise_id}>
@@ -355,7 +422,7 @@ export default function CreateSession() {
                   )}
                 </div>
                 <div className="create-session-selected">
-                  <h3>In this session</h3>
+                  <h3>In this session <span className="create-session-count">({selectedExerciseIds.length})</span></h3>
                   <ul className="create-session-exercise-list">
                     {selectedExerciseIds.map((id) => {
                       const ex = exercises.find((e) => e.exercise_id === id);
@@ -376,14 +443,6 @@ export default function CreateSession() {
                   {selectedExerciseIds.length === 0 && (
                     <p className="create-session-muted">No exercises in this session yet.</p>
                   )}
-                  <button
-                    type="button"
-                    className="save-btn"
-                    onClick={handleSaveExercises}
-                    disabled={savingMapping}
-                  >
-                    {savingMapping ? "Saving…" : "Save exercises"}
-                  </button>
                 </div>
               </div>
             )}

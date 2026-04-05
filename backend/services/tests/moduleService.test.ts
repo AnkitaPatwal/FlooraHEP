@@ -13,6 +13,7 @@ interface Exercise {
   default_reps: number;
   video_id: string | null;
   thumbnail_photo_id: string | null;
+  thumbnail_url?: string | null;
 }
 
 interface ModuleExercise {
@@ -53,6 +54,7 @@ const mockData = [
           default_reps: 10,
           video_id: null,
           thumbnail_photo_id: null,
+          thumbnail_url: null,
         },
       },
     ],

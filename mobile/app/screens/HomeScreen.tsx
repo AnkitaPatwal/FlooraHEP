@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -94,6 +95,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.color.accent,
     marginTop: theme.space.accentLineMarginTop,
     marginBottom: theme.space.accentLineMarginBottom,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#111827",
+    marginTop: 14,
+    marginBottom: 10,
   },
   header: {
     paddingHorizontal: theme.space.screenHorizontal,
@@ -451,6 +459,9 @@ const HomeScreen = () => {
         style={styles.scrollView}
         contentContainerStyle={[styles.container, { paddingBottom: theme.space.scrollBottom }]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+        }
       >
         {hasAssignedPlan ? (
           <>
@@ -494,6 +505,100 @@ const HomeScreen = () => {
               ? "No unlocked sessions yet. Complete the previous session or wait until the next unlock date."
               : "No care plan is linked to this login yet. Your clinic assigns plans to your account email. If you use a different email in the app than the one they used, ask them to update it or sign in with that email."}
           </Text>
+        ) : (
+          <>
+            {currentSession ? (
+              <>
+                <TouchableOpacity
+                  key={`current-${String(currentSession.module_id)}`}
+                  activeOpacity={0.9}
+                  onPress={() =>
+                    goToSession(
+                      String(currentSession.module_id),
+                      currentSession.title || "Session"
+                    )
+                  }
+                  style={{ minHeight: 44 }}
+                >
+                  <View style={[styles.sessionTile, styles.sessionTileCurrent]}>
+                    <View style={styles.currentBadge} pointerEvents="none">
+                      <Text style={styles.currentBadgeText}>Current</Text>
+                    </View>
+                    <View style={styles.card}>
+                      <Image
+                        source={
+                          sessionThumbs[String(currentSession.module_id)]
+                            ? { uri: sessionThumbs[String(currentSession.module_id)] }
+                            : fallbackSessionImage
+                        }
+                        style={styles.cardImage}
+                        resizeMode="cover"
+                      />
+                    </View>
+                    <Text style={styles.cardCaption}>
+                      <Text style={styles.cardCaptionStrong}>
+                        {currentSession.title || "Session"}
+                      </Text>
+                      <Text style={styles.cardCaptionMeta}>
+                        {` | ${currentSession.exerciseCount ?? 0} `}
+                        {(currentSession.exerciseCount ?? 0) === 1
+                          ? "Exercise"
+                          : "Exercises"}
+                      </Text>
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </>
+            ) : null}
+
+            {/* Sequential UX: show only the single "current" session to do next. */}
+
+            {completedSessions.length > 0 ? (
+              <>
+                {completedSessions.map((sessionItem) => (
+                  <TouchableOpacity
+                    key={`completed-${String(sessionItem.module_id)}`}
+                    activeOpacity={0.9}
+                    onPress={() =>
+                      goToSession(
+                        String(sessionItem.module_id),
+                        sessionItem.title || "Session"
+                      )
+                    }
+                    style={{ minHeight: 44 }}
+                  >
+                    <View style={styles.sessionTile}>
+                      <View style={styles.completedBadge} pointerEvents="none">
+                        <Text style={styles.completedBadgeText}>Completed</Text>
+                      </View>
+                      <View style={styles.card}>
+                        <Image
+                          source={
+                            sessionThumbs[String(sessionItem.module_id)]
+                              ? { uri: sessionThumbs[String(sessionItem.module_id)] }
+                              : fallbackSessionImage
+                          }
+                          style={styles.cardImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <Text style={styles.cardCaption}>
+                        <Text style={styles.cardCaptionStrong}>
+                          {sessionItem.title || "Session"}
+                        </Text>
+                        <Text style={styles.cardCaptionMeta}>
+                          {` | ${sessionItem.exerciseCount ?? 0} `}
+                          {(sessionItem.exerciseCount ?? 0) === 1
+                            ? "Exercise"
+                            : "Exercises"}
+                        </Text>
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </SafeAreaView>

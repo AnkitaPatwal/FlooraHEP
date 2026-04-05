@@ -1,11 +1,21 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ScrollView,
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  Pressable,
+  ActivityIndicator,
+  RefreshControl,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { theme } from "../../constants/theme";
-import { useRoadmap } from "../../hooks/useRoadmap";
-import SessionCard from "../../components/SessionCard";
-import ScreenBackButton from "../../components/ScreenBackButton";
+import { FontAwesome } from "@expo/vector-icons";
+import colors from "../../constants/colors";
+import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
+import { supabase } from "../../lib/supabaseClient";
+
 import session1Img from "../../assets/images/prev-1.jpg";
 
 function formatStartDate(raw: string | null): string {
@@ -15,9 +25,102 @@ function formatStartDate(raw: string | null): string {
   return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
+// ── Session Card ──────────────────────────────────────────────────────────────
+
+type SessionCardProps = {
+  session: RoadmapSession;
+  index: number;
+  planName: string;
+  onPress: () => void;
+  thumbnailUrl?: string;
+};
+
+function SessionCard({ session, index, onPress, thumbnailUrl }: SessionCardProps) {
+  const label = session.title || `Session ${index + 1}`;
+  const locked = !session.isUnlocked;
+
+  return (
+    <Pressable
+      style={{ minHeight: 44 }}
+      onPress={locked ? undefined : onPress}
+      accessible
+      accessibilityLabel={locked ? `${label}, locked` : label}
+      accessibilityState={{ disabled: locked }}
+    >
+      <View style={styles.card}>
+        <Image
+          source={thumbnailUrl && thumbnailUrl.startsWith("http") ? { uri: thumbnailUrl } : session1Img}
+          style={[styles.cardImage, locked && styles.cardImageLocked]}
+          resizeMode="cover"
+        />
+        {locked && (
+          <View style={styles.lockOverlay}>
+            <FontAwesome name="lock" size={36} color="#FFFFFF" />
+          </View>
+        )}
+        {session.isCompleted && !locked && (
+          <View style={styles.completedBadge}>
+            <Text style={styles.completedBadgeText}>✓ Done</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.caption, locked && styles.captionLocked]}>
+        <Text style={[styles.captionStrong, locked && styles.captionLocked]}>
+          {label}
+        </Text>
+        {locked ? <Text> | Locked</Text> : null}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ── Main Screen ───────────────────────────────────────────────────────────────
+
 export default function RoadMap() {
   const router = useRouter();
-  const { data, loading, error } = useRoadmap();
+  const { data, loading, error, reload } = useRoadmap();
+  const [refreshing, setRefreshing] = React.useState(false);
+  const [sessionThumbs, setSessionThumbs] = React.useState<Record<string, string>>({});
+  const lockedSessions = (data?.sessions ?? []).filter((s) => !s.isUnlocked);
+
+  React.useEffect(() => {
+    const loadThumbs = async () => {
+      if (lockedSessions.length === 0) return;
+      try {
+        const entries = await Promise.all(
+          lockedSessions.map(async (s) => {
+            const { data: rows, error: rpcErr } = await supabase.rpc(
+              "get_current_assigned_session_exercises",
+              { p_module_id: Number(s.module_id) }
+            );
+            if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
+              return [String(s.module_id), ""] as const;
+            }
+            const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+            return [String(s.module_id), thumb] as const;
+          })
+        );
+        setSessionThumbs((prev) => {
+          const next = { ...prev };
+          for (const [mid, url] of entries) {
+            if (url && url.startsWith("http")) next[mid] = url;
+          }
+          return next;
+        });
+      } catch {
+        // non-blocking
+      }
+    };
+    void loadThumbs();
+  }, [lockedSessions]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    reload();
+    // Give the hook a moment to start; refresh control is purely UX.
+    setTimeout(() => setRefreshing(false), 600);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -43,6 +146,9 @@ export default function RoadMap() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+          }
         >
           <Text style={styles.planTitle} numberOfLines={2}>
             {data?.planName || "Your care plan"}
