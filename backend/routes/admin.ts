@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import { supabase } from '../supabase/config/client';
 import { sendApprovalEmail, sendDenialEmail } from '../services/email/emailService';
+import { logDashboardActivity } from '../services/dashboardActivityLog';
 import { getAllModulesWithExercises, createModule, saveModuleExercises } from '../services/moduleService';
 import { supabaseServer } from '../lib/supabaseServer';
 import { requireAdmin, requireSuperAdmin } from './adminAuth';
@@ -488,6 +489,13 @@ router.delete('/modules/:id', async (req, res) => {
       return res.status(400).json({ error: 'Invalid module id.' });
     }
 
+    const { data: modRow } = await supabaseAdmin
+      .from('module')
+      .select('title')
+      .eq('module_id', moduleId)
+      .maybeSingle();
+    const modTitle = String((modRow as { title?: string } | null)?.title ?? 'Session');
+
     // Remove relationships (best effort; ignore missing tables/rows).
     const deletions = await Promise.all([
       supabaseAdmin.from('plan_module').delete().eq('module_id', moduleId),
@@ -513,6 +521,7 @@ router.delete('/modules/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete module.' });
     }
 
+    void logDashboardActivity(`Deleted: Session "${modTitle}"`);
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error('Failed to delete module:', error);
@@ -841,6 +850,13 @@ router.put('/categories/:id', async (req, res) => {
 router.delete('/categories/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { data: catRow } = await supabaseAdmin
+      .from('plan_category')
+      .select('name')
+      .eq('category_id', id)
+      .maybeSingle();
+    const catName = String((catRow as { name?: string } | null)?.name ?? 'Category');
+
     const { error } = await supabaseAdmin
       .from('plan_category')
       .delete()
@@ -851,6 +867,7 @@ router.delete('/categories/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete category.' });
     }
 
+    void logDashboardActivity(`Deleted: Plan category "${catName}"`);
     return res.status(200).json({ message: 'Category deleted successfully.' });
   } catch (error) {
     console.error('Failed to delete category:', error);
@@ -1095,6 +1112,13 @@ router.delete('/plans/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
+    const { data: planRow } = await supabaseAdmin
+      .from('plan')
+      .select('title')
+      .eq('plan_id', id)
+      .maybeSingle();
+    const planTitle = String((planRow as { title?: string } | null)?.title ?? 'Plan');
+
     const { error: deleteError } = await supabaseAdmin
       .from('plan')
       .delete()
@@ -1105,10 +1129,432 @@ router.delete('/plans/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete plan.' });
     }
 
+    void logDashboardActivity(`Deleted: Plan "${planTitle}"`);
     return res.status(200).json({ message: 'Plan deleted successfully.' });
   } catch (error) {
     console.error('Failed to delete plan:', error);
     return res.status(500).json({ error: 'Internal server error.' });
+  }
+});
+
+function formatActivityLabel(action: string, targetName: string): string {
+  const name = targetName.trim() || 'Client';
+  switch (action) {
+    case 'approve':
+      return `Added: Approved client account (${name})`;
+    case 'deny':
+      return `Denied: Registration request (${name})`;
+    case 'delete':
+      return `Deleted: Client account (${name})`;
+    default:
+      return `${action} (${name})`;
+  }
+}
+
+/**
+ * Dashboard aggregates (ATH-437): counts, top plans by assignment, user snapshot, audit_log activity.
+ */
+router.get('/dashboard', async (_req, res) => {
+  try {
+    const [
+      plansCountRes,
+      modulesCountRes,
+      exercisesCountRes,
+      approvedUsersRes,
+      pendingUsersRows,
+      deniedAudit,
+      packagesRows,
+      allPlans,
+      overviewUsers,
+    ] = await Promise.all([
+      supabaseAdmin.from('plan').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('module').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('exercise').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('user').select('*', { count: 'exact', head: true }).eq('status', true),
+      supabaseAdmin.from('user').select('user_id').eq('status', false),
+      supabaseAdmin.from('audit_log').select('target_user_id').eq('action', 'deny'),
+      supabaseAdmin.from('user_packages').select('package_id'),
+      supabaseAdmin.from('plan').select('plan_id, title, updated_at').order('plan_id', { ascending: false }),
+      supabaseAdmin
+        .from('user')
+        .select('user_id, fname, lname, email, status')
+        .eq('status', true)
+        // Alphabetical by first name, then last name, then email
+        .order('fname', { ascending: true, nullsFirst: false })
+        .order('lname', { ascending: true, nullsFirst: false })
+        .order('email', { ascending: true })
+        .limit(25),
+    ]);
+
+    let auditRows: { data: { action: string; created_at: string; target_user_id: number }[] | null } = {
+      data: [],
+    };
+    try {
+      const ar = await supabaseAdmin
+        .from('audit_log')
+        .select('id, action, created_at, target_user_id')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      if (!ar.error) auditRows = ar;
+    } catch {
+      auditRows = { data: [] };
+    }
+
+    const plansCount = plansCountRes.count ?? 0;
+    const sessionsCount = modulesCountRes.count ?? 0;
+    const exercisesCount = exercisesCountRes.count ?? 0;
+    const approvedCount = approvedUsersRes.count ?? 0;
+
+    const deniedSet = deniedAudit.error
+      ? new Set<number>()
+      : new Set(
+          (deniedAudit.data ?? []).map((r: { target_user_id: number }) =>
+            Number(r.target_user_id),
+          ),
+        );
+    if (deniedAudit.error) {
+      console.warn('GET /api/admin/dashboard: audit_log deny list skipped:', deniedAudit.error.message);
+    }
+    const pendingCount = (pendingUsersRows.data ?? []).filter(
+      (u: { user_id: number }) => !deniedSet.has(Number(u.user_id))
+    ).length;
+    const totalUsers = approvedCount + pendingCount;
+
+    const countByPlan = new Map<number, number>();
+    for (const row of packagesRows.data ?? []) {
+      const pid = Number((row as { package_id: number }).package_id);
+      if (Number.isFinite(pid)) {
+        countByPlan.set(pid, (countByPlan.get(pid) ?? 0) + 1);
+      }
+    }
+
+    const planList = (allPlans.data ?? []) as {
+      plan_id: number;
+      title: string;
+      updated_at: string;
+    }[];
+    const sortedByAssignments = [...planList].sort((a, b) => {
+      const ca = countByPlan.get(Number(a.plan_id)) ?? 0;
+      const cb = countByPlan.get(Number(b.plan_id)) ?? 0;
+      if (cb !== ca) return cb - ca;
+      return String(a.title).localeCompare(String(b.title));
+    });
+    // All library plans, most-assigned first (scroll on dashboard); cap for safety.
+    const topPlans = sortedByAssignments.slice(0, 200).map((p) => ({
+      plan_id: p.plan_id,
+      title: p.title,
+      assigned_users: countByPlan.get(Number(p.plan_id)) ?? 0,
+      last_edited_at: p.updated_at,
+    }));
+
+    const users = (overviewUsers.data ?? []) as {
+      user_id: number;
+      fname: string | null;
+      lname: string | null;
+      email: string | null;
+      status: boolean;
+    }[];
+    const emails = [...new Set(users.map((u) => (u.email ?? '').trim().toLowerCase()).filter(Boolean))];
+    let userOverview: {
+      user_id: number;
+      display_name: string;
+      plan_title: string | null;
+      start_date: string | null;
+      status: 'active' | 'inactive';
+    }[] = [];
+
+    if (users.length > 0 && emails.length === 0) {
+      userOverview = users.map((u) => ({
+        user_id: u.user_id,
+        display_name:
+          [u.fname, u.lname].filter(Boolean).join(' ').trim() || u.email || '—',
+        plan_title: null,
+        start_date: null,
+        status: u.status ? 'active' : 'inactive',
+      }));
+    } else if (emails.length > 0) {
+      const { data: profs } = await supabaseAdmin.from('profiles').select('id, email').in('email', emails);
+      const profileByEmail = new Map(
+        (profs ?? []).map((p: { id: string; email: string }) => [
+          (p.email ?? '').trim().toLowerCase(),
+          p.id,
+        ])
+      );
+      const profileIds = [...new Set([...profileByEmail.values()])];
+      let ups: { user_id: string; package_id: number; start_date: string; created_at: string }[] = [];
+      if (profileIds.length > 0) {
+        const upRes = await supabaseAdmin
+          .from('user_packages')
+          .select('user_id, package_id, start_date, created_at')
+          .in('user_id', profileIds);
+        ups = (upRes.data ?? []) as typeof ups;
+      }
+      const latestByProfile = new Map<
+        string,
+        { package_id: number; start_date: string; created_at: string }
+      >();
+      for (const row of ups) {
+        const uid = String(row.user_id);
+        const prev = latestByProfile.get(uid);
+        const t = new Date(row.created_at).getTime();
+        if (!prev || t > new Date(prev.created_at).getTime()) {
+          latestByProfile.set(uid, {
+            package_id: row.package_id,
+            start_date: row.start_date,
+            created_at: row.created_at,
+          });
+        }
+      }
+      const planIdsNeeded = [...new Set([...latestByProfile.values()].map((v) => v.package_id))];
+      const planTitleById = new Map<number, string>();
+      if (planIdsNeeded.length > 0) {
+        const { data: planTitles } = await supabaseAdmin
+          .from('plan')
+          .select('plan_id, title')
+          .in('plan_id', planIdsNeeded);
+        for (const p of planTitles ?? []) {
+          planTitleById.set(Number((p as { plan_id: number }).plan_id), String((p as { title: string }).title));
+        }
+      }
+      userOverview = users.map((u) => {
+        const emailKey = (u.email ?? '').trim().toLowerCase();
+        const profileId = profileByEmail.get(emailKey);
+        const latest = profileId ? latestByProfile.get(String(profileId)) : undefined;
+        const display_name =
+          [u.fname, u.lname].filter(Boolean).join(' ').trim() || u.email || '—';
+        return {
+          user_id: u.user_id,
+          display_name,
+          plan_title: latest ? planTitleById.get(latest.package_id) ?? null : null,
+          start_date: latest?.start_date ?? null,
+          status: u.status ? 'active' : 'inactive',
+        };
+      });
+    }
+
+    const targetIds = [
+      ...new Set(
+        (auditRows.data ?? []).map((r: { target_user_id: number }) => Number(r.target_user_id))
+      ),
+    ].filter((id) => Number.isFinite(id));
+    const targetNames = new Map<number, string>();
+    if (targetIds.length > 0) {
+      const { data: targetUsers } = await supabaseAdmin
+        .from('user')
+        .select('user_id, fname, lname, email')
+        .in('user_id', targetIds);
+      for (const tu of targetUsers ?? []) {
+        const row = tu as { user_id: number; fname: string | null; lname: string | null; email: string | null };
+        const nm = [row.fname, row.lname].filter(Boolean).join(' ').trim() || row.email || 'User';
+        targetNames.set(Number(row.user_id), nm);
+      }
+    }
+
+    type ActivityAcc = { at: string; label: string; t: number };
+    const activityItems: ActivityAcc[] = [];
+
+    for (const r of auditRows.data ?? []) {
+      activityItems.push({
+        at: r.created_at,
+        t: new Date(r.created_at).getTime(),
+        label: formatActivityLabel(
+          r.action,
+          targetNames.get(Number(r.target_user_id)) ?? '',
+        ),
+      });
+    }
+
+    // Plan assigned to a client (user_packages)
+    try {
+      const { data: assigns } = await supabaseAdmin
+        .from('user_packages')
+        .select('created_at, user_id, package_id')
+        .order('created_at', { ascending: false })
+        .limit(25);
+      const assignList = assigns ?? [];
+      const aids = [
+        ...new Set(
+          assignList
+            .map((a: { package_id: number }) => Number(a.package_id))
+            .filter((n) => Number.isFinite(n)),
+        ),
+      ];
+      const planTitleMap = new Map<number, string>();
+      if (aids.length > 0) {
+        const { data: pt } = await supabaseAdmin
+          .from('plan')
+          .select('plan_id, title')
+          .in('plan_id', aids);
+        for (const p of pt ?? []) {
+          planTitleMap.set(
+            Number((p as { plan_id: number }).plan_id),
+            String((p as { title: string }).title),
+          );
+        }
+      }
+      const uuids = [
+        ...new Set(
+          assignList.map((a: { user_id: string }) => String(a.user_id)).filter(Boolean),
+        ),
+      ];
+      const idToEmail = new Map<string, string>();
+      if (uuids.length > 0) {
+        const { data: profs } = await supabaseAdmin
+          .from('profiles')
+          .select('id, email')
+          .in('id', uuids);
+        for (const pr of profs ?? []) {
+          idToEmail.set(String((pr as { id: string }).id), String((pr as { email: string }).email ?? ''));
+        }
+      }
+      const emList = [
+        ...new Set(
+          [...idToEmail.values()].map((e) => e.trim()).filter(Boolean),
+        ),
+      ];
+      const emailToName = new Map<string, string>();
+      if (emList.length > 0) {
+        const { data: usr } = await supabaseAdmin
+          .from('user')
+          .select('email, fname, lname')
+          .in('email', emList);
+        for (const u of usr ?? []) {
+          const e = ((u as { email: string }).email ?? '').trim().toLowerCase();
+          emailToName.set(
+            e,
+            [(u as { fname: string | null }).fname, (u as { lname: string | null }).lname]
+              .filter(Boolean)
+              .join(' ')
+              .trim() || (u as { email: string }).email || 'Client',
+          );
+        }
+      }
+      for (const a of assignList) {
+        const row = a as { created_at: string; user_id: string; package_id: number };
+        const pid = Number(row.package_id);
+        const title = planTitleMap.get(pid) ?? 'Plan';
+        const email = idToEmail.get(String(row.user_id));
+        const nm = email ? emailToName.get(email.trim().toLowerCase()) : undefined;
+        const who = nm ? ` for ${nm}` : '';
+        activityItems.push({
+          at: row.created_at,
+          t: new Date(row.created_at).getTime(),
+          label: `Added: Plan "${title}" assigned${who}`,
+        });
+      }
+    } catch (err) {
+      console.warn('GET /api/admin/dashboard: assignment activity skipped:', err);
+    }
+
+    // Plan library updates
+    try {
+      const { data: recentPlans } = await supabaseAdmin
+        .from('plan')
+        .select('title, updated_at, created_at')
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      for (const p of recentPlans ?? []) {
+        const row = p as { title: string; updated_at: string; created_at: string };
+        const tu = new Date(row.updated_at).getTime();
+        const tc = new Date(row.created_at).getTime();
+        const isNew = Number.isFinite(tc) && Number.isFinite(tu) && Math.abs(tu - tc) < 3000;
+        activityItems.push({
+          at: row.updated_at,
+          t: tu,
+          label: isNew
+            ? `Added: Plan "${row.title}"`
+            : `Edited: Plan "${row.title}"`,
+        });
+      }
+    } catch (err) {
+      console.warn('GET /api/admin/dashboard: plan activity skipped:', err);
+    }
+
+    // Session (module) updates
+    try {
+      const { data: mods } = await supabaseAdmin
+        .from('module')
+        .select('title, updated_at, created_at')
+        .order('updated_at', { ascending: false })
+        .limit(15);
+      for (const m of mods ?? []) {
+        const row = m as { title: string; updated_at: string; created_at: string };
+        const tu = new Date(row.updated_at).getTime();
+        const tc = new Date(row.created_at).getTime();
+        const isNew = Number.isFinite(tc) && Number.isFinite(tu) && Math.abs(tu - tc) < 3000;
+        activityItems.push({
+          at: row.updated_at,
+          t: tu,
+          label: isNew
+            ? `Added: Session "${row.title}"`
+            : `Edited: Session "${row.title}"`,
+        });
+      }
+    } catch (err) {
+      console.warn('GET /api/admin/dashboard: module activity skipped:', err);
+    }
+
+    // Exercise updates
+    try {
+      const { data: exs } = await supabaseAdmin
+        .from('exercise')
+        .select('title, updated_at, created_at')
+        .order('updated_at', { ascending: false })
+        .limit(20);
+      for (const e of exs ?? []) {
+        const row = e as { title: string; updated_at: string; created_at: string };
+        const tu = new Date(row.updated_at).getTime();
+        const tc = new Date(row.created_at).getTime();
+        const isNew = Number.isFinite(tc) && Number.isFinite(tu) && Math.abs(tu - tc) < 3000;
+        activityItems.push({
+          at: row.updated_at,
+          t: tu,
+          label: isNew
+            ? `Added: Exercise "${row.title}"`
+            : `Edited: Exercise "${row.title}"`,
+        });
+      }
+    } catch (err) {
+      console.warn('GET /api/admin/dashboard: exercise activity skipped:', err);
+    }
+
+    // Logged deletes (and any other explicit rows) — see admin_dashboard_activity migration
+    try {
+      const { data: logged } = await supabaseAdmin
+        .from('admin_dashboard_activity')
+        .select('created_at, message')
+        .order('created_at', { ascending: false })
+        .limit(40);
+      for (const row of logged ?? []) {
+        const r = row as { created_at: string; message: string };
+        activityItems.push({
+          at: r.created_at,
+          t: new Date(r.created_at).getTime(),
+          label: r.message,
+        });
+      }
+    } catch (err) {
+      console.warn('GET /api/admin/dashboard: admin_dashboard_activity skipped:', err);
+    }
+
+    activityItems.sort((a, b) => b.t - a.t);
+    const recentActivity = activityItems.slice(0, 45).map(({ at, label }) => ({ at, label }));
+
+    return res.status(200).json({
+      counts: {
+        totalUsers,
+        pendingUsers: pendingCount,
+        plans: plansCount,
+        sessions: sessionsCount,
+        exercises: exercisesCount,
+      },
+      topPlans,
+      userOverview,
+      recentActivity,
+    });
+  } catch (err) {
+    console.error('GET /api/admin/dashboard error:', err);
+    return res.status(500).json({ error: 'Failed to load dashboard data.' });
   }
 });
 

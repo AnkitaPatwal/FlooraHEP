@@ -4,6 +4,7 @@ import { supabaseServer } from '../lib/supabaseServer';
 import { createSignedUrl } from '../lib/signedUrl';
 import { requireSuperAdmin } from '../middleware/requireSuperAdmin';
 import { linkVideoToExercise, BUCKET_NAME } from '../services/videoService';
+import { logDashboardActivity } from '../services/dashboardActivityLog';
 
 const router = express.Router();
 
@@ -445,6 +446,13 @@ router.delete(
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
 
+      const { data: exMeta } = await supabaseServer
+        .from('exercise')
+        .select('title')
+        .eq('exercise_id', id)
+        .maybeSingle();
+      const exTitle = String((exMeta as { title?: string } | null)?.title ?? 'Exercise');
+
       const { error: uaxErr } = await supabaseServer
         .from('user_assignment_exercise')
         .delete()
@@ -482,6 +490,7 @@ router.delete(
         return res.status(500).json({ error: 'Failed to delete exercise', detail: error.message });
       }
 
+      void logDashboardActivity(`Deleted: Exercise "${exTitle}"`);
       res.status(204).send();
     } catch (err: any) {
       console.error('DELETE /api/exercises unexpected error:', err);
