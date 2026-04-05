@@ -237,17 +237,6 @@ export default function Users() {
     location.state?.deleteSuccess,
   ]);
 
-  const matchesSearch = useCallback(
-    (fname: string | undefined, lname: string | undefined, email: string | undefined) => {
-      const lower = q.trim().toLowerCase();
-      if (!lower) return true;
-      return [fname, lname, email].some((s) =>
-        (s ?? "").toLowerCase().includes(lower)
-      );
-    },
-    [q]
-  );
-
   const pendingFiltered = useMemo(() => {
     const normalizedQuery = q.trim().toLowerCase().replace(/\s+/g, " ");
     if (!normalizedQuery) return pendingClients;
@@ -266,6 +255,28 @@ export default function Users() {
       );
     });
   }, [pendingClients, q]);
+
+  const deniedFiltered = useMemo(() => {
+    const normalizedQuery = q.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalizedQuery) return deniedClients;
+
+    return deniedClients.filter((c) => {
+      const fname = (c.fname ?? "").trim().toLowerCase();
+      const lname = (c.lname ?? "").trim().toLowerCase();
+      const fullName = [fname, lname]
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ");
+      const email = (c.email ?? "").trim().toLowerCase();
+
+      return (
+        fname.startsWith(normalizedQuery) ||
+        lname.startsWith(normalizedQuery) ||
+        fullName.startsWith(normalizedQuery) ||
+        email.startsWith(normalizedQuery)
+      );
+    });
+  }, [deniedClients, q]);
 
   // Only show approved users (status === true) in Active; exclude any pending that might slip through
   const activeUsers = useMemo(
