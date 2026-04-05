@@ -16,7 +16,6 @@ type Props = {
   title: string;
   exerciseCount: number;
   image: ImageSourcePropType;
-  /** Visual + interaction: locked tiles do not fire onPress. */
   state?: SessionTileState;
   onPress?: () => void;
   testID?: string;
@@ -43,7 +42,7 @@ export default function SessionCard({
         locked && styles.tileLocked,
       ]}
     >
-      <View style={styles.card}>
+      <View style={[styles.card, theme.shadow.card]}>
         <View style={styles.imageWrap}>
           <Image source={image} style={styles.image} resizeMode="cover" />
           {completed ? (
@@ -58,6 +57,7 @@ export default function SessionCard({
           ) : null}
         </View>
       </View>
+
       <View style={styles.captionBlock}>
         <Text
           style={styles.caption}
@@ -65,9 +65,7 @@ export default function SessionCard({
           {...(Platform.OS === "android" ? { includeFontPadding: false } : {})}
         >
           <Text style={styles.captionStrong}>{title}</Text>
-          <Text style={styles.captionMeta}>
-            {` | ${exerciseCount} ${exerciseWord}`}
-          </Text>
+          <Text style={styles.captionMeta}>{` | ${exerciseCount} ${exerciseWord}`}</Text>
           {isCurrent ? <Text style={styles.captionMeta}> — Current</Text> : null}
         </Text>
         {locked ? <Text style={styles.statusLocked}>Locked</Text> : null}
@@ -106,7 +104,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.card,
     borderWidth: 2,
     borderColor: "transparent",
-    /** Inset content from the border so captions aren’t tight against / clipped by the stroke (esp. current state + Roboto Black). */
     paddingHorizontal: 8,
     paddingTop: 6,
     paddingBottom: 4,
@@ -121,7 +118,6 @@ const styles = StyleSheet.create({
     borderRadius: theme.radius.card,
     overflow: "hidden",
     backgroundColor: theme.color.surface,
-    ...theme.shadow.card,
   },
   imageWrap: {
     position: "relative",

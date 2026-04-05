@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent,
+} from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
 import {
   fetchActiveClients,
+  fetchDeniedClients,
   fetchPendingClients,
   type ActiveClient,
   type PendingClient,
@@ -13,23 +20,38 @@ type User = {
   id: string;
   name: string;
   status: "active";
-  plan?: string;
-  session?: string;
+  planSummary: string;
   avatarUrl?: string;
   email?: string;
 };
 
+function planSubtitle(plans: ActiveClient["plans"]): string {
+  const list = plans?.filter((p) => p.title?.trim()) ?? [];
+  if (!list.length) return "No plan assigned";
+  const first = list[0].title.trim();
+  const rest = list.length - 1;
+  if (rest <= 0) return first;
+  return `${first} +${rest} more`;
+}
+
 function toUser(c: ActiveClient): User {
   const name = [c.fname, c.lname].filter(Boolean).join(" ") || "—";
+  const planSummary = planSubtitle(c.plans);
   return {
     id: String(c.user_id),
     name,
     status: "active",
     email: c.email,
+    avatarUrl: c.avatar_url?.trim() || undefined,
+    planSummary,
   };
 }
 
 function Avatar({ name, url }: { name: string; url?: string }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [url]);
   const initials = useMemo(
     () =>
       name
@@ -40,8 +62,14 @@ function Avatar({ name, url }: { name: string; url?: string }) {
         .toUpperCase(),
     [name]
   );
-  return url ? (
-    <img className="user-avatar-img" src={url} alt={name} />
+  const showImg = Boolean(url?.trim()) && !imgFailed;
+  return showImg ? (
+    <img
+      className="user-avatar-img"
+      src={url}
+      alt=""
+      onError={() => setImgFailed(true)}
+    />
   ) : (
     <div className="user-avatar-fallback" aria-hidden>
       {initials}
@@ -50,7 +78,7 @@ function Avatar({ name, url }: { name: string; url?: string }) {
 }
 
 function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (onClick && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
       onClick();
@@ -70,8 +98,7 @@ function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{user.name}</h3>
-          <p className="user-card-muted">{user.plan ?? "No Plan"}</p>
-          <p className="user-card-muted">{user.session ?? "No Session"}</p>
+          <p className="user-card-muted">{user.planSummary}</p>
         </div>
       </div>
     </article>
@@ -90,11 +117,29 @@ function PendingUserCard({
     <article className="user-card" role="button" tabIndex={0} onClick={onClick}>
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
-          <Avatar name={name} />
+          <Avatar name={name} url={client.avatar_url?.trim() || undefined} />
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{name}</h3>
           <p className="user-card-email">{client.email}</p>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function DeniedUserCard({ client }: { client: PendingClient }) {
+  const name = [client.fname, client.lname].filter(Boolean).join(" ") || "—";
+  return (
+    <article className="user-card user-card--denied">
+      <div className="user-card-inner">
+        <div className="user-avatar-wrap">
+          <Avatar name={name} url={client.avatar_url?.trim() || undefined} />
+        </div>
+        <div className="user-card-text">
+          <h3 className="user-card-name">{name}</h3>
+          <p className="user-card-email">{client.email}</p>
+          <p className="user-card-muted">Access denied</p>
         </div>
       </div>
     </article>
@@ -110,6 +155,10 @@ export default function Users() {
   const [activeClients, setActiveClients] = useState<ActiveClient[]>([]);
   const [activeError, setActiveError] = useState<string | null>(null);
   const [activeLoading, setActiveLoading] = useState(true);
+
+  const [deniedClients, setDeniedClients] = useState<PendingClient[]>([]);
+  const [deniedError, setDeniedError] = useState<string | null>(null);
+  const [deniedLoading, setDeniedLoading] = useState(true);
 
   const [deleteSuccessBanner, setDeleteSuccessBanner] = useState(false);
 
@@ -148,16 +197,34 @@ export default function Users() {
     }
   }, []);
 
+  const loadDeniedClients = useCallback(async () => {
+    setDeniedLoading(true);
+    setDeniedError(null);
+    try {
+      const list = await fetchDeniedClients();
+      setDeniedClients(list);
+    } catch (err) {
+      setDeniedError(
+        err instanceof Error ? err.message : "Failed to load denied clients"
+      );
+      setDeniedClients([]);
+    } finally {
+      setDeniedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadPendingClients();
     loadActiveClients();
-  }, [loadPendingClients, loadActiveClients]);
+    loadDeniedClients();
+  }, [loadPendingClients, loadActiveClients, loadDeniedClients]);
 
   // Refetch lists when returning from approve/deny/delete so lists stay in sync
   useEffect(() => {
     if (location.state?.refreshUsers) {
       loadPendingClients();
       loadActiveClients();
+      loadDeniedClients();
       if (location.state?.deleteSuccess) setDeleteSuccessBanner(true);
       navigate("/users", { replace: true, state: {} });
     }
@@ -165,19 +232,33 @@ export default function Users() {
     location.state?.refreshUsers,
     loadPendingClients,
     loadActiveClients,
+    loadDeniedClients,
     navigate,
     location.state?.deleteSuccess,
   ]);
 
-  const pendingFiltered = useMemo(() => {
-    const lower = q.trim().toLowerCase();
-    if (!lower) return pendingClients;
-    return pendingClients.filter((c) =>
-      [c.fname, c.lname, c.email].some((s) =>
+  const matchesSearch = useCallback(
+    (fname: string | undefined, lname: string | undefined, email: string | undefined) => {
+      const lower = q.trim().toLowerCase();
+      if (!lower) return true;
+      return [fname, lname, email].some((s) =>
         (s ?? "").toLowerCase().includes(lower)
-      )
+      );
+    },
+    [q]
+  );
+
+  const pendingFiltered = useMemo(() => {
+    return pendingClients.filter((c) =>
+      matchesSearch(c.fname, c.lname, c.email)
     );
-  }, [pendingClients, q]);
+  }, [pendingClients, matchesSearch]);
+
+  const deniedFiltered = useMemo(() => {
+    return deniedClients.filter((c) =>
+      matchesSearch(c.fname, c.lname, c.email)
+    );
+  }, [deniedClients, matchesSearch]);
 
   // Only show approved users (status === true) in Active; exclude any pending that might slip through
   const activeUsers = useMemo(
@@ -236,9 +317,33 @@ export default function Users() {
             <h1 className="user-title">Users</h1>
             <p className="user-count">{active.length} Active Users</p>
           </div>
-          <button type="button" className="new-user-btn">
-            + New User
-          </button>
+          <div className="user-header-right">
+            <div className="user-search-wrap">
+              <span className="user-search-icon" aria-hidden>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="user-search-svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                  />
+                </svg>
+              </span>
+              <input
+                className="user-search-input"
+                placeholder="Search users…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search users"
+              />
+            </div>
+          </div>
         </header>
 
         <hr className="user-divider" />
@@ -298,38 +403,43 @@ export default function Users() {
           </div>
         </section>
 
-        <section className="user-section" aria-labelledby="active-users-title">
-          <div className="user-section-header">
-            <h2 id="active-users-title" className="user-section-title">
-              Active Users
-            </h2>
+        <section className="user-section" aria-labelledby="denied-users-title">
+          <h2 id="denied-users-title" className="user-section-title">
+            Denied Users
+          </h2>
 
-            <div className="user-search-wrap">
-              <span className="user-search-icon" aria-hidden>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="user-search-svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
-                  />
-                </svg>
-              </span>
-
-              <input
-                className="user-search-input"
-                placeholder="Search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
+          {deniedError && (
+            <div className="user-error-wrap">
+              <p className="user-error" role="alert">
+                {deniedError}
+              </p>
+              <button
+                type="button"
+                className="user-retry-btn"
+                onClick={loadDeniedClients}
+              >
+                Retry
+              </button>
             </div>
+          )}
+
+          <div className="user-grid">
+            {deniedLoading ? (
+              <div className="user-empty">Loading denied users…</div>
+            ) : deniedFiltered.length ? (
+              deniedFiltered.map((c) => (
+                <DeniedUserCard key={c.user_id} client={c} />
+              ))
+            ) : (
+              <div className="user-empty">No denied users</div>
+            )}
           </div>
+        </section>
+
+        <section className="user-section" aria-labelledby="active-users-title">
+          <h2 id="active-users-title" className="user-section-title">
+            Active Users
+          </h2>
 
           <div className="user-grid">
             {activeLoading ? (

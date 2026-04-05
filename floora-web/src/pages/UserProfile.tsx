@@ -1,10 +1,46 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
 import { deleteClient, type ActiveClient } from "../lib/admin-api";
 import "../components/UserApproval.css";
 
 const DEFAULT_ADMIN_ID = 1;
+
+function ProfileAvatar({ name, url }: { name: string; url?: string | null }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [url]);
+
+  const initials = useMemo(
+    () =>
+      name
+        .split(" ")
+        .map((s) => s[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+    [name]
+  );
+
+  const trimmedUrl = url?.trim() ?? "";
+  const showImg = Boolean(trimmedUrl) && !imgFailed;
+
+  return (
+    <div className="ua-avatar-wrap">
+      {showImg ? (
+        <img
+          className="ua-avatar"
+          src={trimmedUrl}
+          alt=""
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <div className="ua-avatar ua-avatar-fallback">{initials}</div>
+      )}
+    </div>
+  );
+}
 
 export default function UserProfile() {
   const navigate = useNavigate();
@@ -60,12 +96,6 @@ export default function UserProfile() {
   }
 
   const name = [user.fname, user.lname].filter(Boolean).join(" ") || "—";
-  const initials = name
-    .split(" ")
-    .map((s) => s[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <AppLayout>
@@ -83,9 +113,7 @@ export default function UserProfile() {
 
           <div className="ua-body">
             <aside className="ua-left">
-              <div className="ua-avatar-wrap">
-                <div className="ua-avatar ua-avatar-fallback">{initials}</div>
-              </div>
+              <ProfileAvatar name={name} url={user.avatar_url} />
 
               <div className="ua-actions">
                 <button
@@ -114,6 +142,19 @@ export default function UserProfile() {
                 <span className="ua-label">Email</span>
                 <input className="ua-input" value={user.email} disabled />
               </label>
+
+              <div className="ua-field ua-field-plans">
+                <span className="ua-label">Assigned plans</span>
+                {user.plans?.length ? (
+                  <ul className="ua-plans-list">
+                    {user.plans.map((p) => (
+                      <li key={p.plan_id}>{p.title}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="ua-plans-empty">No plans assigned</p>
+                )}
+              </div>
             </form>
           </div>
         </div>

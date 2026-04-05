@@ -13,9 +13,7 @@ import { theme } from "../constants/theme";
 
 type Props = {
   onPress: () => void;
-  /** Chevron plus “Back” label (e.g. exercise player top bar). */
   showLabel?: boolean;
-  /** Bare chevron on light headers vs cream circle on teal auth screens. */
   variant?: "default" | "onDark";
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -32,12 +30,9 @@ export default function ScreenBackButton({
   const iconColor = theme.color.heading;
 
   const chevron = (
-    <Ionicons
-      name="chevron-back"
-      size={size}
-      color={iconColor}
-      style={styles.chevronOptical}
-    />
+    <View pointerEvents="none" style={styles.chevronOptical}>
+      <Ionicons name="chevron-back" size={size} color={iconColor} />
+    </View>
   );
 
   const icon = (

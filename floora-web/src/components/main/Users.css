@@ -20,6 +20,21 @@
     flex-direction: column;
     gap: 8px;
   }
+
+  .user-header-right {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+  }
+
+  .user-header-right .user-search-wrap {
+    position: relative;
+    width: 340px;
+    min-width: 280px;
+  }
+  .user-header-right .user-search-input {
+    width: 100%;
+  }
   
   .user-title {
     font-size: 28px;
@@ -33,21 +48,6 @@
     color: #6b7280;
     margin: 0;
   }
-  
-  /* === New User button (matches Exercise button) === */
-  .new-user-btn {
-    background-color: #5a8e93;
-    color: #fff;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    width: fit-content;
-    transition: background-color 0.2s ease;
-  }
-  .new-user-btn:hover { background-color: #4f7d81; }
   
   /* === Divider === */
   .user-divider {
@@ -148,6 +148,14 @@
   .user-card:hover {
     transform: translateY(-3px);
     box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+  }
+
+  .user-card--denied {
+    cursor: default;
+  }
+  .user-card--denied:hover {
+    transform: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   }
   
   .user-card-inner {

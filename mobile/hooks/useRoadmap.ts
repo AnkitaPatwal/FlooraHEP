@@ -7,6 +7,7 @@ export type RoadmapSession = {
   module_id: number;
   title: string;
   order_index: number;
+  exercise_count: number;
   isUnlocked: boolean;
   isCompleted: boolean;
 };
@@ -42,10 +43,8 @@ export function useRoadmap(): UseRoadmapResult {
 
         const userId = session.user.id;
 
-        // ── 1. Bootstrap Session 1 unlock (safe to call every time) ──────────
         await supabase.rpc("ensure_first_session_unlock");
 
-        // ── 2. Fetch the user's most recent package ───────────────────────────
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
           .select("package_id, start_date")
@@ -62,7 +61,6 @@ export function useRoadmap(): UseRoadmapResult {
         const planId = packageRow.package_id;
         const startDate = packageRow.start_date ?? null;
 
-        // ── 3. Fetch the plan title separately ───────────────────────────────
         const { data: planRow } = await supabase
           .from("plan")
           .select("title")
@@ -71,7 +69,6 @@ export function useRoadmap(): UseRoadmapResult {
 
         const planName = planRow?.title ?? "Your Plan";
 
-        // ── 4. Fetch all modules in plan order ────────────────────────────────
         const { data: planModules, error: planModulesError } = await supabase
           .from("plan_module")
           .select("module_id, order_index")
@@ -85,7 +82,6 @@ export function useRoadmap(): UseRoadmapResult {
 
         const moduleIds = planModules.map((pm: any) => pm.module_id);
 
-        // ── 5. Fetch module titles ────────────────────────────────────────────
         const { data: modules, error: modulesError } = await supabase
           .from("module")
           .select("module_id, title")
@@ -100,21 +96,39 @@ export function useRoadmap(): UseRoadmapResult {
           (modules ?? []).map((m: any) => [m.module_id, m.title])
         );
 
-        // ── 6. Fetch unlock state for this user ───────────────────────────────
+        const { data: exercises, error: exercisesError } = await supabase
+          .from("exercise")
+          .select("module_id")
+          .in("module_id", moduleIds);
+
+        if (exercisesError) {
+          setError("Failed to load exercise counts.");
+          return;
+        }
+
+        const exerciseCountMap = new Map<number, number>();
+
+        for (const moduleId of moduleIds) {
+          exerciseCountMap.set(moduleId, 0);
+        }
+
+        for (const ex of exercises ?? []) {
+          const moduleId = ex.module_id as number;
+          exerciseCountMap.set(moduleId, (exerciseCountMap.get(moduleId) ?? 0) + 1);
+        }
+
         const { data: unlockRows } = await supabase
           .from("user_session_unlock")
           .select("module_id, unlock_date")
           .eq("user_id", userId);
 
         const now = new Date();
-        // A session is unlocked if its unlock_date exists and is <= now
         const unlockedSet = new Set(
           (unlockRows ?? [])
             .filter((r: any) => new Date(r.unlock_date) <= now)
             .map((r: any) => r.module_id)
         );
 
-        // ── 7. Fetch completion state for this user ───────────────────────────
         const { data: completionRows } = await supabase
           .from("user_session_completion")
           .select("module_id")
@@ -124,11 +138,11 @@ export function useRoadmap(): UseRoadmapResult {
           (completionRows ?? []).map((r: any) => r.module_id)
         );
 
-        // ── 8. Assemble sessions in plan order ────────────────────────────────
         const sessions: RoadmapSession[] = planModules.map((pm: any) => ({
           module_id: pm.module_id,
           title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
           order_index: pm.order_index,
+          exercise_count: exerciseCountMap.get(pm.module_id) ?? 0,
           isUnlocked: unlockedSet.has(pm.module_id),
           isCompleted: completedSet.has(pm.module_id),
         }));

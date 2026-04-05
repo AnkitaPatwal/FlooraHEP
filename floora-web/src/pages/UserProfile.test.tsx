@@ -64,7 +64,71 @@ describe("UserProfile", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("jane@example.com")).toBeInTheDocument();
+    expect(screen.getByText("No plans assigned")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
+  });
+
+  it("lists assigned plans when present", () => {
+    const user: ActiveClient = {
+      user_id: 5,
+      email: "jane@example.com",
+      fname: "Jane",
+      lname: "Doe",
+      status: true,
+      plans: [
+        { plan_id: 1, title: "Recovery A" },
+        { plan_id: 2, title: "Strength B" },
+      ],
+    };
+
+    renderWithRouter("/user-profile", { user });
+
+    expect(screen.getByText("Recovery A")).toBeInTheDocument();
+    expect(screen.getByText("Strength B")).toBeInTheDocument();
+  });
+
+  it("renders avatar image when avatar_url is set", async () => {
+    const user: ActiveClient = {
+      user_id: 5,
+      email: "jane@example.com",
+      fname: "Jane",
+      lname: "Doe",
+      status: true,
+      avatar_url: "https://example.com/profile.png",
+    };
+
+    const { container } = renderWithRouter("/user-profile", { user });
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+    });
+    expect(container.querySelector("img.ua-avatar")).toHaveAttribute(
+      "src",
+      "https://example.com/profile.png"
+    );
+  });
+
+  it("falls back to initials when avatar image fails to load", async () => {
+    const user: ActiveClient = {
+      user_id: 5,
+      email: "jane@example.com",
+      fname: "Jane",
+      lname: "Doe",
+      status: true,
+      avatar_url: "https://example.com/missing.png",
+    };
+
+    const { container } = renderWithRouter("/user-profile", { user });
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+    });
+    fireEvent.error(container.querySelector("img.ua-avatar")!);
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("JD")).toBeInTheDocument();
   });
 
   it("shows confirmation modal when Delete is clicked", async () => {
