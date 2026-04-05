@@ -170,13 +170,22 @@ export default function Users() {
   ]);
 
   const pendingFiltered = useMemo(() => {
-    const lower = q.trim().toLowerCase();
-    if (!lower) return pendingClients;
-    return pendingClients.filter((c) =>
-      [c.fname, c.lname, c.email].some((s) =>
-        (s ?? "").toLowerCase().includes(lower)
-      )
-    );
+    const normalizedQuery = q.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!normalizedQuery) return pendingClients;
+
+    return pendingClients.filter((c) => {
+      const fname = (c.fname ?? "").trim().toLowerCase();
+      const lname = (c.lname ?? "").trim().toLowerCase();
+      const fullName = [fname, lname].filter(Boolean).join(" ").replace(/\s+/g, " ");
+      const email = (c.email ?? "").trim().toLowerCase();
+
+      return (
+        fname.startsWith(normalizedQuery) ||
+        lname.startsWith(normalizedQuery) ||
+        fullName.startsWith(normalizedQuery) ||
+        email.startsWith(normalizedQuery)
+      );
+    });
   }, [pendingClients, q]);
 
   // Only show approved users (status === true) in Active; exclude any pending that might slip through
@@ -185,35 +194,26 @@ export default function Users() {
     [activeClients]
   );
 
-  // Search by first name, last name, full name (any order), or email. Normalize whitespace so "John  Doe" matches "John Doe".
   const active = useMemo(() => {
     const normalizedQuery = q.trim().toLowerCase().replace(/\s+/g, " ");
     if (!normalizedQuery) return activeUsers;
 
-    const queryWords = normalizedQuery.split(" ").filter(Boolean);
-
     return activeUsers.filter((u) => {
       if (u.status !== "active") return false;
-      if ((u.email ?? "").toLowerCase().includes(normalizedQuery)) return true;
 
       const client = activeClients.find((c) => String(c.user_id) === u.id);
+
       const fname = (client?.fname ?? "").trim().toLowerCase();
       const lname = (client?.lname ?? "").trim().toLowerCase();
-      const fullNameNormalized = [fname, lname]
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ");
+      const fullName = [fname, lname].filter(Boolean).join(" ").replace(/\s+/g, " ");
+      const email = (u.email ?? "").trim().toLowerCase();
 
-      if (!fullNameNormalized)
-        return u.name.toLowerCase().includes(normalizedQuery);
-
-      // Match if the whole query is a substring, or every word in the query appears in the name (handles "John Doe", "Doe John", "John", "Doe")
-      const fullQueryMatch = fullNameNormalized.includes(normalizedQuery);
-      const allWordsMatch =
-        queryWords.length > 0 &&
-        queryWords.every((word) => fullNameNormalized.includes(word));
-
-      return fullQueryMatch || allWordsMatch;
+      return (
+        fname.startsWith(normalizedQuery) ||
+        lname.startsWith(normalizedQuery) ||
+        fullName.startsWith(normalizedQuery) ||
+        email.startsWith(normalizedQuery)
+      );
     });
   }, [activeUsers, activeClients, q]);
 

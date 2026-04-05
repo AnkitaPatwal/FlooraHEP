@@ -15,7 +15,9 @@ import {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return {
     ...(session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` }
@@ -110,7 +112,7 @@ function ExerciseDashboard() {
           <div className="exercise-header-left">
             <h1 className="exercise-title">Exercises</h1>
             <p className="exercise-count">
-              {loading ? "Loading..." : `${exercises.length} Exercises`}
+              {loading ? "Loading..." : `${filteredExercises.length} Exercises`}
             </p>
             {!isAuthLoading && isSuperAdmin && (
               <Link to="/exercises/create">
@@ -151,7 +153,15 @@ function ExerciseDashboard() {
         <hr className="divider" />
 
         {error && (
-          <div style={{ padding: "20px", color: "#b91c1c", backgroundColor: "#fee", borderRadius: "8px", margin: "20px 0" }}>
+          <div
+            style={{
+              padding: "20px",
+              color: "#b91c1c",
+              backgroundColor: "#fee",
+              borderRadius: "8px",
+              margin: "20px 0",
+            }}
+          >
             {error}
           </div>
         )}
@@ -171,12 +181,19 @@ function ExerciseDashboard() {
         )}
 
         {loading && (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+          <div
+            style={{
+              padding: "40px",
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
             Loading exercises...
           </div>
         )}
 
-        {!loading && !error &&
+        {!loading &&
+          !error &&
           Object.entries(groupedExercises).map(([category, items]) => (
             <section className="category-section" key={category}>
               <h2 className="category-title">
@@ -190,7 +207,10 @@ function ExerciseDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
-                    onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" &&
+                      navigate(`/exercises/${exercise.exercise_id}`)
+                    }
                   >
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
