@@ -11,6 +11,7 @@ import { LoadingHint } from "./ui/LoadingHint";
 import { AssignBackLink } from "./ui/AssignBackLink";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
 import "./AssignPackage.css";
+import { markAssignmentCountsStale } from "../../lib/assignmentsCountsStale";
 
 type SessionRow = {
   order_index: number;
@@ -223,6 +224,7 @@ export default function AssignPackageAssignmentSessions() {
         setMessage(body.error || "Failed to add session.");
         return;
       }
+      markAssignmentCountsStale();
       setSelectedModuleId("");
       await load();
     } catch {
@@ -248,6 +250,7 @@ export default function AssignPackageAssignmentSessions() {
         setMessage(body.error || "Failed to remove session.");
         return;
       }
+      markAssignmentCountsStale();
       setRemoveModal(null);
       await load();
     } catch {

@@ -29,6 +29,30 @@ jest.mock("../adminAuth", () => ({
   },
 }));
 
+const emptyData = { data: [] as unknown[], error: null };
+
+/** PostgREST builders are thenable; any await on the chain resolves to emptyData. */
+function mockQueryChain(): any {
+  const self: any = {
+    select: jest.fn(() => self),
+    in: jest.fn(() => self),
+    is: jest.fn(() => self),
+    limit: jest.fn(() => self),
+    then: (onFulfilled: (v: unknown) => unknown, onRejected?: (e: unknown) => unknown) =>
+      Promise.resolve(emptyData).then(onFulfilled, onRejected),
+    catch: (onRejected: (e: unknown) => unknown) =>
+      Promise.resolve(emptyData).catch(onRejected),
+  };
+  return self;
+}
+
+jest.mock("../../lib/supabaseServer", () => ({
+  supabaseServer: {
+    rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
+    from: jest.fn((_table: string) => mockQueryChain()),
+  },
+}));
+
 import express from "express";
 import adminRouter from "../admin";
 
@@ -59,7 +83,9 @@ describe("GET /api/admin/modules", () => {
       .set("Authorization", "Bearer fake-token");
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual(mockModules);
+    expect(res.body).toEqual([
+      { ...mockModules[0], assigned_user_count: 0 },
+    ]);
   });
 
   it("returns 500 if service throws", async () => {

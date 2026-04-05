@@ -1,9 +1,15 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Session.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -36,10 +42,21 @@ type Module = {
   description: string;
   session_number: number;
   module_exercise: ModuleExercise[];
+  assigned_user_count?: number;
 };
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+}
 
 function Session() {
   const navigate = useNavigate();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
   const [modules, setModules] = useState<Module[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
   const [error, setError] = useState("");
@@ -50,7 +67,11 @@ function Session() {
     setError("");
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API_BASE}/api/admin/modules`, { method: "GET", headers });
+      const res = await fetch(`${API_BASE}/api/admin/modules`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load sessions");
       setModules(Array.isArray(data) ? data : []);
@@ -64,7 +85,7 @@ function Session() {
 
   useEffect(() => {
     loadModules();
-  }, []);
+  }, [location.key, refreshToken, countsVersion]);
 
   const filteredModules = modules.filter(
     (m) => !search.trim() || m.title.toLowerCase().includes(search.toLowerCase())
@@ -164,9 +185,8 @@ function Session() {
                       <h3>{module.title}</h3>
                       <p>Session {module.session_number}</p>
                       <span className="session-tag">
-                        <span className="material-symbols-outlined">vital_signs</span>
-                        {module.module_exercise?.length ?? 0} exercise
-                        {(module.module_exercise?.length ?? 0) !== 1 ? "s" : ""}
+                        <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                        {clientsAssignedLabel(module.assigned_user_count ?? 0)}
                       </span>
                     </div>
                   </div>
