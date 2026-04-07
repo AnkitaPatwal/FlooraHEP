@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { FlooraFonts } from "../../constants/fonts";
 
 export default function ResetPassword() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -137,8 +138,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   headerTitle: {
+    fontFamily: FlooraFonts.extraBold,
     fontSize: 20,
-    fontWeight: "800",
     color: "#333",
   },
   body: {
@@ -147,15 +148,15 @@ const styles = StyleSheet.create({
     paddingTop: 36,
   },
   title: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 18,
-    fontWeight: "700",
     textAlign: "center",
     color: "#111827",
     marginBottom: 28,
   },
   label: {
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 15,
-    fontWeight: "600",
     color: "#333",
     marginBottom: 8,
   },
@@ -170,6 +171,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 12,
+    fontFamily: FlooraFonts.regular,
     fontSize: 15,
     color: "#333",
   },
@@ -182,8 +184,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   buttonText: {
+    fontFamily: FlooraFonts.semiBold,
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
   },
 });

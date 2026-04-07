@@ -1,5 +1,6 @@
 // hooks/useRoadmap.ts
 import { useEffect, useState } from "react";
+import { fetchAssignedPlanTitleForCurrentUser } from "../lib/assignedPlanTitle";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../providers/AuthProvider";
 
@@ -9,6 +10,8 @@ export type RoadmapSession = {
   order_index: number;
   isUnlocked: boolean;
   isCompleted: boolean;
+  /** First exercise thumbnail; loaded before roadmap UI shows locked cards (avoids placeholder flash). */
+  thumbnailUrl?: string;
 };
 
 export type RoadmapData = {
@@ -23,6 +26,19 @@ type UseRoadmapResult = {
   error: string;
   reload: () => void;
 };
+
+async function fetchFirstExerciseThumbnailUrl(moduleId: number): Promise<string | undefined> {
+  try {
+    const { data: rows, error: rpcErr } = await supabase.rpc("get_current_assigned_session_exercises", {
+      p_module_id: Number(moduleId),
+    });
+    if (rpcErr || !Array.isArray(rows) || rows.length === 0) return undefined;
+    const u = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
+    return u.startsWith("http") ? u : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function useRoadmap(): UseRoadmapResult {
   const { session } = useAuth();
@@ -66,14 +82,9 @@ export function useRoadmap(): UseRoadmapResult {
         const planId = packageRow.package_id;
         const startDate = packageRow.start_date ?? null;
 
-        // ── 3. Fetch the plan title separately ───────────────────────────────
-        const { data: planRow } = await supabase
-          .from("plan")
-          .select("title")
-          .eq("plan_id", planId)
-          .maybeSingle();
-
-        const planName = planRow?.title ?? "Your Plan";
+        // ── 3. Plan title (RPC: reliable when direct `plan` SELECT is RLS-blocked) ──
+        const planTitleRpc = (await fetchAssignedPlanTitleForCurrentUser()).trim();
+        const planName = planTitleRpc !== "" ? planTitleRpc : "Your Plan";
 
         // ── 4. Fetch sessions list (prefer per-assignment overrides) ──────────
         type AssignedSessionRow = { module_id: number; order_index: number; title: string };
@@ -185,10 +196,20 @@ export function useRoadmap(): UseRoadmapResult {
           isCompleted: completedSet.has(pm.module_id),
         }));
 
-        // Product requirement: Roadmap shows only locked sessions.
+        sessions.sort((a, b) => a.order_index - b.order_index);
         const lockedSessions = sessions.filter((s) => !s.isUnlocked);
 
-        setData({ planName, startDate, sessions: lockedSessions });
+        const lockedWithThumbs: RoadmapSession[] =
+          lockedSessions.length === 0
+            ? []
+            : await Promise.all(
+                lockedSessions.map(async (s) => {
+                  const thumbnailUrl = await fetchFirstExerciseThumbnailUrl(s.module_id);
+                  return thumbnailUrl ? { ...s, thumbnailUrl } : s;
+                })
+              );
+
+        setData({ planName, startDate, sessions: lockedWithThumbs });
       } catch (err) {
         setError("Something went wrong loading your roadmap.");
       } finally {

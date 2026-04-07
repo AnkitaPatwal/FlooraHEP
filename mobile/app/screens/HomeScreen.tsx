@@ -15,7 +15,10 @@ import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
 import colors from "../../constants/colors";
+import { FlooraFonts } from "../../constants/fonts";
+import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
+import { fetchAssignedPlanTitleForCurrentUser } from "../../lib/assignedPlanTitle";
 
 type SessionItem = {
   module_id: number | string;
@@ -46,19 +49,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   stateText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#374151",
     textAlign: "center",
   },
   emptyText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#6B7280",
     marginTop: 4,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
+  sectionHeadingBlock: {
+    marginBottom: 0,
+  },
+  planNameHero: {
+    fontFamily: FlooraFonts.extraBold,
+    fontSize: 30,
+    lineHeight: 36,
+    color: colors.brand,
+    marginBottom: 4,
+  },
+  sessionsLabel: {
+    fontFamily: FlooraFonts.regular,
+    fontSize: 18,
+    color: "#374151",
     marginBottom: 4,
   },
   accentLine: {
@@ -69,50 +84,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 22,
   },
-  card: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  cardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
-  cardCaption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  cardCaptionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
-  },
-  cardCaptionMeta: {
-    color: "#374151",
-  },
-  sessionTile: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+  /** Current session: no card shadow — elevation only on the thumbnail (see profile Sign out). */
+  currentSessionCard: {
     marginBottom: 12,
-  },
-  sessionTileCurrent: {
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-    transform: [{ scale: 1.01 }],
   },
   currentBadge: {
     position: "absolute",
@@ -125,9 +99,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   currentBadgeText: {
+    fontFamily: FlooraFonts.extraBold,
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 0.2,
   },
   completedBadge: {
@@ -141,22 +115,16 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   completedBadgeText: {
+    fontFamily: FlooraFonts.extraBold,
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 0.2,
   },
   sessionCompletedLabel: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     color: "#6B7280",
     marginTop: 4,
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-    marginTop: 14,
-    marginBottom: 10,
   },
   header: {
     paddingHorizontal: 16,
@@ -173,14 +141,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   greeting: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 28,
-    fontWeight: "700",
     color: "#0F172A",
   },
-  brandText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#2B8C8E",
+  logoImage: {
+    width: 120,
+    height: 44,
+    resizeMode: "contain",
+    tintColor: colors.brand,
   },
   scrollView: {
     flex: 1,
@@ -197,9 +166,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   retryButtonText: {
+    fontFamily: FlooraFonts.semiBold,
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
   },
 });
 
@@ -214,6 +183,7 @@ const HomeScreen = () => {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [sessionThumbs, setSessionThumbs] = useState<Record<string, string>>({});
+  const [planTitle, setPlanTitle] = useState("");
 
   const fetchAssignedSessions = useCallback(async () => {
       try {
@@ -227,6 +197,8 @@ const HomeScreen = () => {
         if (!session?.user?.id) {
           setError("Unable to load user.");
           setSessions([]);
+          setSessionThumbs({});
+          setPlanTitle("");
           setLoading(false);
           return;
         }
@@ -260,10 +232,13 @@ const HomeScreen = () => {
         if (packageError || !packageRow) {
           setHasAssignedPlan(false);
           setSessions([]);
+          setSessionThumbs({});
+          setPlanTitle("");
           return;
         }
 
         setHasAssignedPlan(true);
+        setPlanTitle(await fetchAssignedPlanTitleForCurrentUser());
 
         const { error: rpcUnlockBootstrapError } = await supabase.rpc("ensure_first_session_unlock");
         if (__DEV__ && rpcUnlockBootstrapError) {
@@ -301,6 +276,7 @@ const HomeScreen = () => {
 
           if (planModulesError || !templateRows || templateRows.length === 0) {
             setSessions([]);
+            setSessionThumbs({});
             return;
           }
 
@@ -324,7 +300,7 @@ const HomeScreen = () => {
             : null;
 
         let modulesData: { module_id: number; title: string }[] = [];
-        if (titleByModuleId) {
+        if (titleByModuleId && planModules.type === "assigned") {
           modulesData = planModules.rows.map((r) => ({ module_id: r.module_id, title: r.title }));
         } else {
           const { data, error: modulesError } = await supabase
@@ -342,6 +318,8 @@ const HomeScreen = () => {
         }
 
         let countsByModule: Record<string, number> = {};
+        /** When RPC succeeds for a module, we already have first-exercise thumbnail (no second fetch). */
+        const exerciseRpcByModule: Record<string, { ok: true; thumb: string }> = {};
 
         // Prefer per-assignment merged exercise list for accurate counts (respects add/remove overrides).
         try {
@@ -352,7 +330,14 @@ const HomeScreen = () => {
                 { p_module_id: Number(moduleId) }
               );
               if (!rpcErr && Array.isArray(rows)) {
-                return [String(moduleId), rows.length] as const;
+                const idStr = String(moduleId);
+                let thumb = "";
+                if (rows.length > 0) {
+                  const u = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
+                  if (u.startsWith("http")) thumb = u;
+                }
+                exerciseRpcByModule[idStr] = { ok: true, thumb };
+                return [idStr, rows.length] as const;
               }
               throw new Error("rpc-unavailable");
             })
@@ -468,13 +453,27 @@ const HomeScreen = () => {
         const visible = merged.filter((s) => s.unlocked);
         // Keep deterministic ordering for UI computations (current = lowest order_index).
         visible.sort((a, b) => a.order_index - b.order_index);
-        setSessions(visible);
 
-        // Session thumbnail = first exercise thumbnail (respect per-client overrides).
-        void (async () => {
+        // Session thumbnail = first exercise thumbnail; resolve before paint so cards don't flash the placeholder.
+        const nextThumbs: Record<string, string> = {};
+        for (const s of visible) {
+          const k = String(s.module_id);
+          const meta = exerciseRpcByModule[k];
+          if (meta?.thumb?.startsWith("http")) {
+            nextThumbs[k] = meta.thumb;
+          }
+        }
+
+        const needRpcThumb = visible.filter((s) => {
+          const k = String(s.module_id);
+          if (exerciseRpcByModule[k]?.ok) return false;
+          return !nextThumbs[k];
+        });
+
+        if (needRpcThumb.length > 0) {
           try {
             const entries = await Promise.all(
-              visible.map(async (s) => {
+              needRpcThumb.map(async (s) => {
                 const { data: rows, error: rpcErr } = await supabase.rpc(
                   "get_current_assigned_session_exercises",
                   { p_module_id: Number(s.module_id) }
@@ -482,26 +481,27 @@ const HomeScreen = () => {
                 if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
                   return [String(s.module_id), ""] as const;
                 }
-                const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+                const thumb = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
                 return [String(s.module_id), thumb] as const;
               })
             );
-            setSessionThumbs((prev) => {
-              const next = { ...prev };
-              for (const [mid, url] of entries) {
-                if (typeof url === "string" && url.startsWith("http")) {
-                  next[mid] = url;
-                }
+            for (const [mid, url] of entries) {
+              if (typeof url === "string" && url.startsWith("http")) {
+                nextThumbs[mid] = url;
               }
-              return next;
-            });
+            }
           } catch {
-            // non-blocking: thumbnails are optional
+            // optional thumbnails
           }
-        })();
+        }
+
+        setSessionThumbs(nextThumbs);
+        setSessions(visible);
       } catch (err) {
         setError("Something went wrong.");
         setSessions([]);
+        setSessionThumbs({});
+        setPlanTitle("");
       } finally {
         setLoading(false);
       }
@@ -562,7 +562,13 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={styles.greeting}>Hi {displayName || "there"}!</Text>
-          <Text style={styles.brandText}>Floora</Text>
+          <Image
+            testID="home-floora-logo"
+            source={require("../../assets/images/flooraLogo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+            accessibilityLabel="Floora"
+          />
         </View>
       </View>
       <ScrollView
@@ -573,7 +579,14 @@ const HomeScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
         }
       >
-        <Text style={styles.sectionTitle}>Your Assigned Sessions</Text>
+        <View style={styles.sectionHeadingBlock}>
+          {hasAssignedPlan ? (
+            <Text style={styles.planNameHero} numberOfLines={2}>
+              {planTitle.trim() || "Your Plan"}
+            </Text>
+          ) : null}
+          <Text style={styles.sessionsLabel}>Sessions</Text>
+        </View>
         <View style={styles.accentLine} />
 
         {sessions.length === 0 ? (
@@ -597,26 +610,28 @@ const HomeScreen = () => {
                   }
                   style={{ minHeight: 44 }}
                 >
-                  <View style={[styles.sessionTile, styles.sessionTileCurrent]}>
-                    <View style={styles.currentBadge} pointerEvents="none">
-                      <Text style={styles.currentBadgeText}>Current</Text>
+                  <View style={styles.currentSessionCard}>
+                    <View style={sessionCardStyles.mediaElevatedCurrent}>
+                      <View style={styles.currentBadge} pointerEvents="none">
+                        <Text style={styles.currentBadgeText}>Current</Text>
+                      </View>
+                      <View style={sessionCardStyles.mediaShell}>
+                        <Image
+                          source={
+                            sessionThumbs[String(currentSession.module_id)]
+                              ? { uri: sessionThumbs[String(currentSession.module_id)] }
+                              : fallbackSessionImage
+                          }
+                          style={sessionCardStyles.mediaImage}
+                          resizeMode="cover"
+                        />
+                      </View>
                     </View>
-                    <View style={styles.card}>
-                      <Image
-                        source={
-                          sessionThumbs[String(currentSession.module_id)]
-                            ? { uri: sessionThumbs[String(currentSession.module_id)] }
-                            : fallbackSessionImage
-                        }
-                        style={styles.cardImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                    <Text style={styles.cardCaption}>
-                      <Text style={styles.cardCaptionStrong}>
+                    <Text style={sessionCardStyles.caption}>
+                      <Text style={sessionCardStyles.captionStrong}>
                         {currentSession.title || "Session"}
                       </Text>
-                      <Text style={styles.cardCaptionMeta}>
+                      <Text style={sessionCardStyles.captionMeta}>
                         {` | ${currentSession.exerciseCount ?? 0} `}
                         {(currentSession.exerciseCount ?? 0) === 1
                           ? "Exercise"
@@ -644,26 +659,26 @@ const HomeScreen = () => {
                     }
                     style={{ minHeight: 44 }}
                   >
-                    <View style={styles.sessionTile}>
+                    <View style={sessionCardStyles.tile}>
                       <View style={styles.completedBadge} pointerEvents="none">
                         <Text style={styles.completedBadgeText}>Completed</Text>
                       </View>
-                      <View style={styles.card}>
+                      <View style={sessionCardStyles.mediaShell}>
                         <Image
                           source={
                             sessionThumbs[String(sessionItem.module_id)]
                               ? { uri: sessionThumbs[String(sessionItem.module_id)] }
                               : fallbackSessionImage
                           }
-                          style={styles.cardImage}
+                          style={sessionCardStyles.mediaImage}
                           resizeMode="cover"
                         />
                       </View>
-                      <Text style={styles.cardCaption}>
-                        <Text style={styles.cardCaptionStrong}>
+                      <Text style={sessionCardStyles.caption}>
+                        <Text style={sessionCardStyles.captionStrong}>
                           {sessionItem.title || "Session"}
                         </Text>
-                        <Text style={styles.cardCaptionMeta}>
+                        <Text style={sessionCardStyles.captionMeta}>
                           {` | ${sessionItem.exerciseCount ?? 0} `}
                           {(sessionItem.exerciseCount ?? 0) === 1
                             ? "Exercise"

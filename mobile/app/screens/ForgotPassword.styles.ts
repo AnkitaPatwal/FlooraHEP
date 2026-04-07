@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FlooraFonts } from "../../constants/fonts";
 
 const styles = StyleSheet.create({
   container: {
@@ -8,20 +9,9 @@ const styles = StyleSheet.create({
     paddingTop: 60,
   },
 
-  backButtonContainer: {
-    backgroundColor: "#F5EDE4",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
+  backRow: {
+    alignSelf: "flex-start",
     marginBottom: 73,
-  },
-
-  backArrow: {
-    fontSize: 22,
-    color: "#1A3D3C",
-    fontWeight: "600",
   },
 
   headerContainer: {
@@ -30,13 +20,14 @@ const styles = StyleSheet.create({
 
   title: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.bold,
     fontSize: 30,
-    fontWeight: "700",
     marginBottom: 6,
   },
 
   subtitle: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.regular,
     opacity: 0.9,
     fontSize: 14,
   },
@@ -48,7 +39,7 @@ const styles = StyleSheet.create({
 
   fieldLabel: {
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 15,
     marginBottom: 8,
   },
@@ -58,6 +49,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#000000",
   },
@@ -75,7 +67,7 @@ successBanner: {
 
   successBannerText: {
     color: "#2F5B2A",
-    fontWeight: "500",
+    fontFamily: FlooraFonts.medium,
     textAlign: "center",
     fontSize: 14,
     lineHeight: 16,
@@ -94,8 +86,8 @@ successBanner: {
 
   resetButtonText: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
-    fontWeight: "400",
   },
 
   resendContainer: {
@@ -106,14 +98,14 @@ successBanner: {
 
   resendPrompt: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.regular,
     fontSize: 15,
-    fontWeight: "400",
   },
 
   resendLink: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 16,
-    fontWeight: "600",
     textDecorationLine: "underline",
   },
 });
