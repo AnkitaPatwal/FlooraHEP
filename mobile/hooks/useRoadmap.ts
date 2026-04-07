@@ -9,6 +9,7 @@ export type RoadmapSession = {
   order_index: number;
   isUnlocked: boolean;
   isCompleted: boolean;
+  unlockDate: string | null;
 };
 
 export type RoadmapData = {
@@ -154,6 +155,9 @@ export function useRoadmap(): UseRoadmapResult {
           .eq("user_id", userId);
 
         const now = new Date();
+        const unlockDateByModuleId = new Map<number, string>(
+          (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
+        );
         // A session is unlocked if its unlock_date exists and is <= now
         const unlockedSet = new Set(
           (unlockRows ?? [])
@@ -183,6 +187,7 @@ export function useRoadmap(): UseRoadmapResult {
           order_index: pm.order_index,
           isUnlocked: unlockedSet.has(pm.module_id),
           isCompleted: completedSet.has(pm.module_id),
+          unlockDate: unlockDateByModuleId.get(pm.module_id) ?? null,
         }));
 
         // Product requirement: Roadmap shows only locked sessions.

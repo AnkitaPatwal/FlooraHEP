@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  Alert,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
@@ -28,6 +29,13 @@ function formatStartDate(raw: string | null): string {
   return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
+function formatUnlockDate(raw: string | null): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 // ── Session Card ──────────────────────────────────────────────────────────────
 
 type SessionCardProps = {
@@ -35,20 +43,21 @@ type SessionCardProps = {
   index: number;
   planName: string;
   onPress: () => void;
+  onLockedPress?: () => void;
   thumbnailUrl?: string;
 };
 
-function SessionCard({ session, index, onPress, thumbnailUrl }: SessionCardProps) {
+function SessionCard({ session, index, onPress, onLockedPress, thumbnailUrl }: SessionCardProps) {
   const label = session.title || `Session ${index + 1}`;
   const locked = !session.isUnlocked;
 
   return (
     <Pressable
       style={{ minHeight: 44 }}
-      onPress={locked ? undefined : onPress}
+      onPress={locked ? onLockedPress : onPress}
       accessible
       accessibilityLabel={locked ? `${label}, locked` : label}
-      accessibilityState={{ disabled: locked }}
+      accessibilityHint={locked ? "Shows when this session unlocks." : undefined}
     >
       <View style={styles.card}>
         <Image
@@ -86,6 +95,15 @@ export default function RoadMap() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [sessionThumbs, setSessionThumbs] = React.useState<Record<string, string>>({});
   const lockedSessions = (data?.sessions ?? []).filter((s) => !s.isUnlocked);
+  const showLockedUnlockAlert = React.useCallback((title: string, unlockDate: string | null) => {
+    const unlockOn = formatUnlockDate(unlockDate);
+    Alert.alert(
+      "Session Locked",
+      unlockOn
+        ? `${title} is locked\nUnlocks on ${unlockOn}`
+        : `${title} is locked. The session will unlock soon.`
+    );
+  }, []);
 
   React.useEffect(() => {
     const loadThumbs = async () => {
@@ -186,6 +204,12 @@ export default function RoadMap() {
                 index={index}
                 planName={data.planName}
                 thumbnailUrl={sessionThumbs[String(session.module_id)]}
+                onLockedPress={() =>
+                  showLockedUnlockAlert(
+                    session.title || `Session ${index + 1}`,
+                    session.unlockDate
+                  )
+                }
                 onPress={() =>
                   router.push({
                     pathname: "/screens/SessionExerciseList",
