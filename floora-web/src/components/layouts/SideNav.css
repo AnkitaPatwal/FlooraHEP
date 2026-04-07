@@ -29,6 +29,7 @@
   display: block;
   filter: brightness(0) invert(1);
 }
+
 .divider-top {
   width: calc(100% + 28px);
   margin-left: -14px;
@@ -87,19 +88,19 @@
   font-weight: 600;
 }
 
-.menu-shape-icon {
+.menu-nav-icon {
   width: 20px;
   height: 20px;
   min-width: 20px;
   flex-shrink: 0;
+  color: currentColor;
 }
 
-.menu-shape-icon rect {
-  stroke: currentColor;
-  stroke-width: 2.2;
+.menu-nav-icon.active {
+  stroke-width: 2.6;
 }
 
-.nav-item.active .menu-shape-icon {
+.nav-item.active .menu-nav-icon {
   color: #4b6a6e;
 }
 
@@ -154,10 +155,11 @@
 .logout-btn:hover {
   opacity: 1;
 }
+
 .floora-logo {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 44px;
-  color: #F2E7DC;
+  color: #f2e7dc;
   margin: 0;
   font-weight: 700;
 }
