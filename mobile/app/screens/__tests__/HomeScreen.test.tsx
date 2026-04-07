@@ -147,6 +147,7 @@ describe("HomeScreen", () => {
     await findByText("week 1 foundations");
     expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
     expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
+    expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
   });
 
   it("renders assigned sessions section and exercise count from module_exercise", async () => {
@@ -161,6 +162,30 @@ describe("HomeScreen", () => {
     expect(getByText("Your Assigned Sessions")).toBeTruthy();
     expect(getByText(/3 Exercises/)).toBeTruthy();
     expect(queryByText("No assigned sessions yet.")).toBeNull();
+    expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
+  });
+
+  it("prefers merged exercise count from get_current_assigned_session_exercises rpc", async () => {
+    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({ data: [{ module_id: 1, order_index: 1, title: "week 1 foundations" }], error: null });
+      }
+      if (fnName === "get_current_assigned_session_exercises") {
+        expect(params).toEqual({ p_module_id: 1 });
+        return Promise.resolve({ data: [{ exercise_id: 1 }, { exercise_id: 2 }], error: null });
+      }
+      if (fnName === "ensure_first_session_unlock") return Promise.resolve({ data: null, error: null });
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    // Ensure module_exercise fallback would have been different if used.
+    defaultMockFrom({ moduleExerciseRows: [{ module_id: 1, exercise_id: 1 }, { module_id: 1, exercise_id: 2 }, { module_id: 1, exercise_id: 3 }] });
+
+    const { getByText } = render(<HomeScreen />);
+    await waitFor(() => {
+      expect(getByText("week 1 foundations")).toBeTruthy();
+    });
+    expect(getByText(/2 Exercises/)).toBeTruthy();
   });
 
   it("shows first name in greeting when user has fname", async () => {

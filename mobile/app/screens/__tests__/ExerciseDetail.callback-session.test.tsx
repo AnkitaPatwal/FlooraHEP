@@ -174,7 +174,7 @@ describe("ExerciseDetail — callback, sequential unlock, session completion", (
     });
     expect(alertSpy).toHaveBeenCalledWith(
       "Session complete",
-      "The next session will unlock after the 7-day countdown."
+      "The next session will unlock soon."
     );
     alertSpy.mockRestore();
   });

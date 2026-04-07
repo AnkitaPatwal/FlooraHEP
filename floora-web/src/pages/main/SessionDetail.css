@@ -1,0 +1,205 @@
+/* === Session Detail Page (match ExerciseDetail layout) === */
+.session-detail-page {
+  padding-bottom: 48px;
+  box-sizing: border-box;
+  color: #1f2937;
+  min-height: 100vh;
+}
+
+.session-detail-loading,
+.session-detail-error {
+  padding: 40px 20px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.session-detail-error {
+  color: #b91c1c;
+  margin-bottom: 16px;
+}
+
+.session-detail-main {
+  display: flex;
+  gap: 32px;
+  margin-top: 20px;
+  align-items: flex-start;
+}
+
+.session-detail-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Top bar: Back (left) + actions (right) */
+.detail-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+.detail-topbar-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.detail-topbar-confirm {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.session-detail-back {
+  background: transparent;
+  border: 1px solid #5a8e93;
+  color: #5a8e93;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.session-detail-back:hover {
+  background-color: #f0f6f6;
+}
+
+.session-detail-hero {
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+
+.session-detail-hero-inner {
+  padding: 18px 18px 16px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.session-detail-hero-img {
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #f3f4f6;
+  flex: 0 0 auto;
+  border: 1px solid #e5e7eb;
+}
+
+.session-detail-kicker {
+  color: #5a8e93;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 6px;
+}
+
+.session-detail-title {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0;
+  color: #111827;
+}
+
+.session-detail-description {
+  margin-bottom: 24px;
+}
+
+.session-detail-description h3,
+.session-detail-exercises h3 {
+  font-size: 16px;
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: #111827;
+}
+
+.session-detail-description p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.6;
+}
+
+.session-detail-muted {
+  color: #6b7280;
+  margin: 0;
+}
+
+.session-detail-exercise-tiles {
+  margin-top: 12px;
+}
+
+/* Exercise tiles use Session.css card classes */
+.session-detail-exercise-tiles .session-info p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.session-detail-edit-btn,
+.session-detail-delete-btn,
+.session-detail-delete-yes,
+.session-detail-delete-no {
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.session-detail-edit-btn {
+  background: #5a8e93;
+  color: #ffffff;
+}
+
+.session-detail-edit-btn:hover {
+  background: #4f7d81;
+}
+
+.session-detail-delete-btn {
+  background: #ffffff;
+  color: #b91c1c;
+  border-color: #fecaca;
+}
+
+.session-detail-delete-btn:hover {
+  background: #fef2f2;
+}
+
+.session-detail-delete-confirm {
+  display: grid;
+  gap: 10px;
+  color: #374151;
+}
+
+.session-detail-delete-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.session-detail-delete-yes {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.session-detail-delete-no {
+  background: #ffffff;
+  color: #374151;
+  border-color: #e5e7eb;
+}
+
+@media (max-width: 980px) {
+  .session-detail-main {
+    flex-direction: column;
+  }
+}
+

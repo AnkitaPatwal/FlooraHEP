@@ -1,8 +1,14 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Plan.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -19,7 +25,7 @@ interface Plan {
   category: string;
   title: string;
   type: string;
-  sessionCount: number;
+  assigned_user_count: number;
   image: string;
 }
 
@@ -30,6 +36,11 @@ interface PlanData {
   category_id: number | null;
   plan_category: { category_id: number; name: string } | null;
   plan_module: any[];
+  assigned_user_count?: number;
+}
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
 
 function mapDataToPlan(plan: PlanData): Plan {
@@ -39,19 +50,30 @@ function mapDataToPlan(plan: PlanData): Plan {
     title: plan.title,
     category: categoryName,
     type: plan.description ?? "Plan",
-    sessionCount: plan.plan_module ? plan.plan_module.length : 0,
+    assigned_user_count:
+      typeof plan.assigned_user_count === "number" ? plan.assigned_user_count : 0,
     image: "",
   };
 }
 
 export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const navigate = useNavigate();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
 
   useEffect(() => {
     const loadPlans = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         const res = await fetch(`${API_BASE}/api/admin/plans`, {
           headers: {
             "Content-Type": "application/json",
@@ -59,6 +81,7 @@ export default function Plan() {
               ? { Authorization: `Bearer ${session.access_token}` }
               : {}),
           },
+          cache: "no-store",
         });
         const data: unknown = await res.json();
         console.log("RAW DATA:", data);
@@ -75,9 +98,28 @@ export default function Plan() {
     };
 
     loadPlans();
-  }, []);
+  }, [location.key, refreshToken, countsVersion]);
 
-  const groupedPlans = (plans ?? []).reduce((acc, plan) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim().toLowerCase());
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filteredPlans = (plans ?? []).filter((plan) => {
+    if (!debouncedSearch) return true;
+
+    const title = (plan.title ?? "").toLowerCase();
+    const category = (plan.category ?? "").toLowerCase();
+
+    return (
+      title.includes(debouncedSearch) || category.includes(debouncedSearch)
+    );
+  });
+
+  const groupedPlans = filteredPlans.reduce((acc, plan) => {
     const category = plan.category ?? "Uncategorized";
     if (!acc[category]) acc[category] = [];
     acc[category].push(plan);
@@ -92,7 +134,7 @@ export default function Plan() {
         <header className="plan-header">
           <div className="plan-header-left">
             <h1 className="plan-title">Plans</h1>
-            <p className="plan-count">{plans.length} Plans</p>
+            <p className="plan-count">{filteredPlans.length} Plans</p>
             <button
               className="plan-new-plan-btn"
               onClick={() => navigate("/plan-dashboard/create")}
@@ -123,6 +165,8 @@ export default function Plan() {
                 type="text"
                 className="plan-search-bar"
                 placeholder="Search plans..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
               />
             </div>
           </div>
@@ -150,11 +194,8 @@ export default function Plan() {
                     <h3>{plan.title}</h3>
                     <p>{plan.category}</p>
                     <span className="plan-tag">
-                      <span className="material-symbols-outlined">
-                        vital_signs
-                      </span>
-                      {plan.sessionCount}{" "}
-                      {plan.sessionCount === 1 ? "session" : "sessions"}
+                      <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                      {clientsAssignedLabel(plan.assigned_user_count)}
                     </span>
                   </div>
                 </div>

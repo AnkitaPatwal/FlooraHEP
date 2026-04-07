@@ -1,0 +1,36 @@
+/* Outlined “Back” control — matches assign-package nav reference */
+.link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border-radius: 10px;
+  border: 1px solid #5f8c8f;
+  background: #fff;
+  color: #5f8c8f;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  font-family: inherit;
+  line-height: 1.2;
+  box-sizing: border-box;
+}
+
+.link:hover {
+  background: rgba(95, 140, 143, 0.07);
+}
+
+.link:focus-visible {
+  outline: 2px solid #5f8c8f;
+  outline-offset: 2px;
+}
+
+.divider {
+  align-self: stretch;
+  width: 3px;
+  min-height: 32px;
+  margin: 0 12px;
+  background: #b8bcc0;
+  border-radius: 2px;
+  flex-shrink: 0;
+}

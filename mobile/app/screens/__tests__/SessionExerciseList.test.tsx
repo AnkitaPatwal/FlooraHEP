@@ -214,34 +214,78 @@ describe("SessionExerciseList (ATH-428)", () => {
     expect(getByText(/Ask your admin/)).toBeTruthy();
   });
 
-  it("navigates to ExerciseDetail with id, sessionName, and progress params", async () => {
+  it("prefers assigned exercise list from RPC when available", async () => {
+    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+      if (fnName === "get_current_assigned_session_exercises") {
+        expect(params).toEqual({ p_module_id: 1 });
+        return Promise.resolve({
+          data: [
+            {
+              exercise_id: 99,
+              title: "Assigned Only",
+              description: "From overrides",
+              thumbnail_url: null,
+              video_url: "https://example.com/assigned.mp4",
+              order_index: 1,
+              sets: 3,
+              reps: 10,
+            },
+          ],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    // If RPC is used, we should not need module_exercise/exercise queries for the list.
     mockFrom.mockImplementation((table: string) => {
-      if (table === "module_exercise") {
-        return makeModuleExerciseChain([
-          { exercise_id: 10, order_index: 1 },
-          { exercise_id: 11, order_index: 2 },
-        ]);
+      if (table === "user_session_completion") return makeCompletionLookupChain(null);
+      return { select: jest.fn() };
+    });
+
+    const { getByText } = render(<SessionExerciseList />);
+    await waitFor(() => {
+      expect(getByText("Assigned Only")).toBeTruthy();
+    });
+    expect(getByText("From overrides")).toBeTruthy();
+    expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("module_exercise");
+  });
+
+  it("navigates to ExerciseDetail with id, sessionName, and progress params", async () => {
+    // Provide sets/reps on the exercise object to verify they are passed through route params.
+    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+      if (fnName === "get_current_assigned_session_exercises") {
+        expect(params).toEqual({ p_module_id: 1 });
+        return Promise.resolve({
+          data: [
+            {
+              exercise_id: 10,
+              title: "First",
+              description: null,
+              thumbnail_url: null,
+              video_url: "https://v.example/a.mp4",
+              order_index: 1,
+              sets: 4,
+              reps: 12,
+            },
+            {
+              exercise_id: 11,
+              title: "Second",
+              description: null,
+              thumbnail_url: null,
+              video_url: null,
+              order_index: 2,
+              sets: null,
+              reps: null,
+            },
+          ],
+          error: null,
+        });
       }
-      if (table === "exercise") {
-        return makeExerciseInChain([
-          {
-            exercise_id: 10,
-            title: "First",
-            description: null,
-            thumbnail_url: null,
-            video_url: "https://v.example/a.mp4",
-            video: null,
-          },
-          {
-            exercise_id: 11,
-            title: "Second",
-            description: null,
-            thumbnail_url: null,
-            video_url: null,
-            video: null,
-          },
-        ]);
-      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    mockFrom.mockImplementation((table: string) => {
       if (table === "user_session_completion") {
         return makeCompletionLookupChain(null);
       }
@@ -268,6 +312,8 @@ describe("SessionExerciseList (ATH-428)", () => {
         exerciseTitle: "First",
         exerciseDescription: "",
         sessionCompleted: "0",
+        sets: "4",
+        reps: "12",
         videoUrl: "https://v.example/a.mp4",
       },
     });

@@ -87,7 +87,7 @@ export default function CreatePlan() {
     setError(null);
     try {
       const headers = await authHeaders();
-      const res = await fetch("${API_BASE}/api/admin/categories", {
+      const res = await fetch(`${API_BASE}/api/admin/categories`, {
         method: "POST",
         headers,
         body: JSON.stringify({ name })
@@ -244,14 +244,26 @@ export default function CreatePlan() {
       <div className="create-plan-page">
         <header className="create-plan-header">
           <h1>{isEditMode ? "Edit Plan" : "Create Plan"}</h1>
-          <button className="back-btn" onClick={() => navigate("/plan-dashboard")}>Back</button>
+          <div className="create-plan-header-actions">
+            <button className="back-btn" type="button" onClick={() => navigate("/plan-dashboard")}>
+              Back
+            </button>
+            <button
+              className="save-plan-btn"
+              type="submit"
+              form="create-plan-form"
+              disabled={isSaving || isLoading}
+            >
+              {isSaving ? "Saving..." : "Save Plan"}
+            </button>
+          </div>
         </header>
 
         {error && <div className="error-banner">{error}</div>}
         {success && <div className="success-banner">{success}</div>}
         {isLoading && <div className="loading-banner">Loading plan...</div>}
 
-        <form onSubmit={handleSave} className="create-plan-form">
+        <form id="create-plan-form" onSubmit={handleSave} className="create-plan-form">
           <div className="form-group">
             <label>Plan Title *</label>
             <input 
@@ -279,22 +291,20 @@ export default function CreatePlan() {
             <select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value === "" ? "" : Number(e.target.value))}
-              className="form-group input"
-              style={{ padding: "10px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px", width: "100%" }}
+              className="create-plan-select"
             >
               <option value="">Uncategorized</option>
               {categories.map(c => (
                 <option key={c.category_id} value={c.category_id}>{c.name}</option>
               ))}
             </select>
-            <div className="form-group add-category-row" style={{ display: "flex", gap: "8px", marginTop: "8px", alignItems: "center" }}>
+            <div className="add-category-row">
               <input
                 type="text"
                 value={newCategoryName}
                 onChange={e => setNewCategoryName(e.target.value)}
                 placeholder="New category name"
                 className="module-search"
-                style={{ flex: 1 }}
                 disabled={addingCategory}
               />
               <button
@@ -307,14 +317,13 @@ export default function CreatePlan() {
               </button>
             </div>
             {categories.length > 0 && (
-              <div className="existing-categories" style={{ marginTop: "12px" }}>
-                <span style={{ fontSize: "13px", color: "#64748b", marginRight: "8px" }}>Existing categories:</span>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "6px" }}>
+              <div className="existing-categories">
+                <span className="existing-categories-label">Existing categories:</span>
+                <div className="existing-categories-list">
                   {categories.map(c => (
                     <span
                       key={c.category_id}
                       className="module-category-tag"
-                      style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "4px 8px" }}
                     >
                       {c.name}
                       <button
@@ -322,7 +331,7 @@ export default function CreatePlan() {
                         aria-label={`Delete ${c.name}`}
                         onClick={() => handleDeleteCategory(c.category_id)}
                         disabled={deletingCategoryId === c.category_id}
-                        style={{ background: "none", border: "none", cursor: "pointer", padding: "0 2px", fontSize: "14px", lineHeight: 1, color: "#64748b" }}
+                        className="existing-category-delete"
                       >
                         {deletingCategoryId === c.category_id ? "…" : "×"}
                       </button>
@@ -395,26 +404,7 @@ export default function CreatePlan() {
             </div>
           </div>
 
-          <div className="form-actions" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            {isEditMode ? (
-              <button 
-                type="button" 
-                onClick={handleDelete}
-                className="remove-module-btn"
-                disabled={isSaving || isLoading}
-              >
-                Delete Plan
-              </button>
-            ) : <div></div>}
-            
-            <button 
-              type="submit" 
-              className="save-plan-btn" 
-              disabled={isSaving || isLoading}
-            >
-              {isSaving ? "Saving..." : "Save Plan"}
-            </button>
-          </div>
+          {/* Delete moved to Plan Detail page */}
         </form>
       </div>
     </AppLayout>

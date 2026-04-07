@@ -203,6 +203,7 @@ export async function verifyAdminAccess(
 export interface AssignableUser {
   id: string;
   email: string | null;
+  full_name?: string;
 }
 
 export interface AssignablePlan {
@@ -218,10 +219,11 @@ export interface AssignablePlan {
 export async function getAssignableUsers(
   supabase: SupabaseClient,
 ): Promise<AssignableUser[]> {
-  // Get approved user emails from public.user (status = true)
+  // Get approved user emails + names from public.user (status = true)
   const { data: approvedUsers, error: userError } = await supabase
     .from("user")
-    .select("email")
+    // NOTE: some DBs don't have `full_name` column; don't select it.
+    .select("email, fname, lname")
     .eq("status", true)
     .order("email", { ascending: true });
 
@@ -229,11 +231,22 @@ export async function getAssignableUsers(
     throw new Error(`Failed to fetch approved users: ${userError.message}`);
   }
 
-  const approvedEmails = new Set(
-    (approvedUsers ?? []).map((u: { email: string }) => (u.email ?? "").toLowerCase().trim()).filter(Boolean)
-  );
+  const approvedByEmail = new Map<string, { full_name: string | null }>();
+  for (const u of approvedUsers ?? []) {
+    const email = String((u as any).email ?? "")
+      .toLowerCase()
+      .trim();
+    if (!email) continue;
+    const fn =
+      [String((u as any).fname ?? "").trim(), String((u as any).lname ?? "").trim()]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      null;
+    approvedByEmail.set(email, { full_name: fn });
+  }
 
-  if (approvedEmails.size === 0) {
+  if (approvedByEmail.size === 0) {
     return [];
   }
 
@@ -247,12 +260,16 @@ export async function getAssignableUsers(
   }
 
   const users = (authData?.users ?? [])
-    .filter((u) => u.email && approvedEmails.has(u.email.toLowerCase().trim()))
+    .filter((u) => {
+      const e = u.email?.toLowerCase().trim();
+      return Boolean(e && approvedByEmail.has(e));
+    })
     .map((u) => ({
       id: u.id,
       email: u.email ?? null,
+      full_name: u.email ? approvedByEmail.get(u.email.toLowerCase().trim())?.full_name ?? undefined : undefined,
     }))
-    .sort((a, b) => (a.email ?? "").localeCompare(b.email ?? ""));
+    .sort((a, b) => (a.full_name ?? a.email ?? "").localeCompare(b.full_name ?? b.email ?? ""));
 
   return users;
 }

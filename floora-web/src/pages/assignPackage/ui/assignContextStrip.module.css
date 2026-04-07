@@ -1,0 +1,32 @@
+.strip {
+  padding: 12px 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(90, 142, 147, 0.32);
+  background: linear-gradient(165deg, #e8f4f7 0%, #dceef2 55%, #d4e8ed 100%);
+  font-size: 14px;
+  line-height: 1.45;
+  margin-bottom: 20px;
+  color: #1a2e32;
+  box-shadow: 0 1px 3px rgba(45, 74, 77, 0.06);
+}
+
+/* No tinted bar — text only (e.g. client plan page header) */
+.stripPlain {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0 0 4px 0;
+  margin-bottom: 16px;
+  border-radius: 0;
+}
+
+.key {
+  font-weight: 600;
+  color: #2d4a4d;
+}
+
+.sep {
+  margin: 0 6px;
+  opacity: 0.45;
+  font-weight: 400;
+}

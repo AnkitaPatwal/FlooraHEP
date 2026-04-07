@@ -23,7 +23,8 @@ export async function getAllModulesWithExercises(
           default_sets,
           default_reps,
           video_id,
-          thumbnail_photo_id
+          thumbnail_photo_id,
+          thumbnail_url
         )
       )
     `)

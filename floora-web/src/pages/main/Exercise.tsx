@@ -1,15 +1,23 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Exercise.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return {
     ...(session?.access_token
       ? { Authorization: `Bearer ${session.access_token}` }
@@ -30,30 +38,54 @@ export interface Exercise {
   tags?: string[];
   created_at?: string;
   updated_at?: string;
+  /** Distinct clients (assigned packages / overrides); null when counts failed to load */
+  assigned_user_count?: number | null;
+}
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
 
 function ExerciseDashboard() {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
   const { isSuperAdmin, isAuthLoading } = useAuth();
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [assignmentCountsError, setAssignmentCountsError] = useState(false);
+  const [assignmentCountsRpcUnavailable, setAssignmentCountsRpcUnavailable] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
   useEffect(() => {
     const fetchExercises = async () => {
       try {
         setLoading(true);
         const params = new URLSearchParams({ pageSize: "100" });
-        if (searchQuery.trim()) params.set("search", searchQuery.trim());
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim());
         const headers = await authHeaders();
-        const res = await fetch(`${API_URL}/api/exercises?${params}`, { headers });
+        const res = await fetch(`${API_URL}/api/exercises?${params}`, {
+          headers,
+          cache: "no-store",
+        });
 
         if (!res.ok) throw new Error(`Failed to fetch exercises (${res.status})`);
 
         const json = await res.json();
         setExercises(json.data || []);
+        setAssignmentCountsError(Boolean(json.meta?.assignmentCountsError));
+        setAssignmentCountsRpcUnavailable(Boolean(json.meta?.assignmentCountsRpcUnavailable));
         setError(null);
       } catch (err: unknown) {
         console.error("Failed to fetch exercises:", err);
@@ -63,9 +95,8 @@ function ExerciseDashboard() {
       }
     };
 
-    const debounce = setTimeout(fetchExercises, 300);
-    return () => clearTimeout(debounce);
-  }, [searchQuery, location.key]);
+    void fetchExercises();
+  }, [debouncedSearch, location.key, refreshToken, countsVersion]);
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
     const category = exercise.body_part || exercise.category || "Uncategorized";
@@ -122,18 +153,47 @@ function ExerciseDashboard() {
         <hr className="divider" />
 
         {error && (
-          <div style={{ padding: "20px", color: "#b91c1c", backgroundColor: "#fee", borderRadius: "8px", margin: "20px 0" }}>
+          <div
+            style={{
+              padding: "20px",
+              color: "#b91c1c",
+              backgroundColor: "#fee",
+              borderRadius: "8px",
+              margin: "20px 0",
+            }}
+          >
             {error}
           </div>
         )}
 
+        {assignmentCountsRpcUnavailable && !error && !loading && (
+          <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
+            Plan-based client counts are unavailable (database function missing or error). Run migrations
+            including <code>20260412000000_count_assigned_clients_per_exercise.sql</code> on your Supabase
+            project, then restart the API. Until then, numbers may stay at 0 even after you assign plans.
+          </div>
+        )}
+
+        {assignmentCountsError && !assignmentCountsRpcUnavailable && !error && !loading && (
+          <div className="exercise-assignment-counts-banner" role="alert">
+            Could not load client assignment counts. The exercise list is still shown; refresh the page to try again.
+          </div>
+        )}
+
         {loading && (
-          <div style={{ padding: "40px", textAlign: "center", color: "#6b7280" }}>
+          <div
+            style={{
+              padding: "40px",
+              textAlign: "center",
+              color: "#6b7280",
+            }}
+          >
             Loading exercises...
           </div>
         )}
 
-        {!loading && !error &&
+        {!loading &&
+          !error &&
           Object.entries(groupedExercises).map(([category, items]) => (
             <section className="category-section" key={category}>
               <h2 className="category-title">
@@ -147,7 +207,12 @@ function ExerciseDashboard() {
                     role="button"
                     tabIndex={0}
                     onClick={() => navigate(`/exercises/${exercise.exercise_id}`)}
-                    onKeyDown={(e) => e.key === "Enter" && navigate(`/exercises/${exercise.exercise_id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        navigate(`/exercises/${exercise.exercise_id}`);
+                      }
+                    }}
                   >
                     <img
                       src={exercise.thumbnail_url || exerciseImg}
@@ -156,19 +221,25 @@ function ExerciseDashboard() {
                     />
                     <div className="exercise-info">
                       <h3>{exercise.title}</h3>
-                      <p>{exercise.body_part || exercise.category || "General"}</p>
+                      <p className="exercise-info-category">
+                        {exercise.body_part || exercise.category || "General"}
+                      </p>
                       {exercise.tags && exercise.tags.length > 0 && (
                         <div className="exercise-tags-row">
                           {exercise.tags.map((t) => (
-                            <span key={t} className="exercise-tag-chip">{t}</span>
+                            <span key={t} className="exercise-tag-chip">
+                              {t}
+                            </span>
                           ))}
                         </div>
                       )}
-                      <span className="exercise-tag">
-                        <span className="material-symbols-outlined">vital_signs</span>
-                        {exercise.default_sets != null && exercise.default_reps != null
-                          ? `${exercise.default_sets} sets × ${exercise.default_reps} reps`
-                          : "Varies"}
+                      <span className="exercise-tag" aria-live="polite">
+                        <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                        {assignmentCountsError ? (
+                          <span className="exercise-card-assignment-error">Count unavailable</span>
+                        ) : (
+                          clientsAssignedLabel(exercise.assigned_user_count ?? 0)
+                        )}
                       </span>
                     </div>
                   </div>
