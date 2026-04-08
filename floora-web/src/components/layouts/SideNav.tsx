@@ -3,25 +3,48 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
 import "../layouts/SideNav.css";
 import logo from "../../assets/flooraLogo.png";
-import { UserPlus, UserCircle2, LogOut } from "lucide-react";
 
-const MenuShapeIcon = ({ active }: { active: boolean }) => (
-  <svg
-    className={`menu-shape-icon ${active ? "active" : ""}`}
-    viewBox="0 0 28 28"
-    fill="none"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    {/* Top bar (thicker like Figma) */}
-    <rect x="4" y="4" width="20" height="7" rx="2.5" />
+import {
+  LayoutDashboard,
+  Users,
+  ClipboardList,
+  Activity,
+  Dumbbell,
+  UserPlus,
+  UserCircle2,
+  LogOut,
+} from "lucide-react";
 
-    {/* Bottom left (slightly bigger) */}
-    <rect x="4" y="16" width="8" height="8" rx="2.5" />
+type MenuIconProps = {
+  active: boolean;
+  type: "dashboard" | "users" | "plans" | "sessions" | "exercises" | "assign";
+};
 
-    {/* Bottom right */}
-    <rect x="16" y="16" width="8" height="8" rx="2.5" />
-  </svg>
-);
+const MenuIcon = ({ active, type }: MenuIconProps) => {
+  const className = `menu-nav-icon ${active ? "active" : ""}`;
+
+  const props = {
+    className,
+    strokeWidth: active ? 2.6 : 2.2,
+  };
+
+  switch (type) {
+    case "dashboard":
+      return <LayoutDashboard {...props} />;
+    case "users":
+      return <Users {...props} />;
+    case "plans":
+      return <ClipboardList {...props} />;
+    case "sessions":
+      return <Activity {...props} />;
+    case "exercises":
+      return <Dumbbell {...props} />;
+    case "assign":
+      return <ClipboardList {...props} />;
+    default:
+      return <LayoutDashboard {...props} />;
+  }
+};
 
 const SideNav = () => {
   const location = useLocation();
@@ -47,6 +70,7 @@ const SideNav = () => {
         <hr className="divider-top" />
 
         <ul className="nav-list">
+          {/* Dashboard */}
           <li>
             <NavLink
               to="/dashboard"
@@ -55,13 +79,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive} />
+                  <MenuIcon type="dashboard" active={isActive} />
                   <span>Dashboard</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Users */}
           <li>
             <NavLink
               to="/users"
@@ -72,13 +97,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive || usersActive} />
+                  <MenuIcon type="users" active={isActive || usersActive} />
                   <span>Users</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Plans */}
           <li>
             <NavLink
               to="/plan-dashboard"
@@ -87,13 +113,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive} />
+                  <MenuIcon type="plans" active={isActive} />
                   <span>Plans</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Sessions */}
           <li>
             <NavLink
               to="/sessions"
@@ -102,13 +129,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive} />
+                  <MenuIcon type="sessions" active={isActive} />
                   <span>Sessions</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Exercises */}
           <li>
             <NavLink
               to="/exercise-dashboard"
@@ -117,13 +145,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive} />
+                  <MenuIcon type="exercises" active={isActive} />
                   <span>Exercises</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Assign Plans */}
           <li>
             <NavLink
               to="/assign-package"
@@ -132,13 +161,14 @@ const SideNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  <MenuShapeIcon active={isActive} />
+                  <MenuIcon type="assign" active={isActive} />
                   <span>Assign Plans</span>
                 </>
               )}
             </NavLink>
           </li>
 
+          {/* Create Admin (Super Admin only) */}
           {!isAuthLoading && isSuperAdmin && (
             <li>
               <NavLink
@@ -154,6 +184,7 @@ const SideNav = () => {
         </ul>
       </div>
 
+      {/* Footer */}
       <div>
         <hr className="divider-bottom" />
 
