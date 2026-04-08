@@ -35,7 +35,6 @@ export interface Exercise {
   default_reps?: number;
   video_url?: string;
   thumbnail_url?: string;
-  tags?: string[];
   created_at?: string;
   updated_at?: string;
   /** Distinct clients (assigned packages / overrides); null when counts failed to load */
@@ -44,6 +43,12 @@ export interface Exercise {
 
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+}
+
+/** List grouping + card subtitle: API stores category as `body_part`; prefer `category` if present. */
+function exerciseListCategory(e: Exercise): string {
+  const raw = (e.category ?? e.body_part)?.trim();
+  return raw || "Uncategorized";
 }
 
 function ExerciseDashboard() {
@@ -99,7 +104,7 @@ function ExerciseDashboard() {
   }, [debouncedSearch, location.key, refreshToken, countsVersion]);
 
   const groupedExercises = exercises.reduce((acc, exercise) => {
-    const category = exercise.body_part || exercise.category || "Uncategorized";
+    const category = exerciseListCategory(exercise);
     if (!acc[category]) acc[category] = [];
     acc[category].push(exercise);
     return acc;
@@ -221,18 +226,7 @@ function ExerciseDashboard() {
                     />
                     <div className="exercise-info">
                       <h3>{exercise.title}</h3>
-                      <p className="exercise-info-category">
-                        {exercise.body_part || exercise.category || "General"}
-                      </p>
-                      {exercise.tags && exercise.tags.length > 0 && (
-                        <div className="exercise-tags-row">
-                          {exercise.tags.map((t) => (
-                            <span key={t} className="exercise-tag-chip">
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      <p className="exercise-info-category">{exerciseListCategory(exercise)}</p>
                       <span className="exercise-tag" aria-live="polite">
                         <AssignmentPulseIcon className="assignment-count-pulse-icon" />
                         {assignmentCountsError ? (

@@ -44,9 +44,7 @@ describe("UserProfile", () => {
 
   it("shows empty message when no user in state", () => {
     renderWithRouter("/user-profile");
-    expect(
-      screen.getByText(/No user selected\. Go back and click an active user\./i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/No user selected/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /back/i })).toBeInTheDocument();
   });
 

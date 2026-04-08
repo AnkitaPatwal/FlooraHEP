@@ -14,6 +14,8 @@ export default function CreateAdmin() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   useEffect(() => {
     const checkAccess = async () => {
@@ -48,16 +50,17 @@ export default function CreateAdmin() {
     return null;
   }, [email]);
 
-  const canSubmit = accessState === "allowed" && !isSubmitting && !emailError;
+  const canSubmit = accessState === "allowed" && !isSubmitting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
+    setSubmitAttempted(true);
+    setEmailTouched(true);
 
     if (accessState !== "allowed") return;
     if (emailError) {
-      setErrorMsg(emailError);
       return;
     }
 
@@ -127,13 +130,15 @@ export default function CreateAdmin() {
             value={email}
             onChange={(ev) => {
               setEmail(ev.target.value);
+              if (!emailTouched) setEmailTouched(true);
               if (errorMsg) setErrorMsg(null);
               if (successMsg) setSuccessMsg(null);
             }}
+            onBlur={() => setEmailTouched(true)}
             placeholder="admin@example.com"
             style={{ padding: 12, borderRadius: 10, border: "1px solid rgba(0,0,0,0.2)" }}
           />
-          {emailError && (
+          {(emailTouched || submitAttempted) && emailError && (
             <div style={{ color: "crimson", fontSize: 13 }}>{emailError}</div>
           )}
         </div>

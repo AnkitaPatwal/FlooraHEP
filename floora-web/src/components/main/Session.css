@@ -179,7 +179,8 @@
   margin-bottom: 4px;
 }
 
-.session-info p {
+.session-info p,
+.session-info .session-card-category {
   font-size: 12px;
   color: #999;
   margin-bottom: 8px;
