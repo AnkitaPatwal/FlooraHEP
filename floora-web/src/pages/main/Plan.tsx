@@ -4,6 +4,7 @@ import "../../components/main/Plan.css";
 import { useState, useEffect, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import planFallbackImg from "../../assets/exercise.jpg";
 import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
 import {
   getAssignmentCountsVersion,
@@ -35,8 +36,9 @@ interface PlanData {
   description: string;
   category_id: number | null;
   plan_category: { category_id: number; name: string } | null;
-  plan_module: any[];
+  plan_module: { module_id: number; order_index?: number }[];
   assigned_user_count?: number;
+  cover_thumbnail_url?: string | null;
 }
 
 function clientsAssignedLabel(count: number): string {
@@ -45,6 +47,7 @@ function clientsAssignedLabel(count: number): string {
 
 function mapDataToPlan(plan: PlanData): Plan {
   const categoryName = plan.plan_category?.name ?? "Uncategorized";
+  const thumb = plan.cover_thumbnail_url?.trim();
   return {
     id: plan.plan_id,
     title: plan.title,
@@ -52,7 +55,7 @@ function mapDataToPlan(plan: PlanData): Plan {
     type: plan.description ?? "Plan",
     assigned_user_count:
       typeof plan.assigned_user_count === "number" ? plan.assigned_user_count : 0,
-    image: "",
+    image: thumb || "",
   };
 }
 
@@ -126,8 +129,6 @@ export default function Plan() {
     return acc;
   }, {} as Record<string, Plan[]>);
 
-  console.log("PLANS STATE:", plans);
-
   return (
     <AppLayout>
       <div className="plan-page">
@@ -188,8 +189,13 @@ export default function Plan() {
                 <div
                   className="plan-card"
                   key={plan.id}
-                  onClick={() => navigate(`/plan-dashboard/${plan.id}`)}
+                  onClick={() => navigate(`/plan-dashboard/${plan.id}/edit`)}
                 >
+                  <img
+                    src={plan.image || planFallbackImg}
+                    alt=""
+                    className="plan-image"
+                  />
                   <div className="plan-info">
                     <h3>{plan.title}</h3>
                     <p>{plan.category}</p>

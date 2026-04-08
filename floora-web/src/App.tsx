@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, useNavigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, useNavigate, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import AdminVideoUpload from "./pages/AdminVideoUpload";
 import { AuthProvider } from "./lib/auth";
@@ -24,7 +24,6 @@ import CreateAdmin from "./pages/CreateAdmin";
 import AdminAcceptInvite from "./pages/AdminAcceptInvite";
 import ResetPassword from "./pages/ResetPassword";
 import CreatePlan from "./pages/main/CreatePlan";
-import PlanDetail from "./pages/main/PlanDetail";
 import { SuperAdminRoute } from "./components/SuperAdminRoute";
 import { AdminRoute } from "./components/AdminRoute";
 import AppLayout from "./components/layouts/AppLayout";
@@ -63,11 +62,10 @@ export default function App() {
               <CreatePlan />
             </AdminRoute>
           } />
-          <Route path="/plan-dashboard/:id" element={
-            <AdminRoute>
-              <PlanDetail />
-            </AdminRoute>
-          } />
+          <Route
+            path="/plan-dashboard/:id"
+            element={<Navigate to="/plan-dashboard/:id/edit" replace />}
+          />
           <Route path="/plan-dashboard/:id/edit" element={
             <AdminRoute>
               <CreatePlan />
