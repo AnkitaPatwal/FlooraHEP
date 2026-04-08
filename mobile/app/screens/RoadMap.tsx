@@ -99,9 +99,7 @@ export default function RoadMap() {
     const unlockOn = formatUnlockDate(unlockDate);
     Alert.alert(
       "Session Locked",
-      unlockOn
-        ? `${title} is locked\nUnlocks on ${unlockOn}`
-        : `${title} is locked. The session will unlock soon.`
+      `${title} is locked. The session will unlock soon.`
     );
   }, []);
 

@@ -12,6 +12,20 @@ export type RoadmapSession = {
   unlockDate: string | null;
 };
 
+function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
+  if (!unlockIso) return false;
+  const d = new Date(unlockIso);
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const todayLocal = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  ).getTime();
+  return unlockLocal <= todayLocal;
+}
+
 export type RoadmapData = {
   planName: string;
   startDate: string | null;
@@ -154,14 +168,13 @@ export function useRoadmap(): UseRoadmapResult {
           .select("module_id, unlock_date")
           .eq("user_id", userId);
 
-        const now = new Date();
         const unlockDateByModuleId = new Map<number, string>(
           (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
         );
-        // A session is unlocked if its unlock_date exists and is <= now
+        // A session is unlocked once the local date reaches/until its unlock_date (ignore time-of-day).
         const unlockedSet = new Set(
           (unlockRows ?? [])
-            .filter((r: any) => new Date(r.unlock_date) <= now)
+            .filter((r: any) => isUnlockedByLocalDate(String(r.unlock_date)))
             .map((r: any) => r.module_id)
         );
 
