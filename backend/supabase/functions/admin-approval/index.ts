@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, content-type",
 };
 
-/** Send approval or denial email via Resend. No domain: set only RESEND_API_KEY; uses onboarding@resend.dev (delivers to Resend account email). */
+/** Send approval or denial email via Resend. Same `from` env order as forgot-password so one owner address can cover all mail. */
 async function sendStatusEmail(
   kind: "approve" | "deny",
   to: string,
@@ -15,7 +15,11 @@ async function sendStatusEmail(
 ): Promise<void> {
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) return;
-  const from = Deno.env.get("RESEND_FROM_EMAIL") || Deno.env.get("FROM_EMAIL") || "Floora HEP <onboarding@resend.dev>";
+  const from =
+    Deno.env.get("RESEND_FROM_EMAIL") ||
+    Deno.env.get("RESET_FROM_EMAIL") ||
+    Deno.env.get("FROM_EMAIL") ||
+    "Floora HEP <onboarding@resend.dev>";
   const isApproved = kind === "approve";
   const subject = isApproved ? "Your Account Has Been Approved!" : "Account Request Denied";
   const html = isApproved

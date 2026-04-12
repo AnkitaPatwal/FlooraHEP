@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { supabase } from "../lib/supabase-client";
 import "../components/ForgotPassword.css";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState("");
@@ -16,8 +18,35 @@ const ForgotPassword: React.FC = () => {
     }
   }, [cooldown]);
 
-  const validateEmail = (email: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateEmail = (value: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const callForgotPasswordEdge = async () => {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error(
+        "Application configuration is incomplete. Missing Supabase URL or anon key."
+      );
+    }
+    const base = supabaseUrl.replace(/\/$/, "");
+    const response = await fetch(`${base}/functions/v1/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${supabaseAnonKey}`,
+      },
+      body: JSON.stringify({
+        email: email.trim().toLowerCase(),
+        client: "web",
+        ...(typeof window !== "undefined"
+          ? { reset_web_base: `${window.location.origin}/reset-password` }
+          : {}),
+      }),
+    });
+    const data = (await response.json().catch(() => ({}))) as { message?: string };
+    if (!response.ok) {
+      throw new Error(data.message || "Could not send reset email. Please try again.");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,21 +59,23 @@ const ForgotPassword: React.FC = () => {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:5173/reset-password",
-    });
-    setLoading(false);
-
-    if (error) {
-      setError(error.message || "Failed to send reset email.");
-    } else {
-      setSuccess("A reset email has been sent to your email");
+    try {
+      await callForgotPasswordEdge();
+      setSuccess(
+        "If an account exists for this email, we sent a reset link. Check your inbox."
+      );
       setCooldown(30);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to send reset email. Please try again."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleResend = () => {
-    if (cooldown === 0) handleSubmit(new Event("submit") as unknown as React.FormEvent);
+    if (cooldown === 0) void handleSubmit(new Event("submit") as unknown as React.FormEvent);
   };
 
   return (
@@ -71,6 +102,7 @@ const ForgotPassword: React.FC = () => {
             <p>Haven't got the email yet?</p>
             <button
               className="resend-link"
+              type="button"
               onClick={handleResend}
               disabled={cooldown > 0}
             >

@@ -71,20 +71,13 @@ export default function AdminLogin() {
           onChange={(e) => setPassword(e.target.value)}
         />
 
-        <a href="#" className="forgot">
+        <Link to="/forgot-password" className="forgot">
           Forgot Password?
-        </a>
+        </Link>
 
         <button type="submit" className="signin" disabled={loading}>
           {loading ? "Signing in…" : "Admin Sign In"}
         </button>
-
-        <p className="create-account">
-          New Admin Account?{" "}
-          <Link to="/admin-register" className="link">
-            Register here
-          </Link>
-        </p>
       </form>
     </div>
   );
