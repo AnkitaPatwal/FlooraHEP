@@ -32,7 +32,7 @@ export default function ForgotPassword() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), client: "app" }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
