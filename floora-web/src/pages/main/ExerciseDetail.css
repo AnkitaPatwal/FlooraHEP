@@ -103,22 +103,6 @@
   margin: 0 0 8px 0;
 }
 
-.exercise-detail-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 16px;
-}
-
-.exercise-detail-tag {
-  font-size: 12px;
-  background-color: #d4e8e8;
-  color: #5a8e93;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-weight: 500;
-}
-
 .exercise-detail-meta {
   display: flex;
   gap: 8px;
@@ -193,55 +177,6 @@
 
 .exercise-detail-delete-btn:hover {
   background-color: #fef2f2;
-}
-
-.exercise-detail-delete-confirm {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.exercise-detail-delete-confirm span {
-  font-size: 13px;
-  color: #4b5563;
-}
-
-.exercise-detail-delete-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.exercise-detail-delete-yes,
-.exercise-detail-delete-no {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  border: none;
-}
-
-.exercise-detail-delete-yes {
-  background-color: #b91c1c;
-  color: #fff;
-}
-
-.exercise-detail-delete-yes:hover:not(:disabled) {
-  background-color: #991b1b;
-}
-
-.exercise-detail-delete-yes:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.exercise-detail-delete-no {
-  background-color: #f3f4f6;
-  color: #4b5563;
-}
-
-.exercise-detail-delete-no:hover {
-  background-color: #e5e7eb;
 }
 
 @media (max-width: 768px) {

@@ -164,7 +164,6 @@ router.get('/', async (req, res) => {
           `description.ilike.%${encoded}%`,
           `body_part.ilike.%${encoded}%`,
         ];
-        orParts.push(`tags.cs.{"${encoded}"}`);
         query = query.or(orParts.join(','));
       }
     }
@@ -381,7 +380,7 @@ router.patch(
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
-      const { title, description, default_sets, default_reps, category, tags } = req.body;
+      const { title, description, default_sets, default_reps, category } = req.body;
 
       const payload: any = {};
       if (title !== undefined) payload.title = String(title).trim();
@@ -389,8 +388,9 @@ router.patch(
       if (default_sets !== undefined) payload.default_sets = Number(default_sets) || null;
       if (default_reps !== undefined) payload.default_reps = Number(default_reps) || null;
       if (category !== undefined) payload.body_part = String(category).trim() || null;
-      if (tags !== undefined) {
-        payload.tags = Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string' && t.trim()) : [];
+
+      if (Object.keys(payload).length > 0) {
+        payload.tags = [];
       }
 
       if (Object.keys(payload).length === 0) {
@@ -446,13 +446,6 @@ router.delete(
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
 
-      const { data: exMeta } = await supabaseServer
-        .from('exercise')
-        .select('title')
-        .eq('exercise_id', id)
-        .maybeSingle();
-      const exTitle = String((exMeta as { title?: string } | null)?.title ?? 'Exercise');
-
       const { error: uaxErr } = await supabaseServer
         .from('user_assignment_exercise')
         .delete()
@@ -490,7 +483,7 @@ router.delete(
         return res.status(500).json({ error: 'Failed to delete exercise', detail: error.message });
       }
 
-      void logDashboardActivity(`Deleted: Exercise "${exTitle}"`);
+      void logDashboardActivity(`Deleted: Exercise (id ${id})`);
       res.status(204).send();
     } catch (err: any) {
       console.error('DELETE /api/exercises unexpected error:', err);
@@ -505,7 +498,7 @@ router.post(
   requireSuperAdmin as express.RequestHandler,
   async (req: Request, res: Response) => {
     try {
-      const { title, description, default_sets, default_reps, category, tags } = req.body;
+      const { title, description, default_sets, default_reps, category } = req.body;
 
       if (!title || typeof title !== 'string' || !title.trim()) {
         return res.status(400).json({ error: 'Title is required' });
@@ -546,12 +539,9 @@ router.post(
         default_sets: sets,
         default_reps: reps,
         body_part: category.trim(),
+        tags: [],
         created_by_admin_id: null,
       };
-
-      if (tags !== undefined && Array.isArray(tags)) {
-        payload.tags = tags.filter((t: unknown) => typeof t === 'string' && t.trim());
-      }
 
       const { data, error } = await supabaseServer
         .from('exercise')
