@@ -142,7 +142,7 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
     expect(getByText("Sign out")).toBeTruthy();
   });
 
-  it("calls supabase.auth.signOut and redirects to login when Sign out is pressed", async () => {
+  it("calls supabase.auth.signOut when Sign out is pressed (tabs layout redirects to login)", async () => {
     alertButtons = [];
     const { supabase } = require("../../../lib/supabaseClient");
     const { getByTestId } = render(<Profile />);
@@ -158,8 +158,8 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
 
     await waitFor(() => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
-      expect(mockReplace).toHaveBeenCalledWith("/screens/LoginScreen");
     });
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });
 

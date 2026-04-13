@@ -111,4 +111,31 @@ describe("RLS policies", () => {
     expect(data?.length).toBeGreaterThan(0);
     expect(data?.every((row) => String(row.user_id) === String(userAId))).toBe(true);
   });
+
+  test("user can read plan title for their assigned package", async () => {
+    const password = "Password123!";
+    const emailA = `userA_plan_${Date.now()}@test.com`;
+    const emailB = `userB_plan_${Date.now()}@test.com`;
+
+    const { authed: authedA, userId: userAId } = await signUpAndLogin(emailA, password);
+    const { userId: userBId } = await signUpAndLogin(emailB, password);
+
+    await seedUserPackages(userAId, userBId);
+
+    const { data: upRows, error: upErr } = await authedA.from("user_packages").select("package_id");
+    if (upErr) throw upErr;
+    const packageId = upRows?.[0]?.package_id;
+    expect(packageId).toBeTruthy();
+
+    const { data: plan, error: planErr } = await authedA
+      .from("plan")
+      .select("plan_id, title")
+      .eq("plan_id", packageId as number)
+      .maybeSingle();
+
+    if (planErr) throw planErr;
+    expect(plan?.plan_id).toBe(packageId);
+    expect(typeof plan?.title).toBe("string");
+    expect((plan?.title ?? "").length).toBeGreaterThan(0);
+  });
 });

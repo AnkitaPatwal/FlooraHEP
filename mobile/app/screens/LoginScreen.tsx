@@ -9,6 +9,7 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
+  Keyboard,
 } from "react-native";
 import styles from "./LoginScreen.styles";
 import { useRouter } from "expo-router";
@@ -100,6 +101,7 @@ export default function LoginScreen() {
       });
 
       if (data?.session && !error) {
+        Keyboard.dismiss();
         // Store logged-in email globally
         (global as any).userEmail = normalizedEmail;
         router.replace("/(tabs)");
