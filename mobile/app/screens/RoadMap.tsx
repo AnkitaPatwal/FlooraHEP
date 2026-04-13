@@ -1,4 +1,3 @@
-// app/screens/RoadMap.tsx
 import React from "react";
 import {
   ScrollView,
@@ -7,6 +6,7 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  Alert,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
@@ -30,15 +30,24 @@ function formatStartDate(raw: string | null): string {
   return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
+function formatUnlockDate(raw: string | null): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 // ── Session Card ──────────────────────────────────────────────────────────────
 
 type SessionCardProps = {
   session: RoadmapSession;
   index: number;
   onPress: () => void;
+  /** Fired when the row is locked (useRoadmap only lists locked sessions here, but keeps UX consistent). */
+  onLockedPress?: () => void;
 };
 
-function SessionCard({ session, index, onPress }: SessionCardProps) {
+function SessionCard({ session, index, onPress, onLockedPress }: SessionCardProps) {
   const label = session.title || `Session ${index + 1}`;
   const locked = !session.isUnlocked;
   const thumb = session.thumbnailUrl;
@@ -46,10 +55,10 @@ function SessionCard({ session, index, onPress }: SessionCardProps) {
   return (
     <Pressable
       style={{ minHeight: 44 }}
-      onPress={locked ? undefined : onPress}
+      onPress={locked ? onLockedPress : onPress}
       accessible
       accessibilityLabel={locked ? `${label}, locked` : label}
-      accessibilityState={{ disabled: locked }}
+      accessibilityHint={locked ? "Shows when this session unlocks." : undefined}
     >
       <View style={sessionCardStyles.tile}>
         <View style={sessionCardStyles.mediaShell}>
@@ -88,10 +97,21 @@ export default function RoadMap() {
   const router = useRouter();
   const { data, loading, error, reload } = useRoadmap();
   const [refreshing, setRefreshing] = React.useState(false);
+  /** useRoadmap already returns locked sessions only, with first-exercise thumbnails. */
   const lockedSessions = React.useMemo(() => {
     const list = data?.sessions ?? [];
     return [...list].sort((a, b) => a.order_index - b.order_index);
   }, [data?.sessions]);
+
+  const showLockedUnlockAlert = React.useCallback((title: string, unlockDate: string | null) => {
+    const when = formatUnlockDate(unlockDate);
+    Alert.alert(
+      "Session Locked",
+      when
+        ? `${title} is locked. Unlocks on ${when}.`
+        : `${title} is locked. The session will unlock soon.`
+    );
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -161,9 +181,12 @@ export default function RoadMap() {
           ) : (
             lockedSessions.map((session, index) => (
               <SessionCard
-                key={session.module_id}
+                key={`roadmap-oidx-${session.order_index}-mid-${String(session.module_id)}`}
                 session={session}
                 index={index}
+                onLockedPress={() =>
+                  showLockedUnlockAlert(session.title || `Session ${index + 1}`, session.unlockDate)
+                }
                 onPress={() =>
                   router.push({
                     pathname: "/screens/SessionExerciseList",

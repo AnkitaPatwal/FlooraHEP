@@ -1,4 +1,3 @@
-// hooks/useRoadmap.ts
 import { useEffect, useState } from "react";
 import { fetchAssignedPlanTitleForCurrentUser } from "../lib/assignedPlanTitle";
 import { supabase } from "../lib/supabaseClient";
@@ -10,9 +9,21 @@ export type RoadmapSession = {
   order_index: number;
   isUnlocked: boolean;
   isCompleted: boolean;
+  /** From `user_session_unlock` when present; used for messaging. */
+  unlockDate: string | null;
   /** First exercise thumbnail; loaded before roadmap UI shows locked cards (avoids placeholder flash). */
   thumbnailUrl?: string;
 };
+
+function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
+  if (!unlockIso) return false;
+  const d = new Date(unlockIso);
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  return unlockLocal <= todayLocal;
+}
 
 export type RoadmapData = {
   planName: string;
@@ -164,11 +175,13 @@ export function useRoadmap(): UseRoadmapResult {
           .select("module_id, unlock_date")
           .eq("user_id", userId);
 
-        const now = new Date();
-        // A session is unlocked if its unlock_date exists and is <= now
+        const unlockDateByModuleId = new Map<number, string>(
+          (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
+        );
+        // Unlocked once the local calendar date reaches unlock_date (ignore time-of-day).
         const unlockedSet = new Set(
           (unlockRows ?? [])
-            .filter((r: any) => new Date(r.unlock_date) <= now)
+            .filter((r: any) => isUnlockedByLocalDate(String(r.unlock_date)))
             .map((r: any) => r.module_id)
         );
 
@@ -194,6 +207,7 @@ export function useRoadmap(): UseRoadmapResult {
           order_index: pm.order_index,
           isUnlocked: unlockedSet.has(pm.module_id),
           isCompleted: completedSet.has(pm.module_id),
+          unlockDate: unlockDateByModuleId.get(pm.module_id) ?? null,
         }));
 
         sessions.sort((a, b) => a.order_index - b.order_index);
