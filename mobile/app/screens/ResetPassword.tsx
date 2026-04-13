@@ -6,11 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import ScreenBackButton from "../../components/ScreenBackButton";
-import { theme } from "../../constants/theme";
 
 export default function ResetPassword() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -64,13 +61,15 @@ export default function ResetPassword() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+    <View style={styles.container}>
+      {/* Header */}
       <View style={styles.header}>
-        <ScreenBackButton onPress={() => router.back()} />
+        <View style={{ width: 18 }} />
         <Text style={styles.headerTitle}>Reset Password</Text>
-        <View style={styles.headerSpacer} />
+        <View style={{ width: 18 }} />
       </View>
 
+      {/* Body */}
       <View style={styles.body}>
         <Text style={styles.title}>Set a new password</Text>
 
@@ -83,7 +82,7 @@ export default function ResetPassword() {
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder="Enter new password"
-            placeholderTextColor={theme.color.placeholder}
+            placeholderTextColor="#999"
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
@@ -103,7 +102,7 @@ export default function ResetPassword() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Confirm new password"
-            placeholderTextColor={theme.color.placeholder}
+            placeholderTextColor="#999"
           />
         </View>
 
@@ -118,59 +117,73 @@ export default function ResetPassword() {
           </Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.color.surface,
+    backgroundColor: "#FFFFFF",
   },
   header: {
-    minHeight: theme.space.headerRowHeight,
+    height: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.border,
+    borderBottomColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: theme.space.screenHorizontal,
-    backgroundColor: theme.color.surface,
-  },
-  headerSpacer: {
-    width: theme.layout.minTouchTarget,
+    justifyContent: "center",
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
   },
   headerTitle: {
-    ...theme.typography.screenHeaderTitle,
-    flex: 1,
-    textAlign: "center",
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#333",
   },
   body: {
     flex: 1,
-    paddingHorizontal: theme.space.formBodyHorizontal,
-    paddingTop: theme.space.formBodyTop,
-    paddingBottom: theme.space.formBodyBottom,
+    paddingHorizontal: 24,
+    paddingTop: 36,
   },
   title: {
-    ...theme.typography.formPageTitle,
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    color: "#111827",
+    marginBottom: 28,
   },
   label: {
-    ...theme.typography.formLabel,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
   },
   inputContainer: {
-    ...theme.form.fieldRow,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 8,
     marginBottom: 24,
+    paddingHorizontal: 14,
   },
   input: {
-    ...theme.typography.formInput,
     flex: 1,
     paddingVertical: 12,
+    fontSize: 15,
+    color: "#333",
   },
   button: {
-    ...theme.button.primary,
-    alignSelf: "stretch",
-    marginTop: 8,
+    backgroundColor: "#5A8E93",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    width: 180,
+    alignSelf: "center",
   },
   buttonText: {
-    ...theme.button.primaryText,
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

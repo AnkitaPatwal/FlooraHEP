@@ -1,8 +1,15 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import styles from "./CreateAccount.styles";
-import ScreenBackButton from "../../components/ScreenBackButton";
+import { createClient } from "@supabase/supabase-js";
+
+// Supabase client using environment variables
+const supabase = createClient(
+  process.env.EXPO_PUBLIC_SUPABASE_URL!,
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function CreateAccount() {
   const router = useRouter();
@@ -46,6 +53,7 @@ export default function CreateAccount() {
       });
 
       const raw = await response.text();
+      console.log("Signup Response:", response.status, raw);
 
       setLoading(false);
 
@@ -58,13 +66,22 @@ export default function CreateAccount() {
       router.back();
     } catch (err: any) {
       setLoading(false);
+      console.log("SIGNUP ERROR:", err);
       Alert.alert("Unexpected Error", err.message || "Something went wrong.");
     }
   };
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <ScreenBackButton variant="onDark" onPress={() => router.back()} style={styles.backButtonContainer} />
+      {/* Back Arrow */}
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={styles.backButtonContainer}
+      >
+        <View style={styles.backButtonCircle}>
+          <Ionicons name="chevron-back" size={24} color="#000000" />
+        </View>
+      </TouchableOpacity>
 
       {/* Title & Subtitle */}
       <View style={styles.header}>

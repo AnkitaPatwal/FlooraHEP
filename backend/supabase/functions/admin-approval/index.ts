@@ -40,132 +40,6 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-type UserRow = {
-  user_id: number;
-  email: string;
-  fname: string;
-  lname: string;
-  status: boolean;
-};
-
-type EnrichedUser = UserRow & {
-  avatar_url: string | null;
-  plans: { plan_id: number; title: string }[];
-};
-
-/**
- * PostgREST `.in("email", …)` is case-sensitive. `public.user` and `profiles` often differ in
- * casing, which yields no profile row → missing avatar_url and plans. Use ILIKE per email.
- */
-function profilesEmailOrFilter(emails: string[]): string {
-  return emails
-    .map((em) => {
-      const inner = em.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-      return `email.ilike."${inner}"`;
-    })
-    .join(",");
-}
-
-/** Auth user ids are UUIDs; JS Map keys are case-sensitive so normalize for joins. */
-function normUuid(id: string): string {
-  return id.trim().toLowerCase();
-}
-
-/** Join profiles (avatar) and user_packages + plan (titles) for admin user lists. */
-async function enrichUsers(
-  supabase: ReturnType<typeof createClient>,
-  rows: UserRow[]
-): Promise<EnrichedUser[]> {
-  if (!rows.length) return [];
-
-  const emails = [
-    ...new Set(
-      rows
-        .map((r) => (r.email ?? "").trim().toLowerCase())
-        .filter(Boolean)
-    ),
-  ];
-
-  if (!emails.length) {
-    return rows.map((r) => ({ ...r, avatar_url: null, plans: [] }));
-  }
-
-  const profs: { id: unknown; email: unknown; avatar_url: unknown }[] = [];
-  const chunkSize = 35;
-  for (let i = 0; i < emails.length; i += chunkSize) {
-    const chunk = emails.slice(i, i + chunkSize);
-    const { data, error: profErr } = await supabase
-      .from("profiles")
-      .select("id, email, avatar_url")
-      .or(profilesEmailOrFilter(chunk));
-    if (profErr) console.error("enrichUsers profiles:", profErr.message);
-    profs.push(...(data ?? []));
-  }
-
-  const emailToProfile = new Map<
-    string,
-    { id: string; avatar_url: string | null }
-  >();
-  for (const p of profs ?? []) {
-    const em = (p.email as string | null)?.trim().toLowerCase();
-    if (em) {
-      emailToProfile.set(em, {
-        id: normUuid(String(p.id)),
-        avatar_url: (p.avatar_url as string | null) ?? null,
-      });
-    }
-  }
-
-  const uuids = [...new Set([...emailToProfile.values()].map((v) => v.id))];
-  const packages: { user_id: string; package_id: number }[] = [];
-
-  if (uuids.length) {
-    const { data: upRows, error: upErr } = await supabase
-      .from("user_packages")
-      .select("user_id, package_id")
-      .in("user_id", uuids);
-    if (upErr) console.error("enrichUsers user_packages:", upErr.message);
-    for (const row of upRows ?? []) {
-      packages.push({
-        user_id: normUuid(String((row as { user_id: string }).user_id)),
-        package_id: Number((row as { package_id: number }).package_id),
-      });
-    }
-  }
-
-  const planIds = [...new Set(packages.map((p) => p.package_id))];
-  const planTitleMap = new Map<number, string>();
-  if (planIds.length) {
-    const { data: planRows, error: planErr } = await supabase
-      .from("plan")
-      .select("plan_id, title")
-      .in("plan_id", planIds);
-    if (planErr) console.error("enrichUsers plan:", planErr.message);
-    for (const pl of planRows ?? []) {
-      planTitleMap.set(
-        Number((pl as { plan_id: number }).plan_id),
-        String((pl as { title: string }).title)
-      );
-    }
-  }
-
-  const uuidToPlans = new Map<string, { plan_id: number; title: string }[]>();
-  for (const pkg of packages) {
-    const title = planTitleMap.get(pkg.package_id) ?? "Unknown plan";
-    const list = uuidToPlans.get(pkg.user_id) ?? [];
-    list.push({ plan_id: pkg.package_id, title });
-    uuidToPlans.set(pkg.user_id, list);
-  }
-
-  return rows.map((r) => {
-    const em = (r.email ?? "").trim().toLowerCase();
-    const prof = em ? emailToProfile.get(em) : undefined;
-    const avatar_url = prof?.avatar_url ?? null;
-    const plans = prof ? uuidToPlans.get(normUuid(prof.id)) ?? [] : [];
-    return { ...r, avatar_url, plans };
-  });
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -207,8 +81,7 @@ serve(async (req) => {
       });
     }
     const pendingOnly = (data ?? []).filter((u) => !deniedSet.has(Number(u.user_id)));
-    const enriched = await enrichUsers(supabase, pendingOnly as UserRow[]);
-    return new Response(JSON.stringify(enriched), {
+    return new Response(JSON.stringify(pendingOnly), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
@@ -239,61 +112,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    const enriched = await enrichUsers(supabase, (data ?? []) as UserRow[]);
-    return new Response(JSON.stringify(enriched), {
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   };
-
-  // POST with list === "denied" → users with a deny audit entry (still in public.user)
-  const listDenied = async () => {
-    const { data: deniedRows, error: auditErr } = await supabase
-      .from("audit_log")
-      .select("target_user_id")
-      .eq("action", "deny");
-    if (auditErr) {
-      return new Response(JSON.stringify({ error: auditErr.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const deniedIds = [
-      ...new Set(
-        (deniedRows ?? []).map((r) => Number((r as { target_user_id: number }).target_user_id))
-      ),
-    ].filter((id) => Number.isFinite(id));
-    if (!deniedIds.length) {
-      return new Response(JSON.stringify([]), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const { data, error } = await supabase
-      .from("user")
-      .select("user_id, email, fname, lname, status")
-      .in("user_id", deniedIds);
-    if (error) {
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const enriched = await enrichUsers(supabase, (data ?? []) as UserRow[]);
-    return new Response(JSON.stringify(enriched), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  };
-
-  const listParam =
-    body.list != null ? String(body.list).trim().toLowerCase() : "";
 
   // POST with list === "approved" → list approved clients
-  if (req.method === "POST" && listParam === "approved") return listApproved();
-
-  // POST with list === "denied" → list denied clients (for admin UI)
-  if (req.method === "POST" && listParam === "denied") return listDenied();
+  if (req.method === "POST" && body.list === "approved") return listApproved();
 
   // POST with no user_id and no action → list pending (Supabase invoke uses POST by default)
   if (req.method === "POST" && body.user_id == null && body.action == null) return listPending();

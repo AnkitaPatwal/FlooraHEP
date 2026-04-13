@@ -1,3 +1,4 @@
+// app/screens/RoadMap.tsx
 import React from "react";
 import {
   ScrollView,
@@ -18,6 +19,8 @@ import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
 import { supabase } from "../../lib/supabaseClient";
 
 import session1Img from "../../assets/images/prev-1.jpg";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatStartDate(raw: string | null): string {
   if (!raw) return "";
@@ -139,75 +142,61 @@ export default function RoadMap() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
+      {/* Header */}
       <View style={styles.header}>
-        <ScreenBackButton onPress={() => router.back()} />
-        <Text style={styles.headerTitle} numberOfLines={1}>
-          Roadmap
-        </Text>
-        <View style={styles.headerSpacer} />
+        <Pressable
+          hitSlop={10}
+          onPress={() => router.back()}
+          style={{ minHeight: 44, justifyContent: "center" }}
+        >
+          <Text style={styles.backChevron}>‹</Text>
+        </Pressable>
+        <Text style={styles.headerTitle}>Roadmap</Text>
+        {/* spacer to keep title centered */}
+        <View style={{ width: 18 }} />
       </View>
 
-      {loading ? (
+      {/* Loading */}
+      {loading && (
         <View style={styles.stateContainer}>
-          <ActivityIndicator size="large" color={theme.color.primary} />
+          <ActivityIndicator size="large" color="#0F9AA8" />
           <Text style={styles.stateText}>Loading your roadmap…</Text>
         </View>
-      ) : error ? (
+      )}
+
+      {/* Error */}
+      {!loading && error ? (
         <View style={styles.stateContainer}>
           <Text style={styles.stateText}>{error}</Text>
         </View>
-      ) : (
+      ) : null}
+
+      {/* Content */}
+      {!loading && !error && data && (
         <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
+          style={styles.container}
+          contentContainerStyle={{ paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
           }
         >
-          <Text style={styles.planTitle} numberOfLines={2}>
-            {data?.planName || "Your care plan"}
-          </Text>
-
-          {data?.startDate ? (
+          {/* Plan heading */}
+          <Text style={styles.planTitle}>{data.planName}</Text>
+          {data.startDate && (
             <Text style={styles.planSub}>{formatStartDate(data.startDate)}</Text>
-          ) : null}
+          )}
 
+          {/* Accent line */}
           <View style={styles.accentLine} />
 
-          <Text style={styles.sectionTitle}>Restore</Text>
-          <Text style={styles.sectionSub}>
-            {data?.sessions?.length ? `Sessions 1–${data.sessions.length}` : "No sessions assigned yet"}
-          </Text>
-
-          {(data?.sessions ?? []).map((s, idx) => {
-            const state = s.isCompleted
-              ? "completed"
-              : s.isUnlocked
-              ? "available"
-              : "locked";
-
-            return (
+          {/* Sessions */}
+          {lockedSessions.length === 0 ? (
+            <Text style={styles.emptyText}>No sessions assigned yet.</Text>
+          ) : (
+            lockedSessions.map((session, index) => (
               <SessionCard
-                key={String(s.module_id)}
-                title={s.title || `Session ${idx + 1}`}
-                exerciseCount={s.exercise_count ?? 0}
-                image={session1Img}
-                state={state as any}
-                onPress={
-                  s.isUnlocked
-                    ? () =>
-                        router.push({
-                          pathname: "/screens/SessionExerciseList",
-                          params: {
-                            sessionId: String(s.module_id),
-                            sessionName: s.title || `Session ${idx + 1}`,
-                            planName: data?.planName ?? "",
-                            subtitle: "Restore",
-                          },
-                        })
-                    : undefined
                 key={session.module_id}
                 session={session}
                 index={index}
@@ -231,88 +220,144 @@ export default function RoadMap() {
                   })
                 }
               />
-            );
-          })}
-
-          {(data?.sessions?.length ?? 0) === 0 ? (
-            <Text style={styles.emptyText}>No sessions assigned yet.</Text>
-          ) : null}
+            ))
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  safe: {
+  container: {
     flex: 1,
-    backgroundColor: theme.color.surface,
-  },
-  header: {
-    minHeight: theme.space.headerRowHeight,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.border,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: theme.space.screenHorizontal,
-    backgroundColor: theme.color.surface,
-  },
-  headerTitle: {
-    ...theme.typography.screenHeaderTitle,
-    flex: 1,
-    textAlign: "center",
-    minWidth: 0,
-  },
-  headerSpacer: {
-    width: theme.layout.minTouchTarget,
-  },
-  scroll: {
-    flex: 1,
-    backgroundColor: theme.color.surface,
-  },
-  scrollContent: {
-    paddingHorizontal: theme.space.screenHorizontal,
-    paddingTop: theme.space.screenTop,
-    paddingBottom: theme.space.scrollBottom,
+    paddingHorizontal: 16,
+    backgroundColor: "#FFFFFF",
   },
   stateContainer: {
     flex: 1,
-    backgroundColor: theme.color.surface,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: theme.space.formBodyHorizontal,
+    paddingHorizontal: 24,
+    backgroundColor: "#FFFFFF",
   },
   stateText: {
-    ...theme.typography.body,
+    fontSize: 16,
+    color: "#374151",
     textAlign: "center",
+    marginTop: 12,
   },
+  emptyText: {
+    fontSize: 16,
+    color: "#6B7280",
+    marginTop: 8,
+  },
+
+  // Header
+  header: {
+    height: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  backChevron: {
+    fontSize: 28,
+    lineHeight: 28,
+    color: "#475569",
+    width: 18,
+  },
+  headerTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#111827",
+  },
+
+  // Titles
   planTitle: {
-    ...theme.typography.planTitle,
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#0F172A",
+    marginTop: 16,
     marginBottom: 4,
   },
   planSub: {
-    ...theme.typography.planSubtitle,
+    fontSize: 16,
+    color: colors.brand,
     marginBottom: 12,
   },
   accentLine: {
-    width: theme.layout.accentLineWidth,
-    height: theme.layout.accentLineHeight,
-    borderRadius: theme.radius.accentBar,
-    backgroundColor: theme.color.accent,
-    marginTop: theme.space.accentLineMarginTop,
-    marginBottom: theme.space.accentLineMarginBottom,
-  },
-  sectionTitle: {
-    ...theme.typography.sectionTitle,
-    marginBottom: theme.space.sectionTitleBottom,
-  },
-  sectionSub: {
-    ...theme.typography.sectionSubtitle,
-    marginBottom: 12,
-  },
-  emptyText: {
-    ...theme.typography.bodySmall,
-    color: theme.color.muted,
+    width: 150,
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
     marginTop: 6,
+    marginBottom: 22,
+  },
+
+  // Card
+  card: {
+    borderRadius: 14,
+    overflow: "hidden",
+    backgroundColor: "#FFF",
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    position: "relative",
+  },
+  cardImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+  },
+  cardImageLocked: {
+    opacity: 0.35,
+  },
+  lockOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 14,
+  },
+  completedBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: colors.brand,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  completedBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  // Caption
+  caption: {
+    fontSize: 20,
+    color: "#374151",
+    marginTop: 10,
+    marginBottom: 22,
+  },
+  captionStrong: {
+    fontWeight: "800",
+    color: "#1F2937",
+  },
+  captionLocked: {
+    color: "#9CA3AF",
   },
 });

@@ -5,7 +5,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fetchPendingClients,
   fetchActiveClients,
-  fetchDeniedClients,
   approveClient,
   denyClient,
   deleteClient,
@@ -128,37 +127,6 @@ describe("admin-api", () => {
       const result = await fetchActiveClients();
 
       expect(result).toEqual([]);
-    });
-  });
-
-  describe("fetchDeniedClients", () => {
-    it("returns denied clients when API returns 200 with array", async () => {
-      const denied = [
-        {
-          user_id: 3,
-          email: "denied@example.com",
-          fname: "No",
-          lname: "Access",
-          status: false,
-          avatar_url: null,
-          plans: [],
-        },
-      ];
-      vi.mocked(fetch).mockResolvedValueOnce({
-        ok: true,
-        text: () => Promise.resolve(JSON.stringify(denied)),
-      } as Response);
-
-      const result = await fetchDeniedClients();
-
-      expect(result).toEqual(denied);
-      expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("/functions/v1/admin-approval"),
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ list: "denied" }),
-        })
-      );
     });
   });
   // Sends action approve and resolves on 200
