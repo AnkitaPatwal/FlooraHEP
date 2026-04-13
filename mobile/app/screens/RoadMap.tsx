@@ -43,6 +43,7 @@ type SessionCardProps = {
   session: RoadmapSession;
   index: number;
   onPress: () => void;
+  /** Fired when the row is locked (useRoadmap only lists locked sessions here, but keeps UX consistent). */
   onLockedPress?: () => void;
 };
 

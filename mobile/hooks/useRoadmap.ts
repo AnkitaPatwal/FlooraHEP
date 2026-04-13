@@ -9,6 +9,7 @@ export type RoadmapSession = {
   order_index: number;
   isUnlocked: boolean;
   isCompleted: boolean;
+  /** From `user_session_unlock` when present; used for messaging. */
   unlockDate: string | null;
   /** First exercise thumbnail; loaded before roadmap UI shows locked cards (avoids placeholder flash). */
   thumbnailUrl?: string;
@@ -20,11 +21,7 @@ function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
   if (isNaN(d.getTime())) return false;
   const today = new Date();
   const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const todayLocal = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  ).getTime();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   return unlockLocal <= todayLocal;
 }
 
@@ -181,7 +178,7 @@ export function useRoadmap(): UseRoadmapResult {
         const unlockDateByModuleId = new Map<number, string>(
           (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
         );
-        // A session is unlocked once the local date reaches/until its unlock_date (ignore time-of-day).
+        // Unlocked once the local calendar date reaches unlock_date (ignore time-of-day).
         const unlockedSet = new Set(
           (unlockRows ?? [])
             .filter((r: any) => isUnlockedByLocalDate(String(r.unlock_date)))
