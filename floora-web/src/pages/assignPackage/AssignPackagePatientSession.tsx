@@ -8,6 +8,7 @@ import { usePatientLabel } from "./usePatientLabel";
 import { AssignBackLink } from "./ui/AssignBackLink";
 import { ConfirmModal } from "./ui/ConfirmModal";
 import "./AssignPackage.css";
+import { markAssignmentCountsStale } from "../../lib/assignmentsCountsStale";
 
 type SessionRow = {
   order_index: number;
@@ -365,6 +366,7 @@ export default function AssignPackagePatientSession() {
           setExercisesError(body?.error || "Failed to remove exercise.");
           return;
         }
+        markAssignmentCountsStale();
         setExerciseRemoveTarget(null);
         setExercisesError("");
         await reloadExercises();
@@ -390,6 +392,7 @@ export default function AssignPackagePatientSession() {
           setExercisesError(body?.error || "Failed to remove added exercise.");
           return;
         }
+        markAssignmentCountsStale();
         setExerciseRemoveTarget(null);
         setExercisesError("");
         await reloadExercises();
@@ -424,6 +427,7 @@ export default function AssignPackagePatientSession() {
         setExercisesError(body?.error || "Failed to add exercise.");
         return;
       }
+      markAssignmentCountsStale();
       setAddingExerciseId("");
       await reloadExercises();
       setExercisesSuccess("Exercise added for this client.");

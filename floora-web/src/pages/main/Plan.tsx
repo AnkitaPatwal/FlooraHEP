@@ -1,8 +1,15 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Plan.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import planFallbackImg from "../../assets/exercise.jpg";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -19,7 +26,7 @@ interface Plan {
   category: string;
   title: string;
   type: string;
-  sessionCount: number;
+  assigned_user_count: number;
   image: string;
 }
 
@@ -29,18 +36,26 @@ interface PlanData {
   description: string;
   category_id: number | null;
   plan_category: { category_id: number; name: string } | null;
-  plan_module: any[];
+  plan_module: { module_id: number; order_index?: number }[];
+  assigned_user_count?: number;
+  cover_thumbnail_url?: string | null;
+}
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
 
 function mapDataToPlan(plan: PlanData): Plan {
   const categoryName = plan.plan_category?.name ?? "Uncategorized";
+  const thumb = plan.cover_thumbnail_url?.trim();
   return {
     id: plan.plan_id,
     title: plan.title,
     category: categoryName,
     type: plan.description ?? "Plan",
-    sessionCount: plan.plan_module ? plan.plan_module.length : 0,
-    image: "",
+    assigned_user_count:
+      typeof plan.assigned_user_count === "number" ? plan.assigned_user_count : 0,
+    image: thumb || "",
   };
 }
 
@@ -49,6 +64,12 @@ export default function Plan() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const navigate = useNavigate();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
 
   useEffect(() => {
     const loadPlans = async () => {
@@ -63,6 +84,7 @@ export default function Plan() {
               ? { Authorization: `Bearer ${session.access_token}` }
               : {}),
           },
+          cache: "no-store",
         });
         const data: unknown = await res.json();
         console.log("RAW DATA:", data);
@@ -79,7 +101,7 @@ export default function Plan() {
     };
 
     loadPlans();
-  }, []);
+  }, [location.key, refreshToken, countsVersion]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -106,8 +128,6 @@ export default function Plan() {
     acc[category].push(plan);
     return acc;
   }, {} as Record<string, Plan[]>);
-
-  console.log("PLANS STATE:", plans);
 
   return (
     <AppLayout>
@@ -169,17 +189,19 @@ export default function Plan() {
                 <div
                   className="plan-card"
                   key={plan.id}
-                  onClick={() => navigate(`/plan-dashboard/${plan.id}`)}
+                  onClick={() => navigate(`/plan-dashboard/${plan.id}/edit`)}
                 >
+                  <img
+                    src={plan.image || planFallbackImg}
+                    alt=""
+                    className="plan-image"
+                  />
                   <div className="plan-info">
                     <h3>{plan.title}</h3>
                     <p>{plan.category}</p>
                     <span className="plan-tag">
-                      <span className="material-symbols-outlined">
-                        vital_signs
-                      </span>
-                      {plan.sessionCount}{" "}
-                      {plan.sessionCount === 1 ? "session" : "sessions"}
+                      <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                      {clientsAssignedLabel(plan.assigned_user_count)}
                     </span>
                   </div>
                 </div>

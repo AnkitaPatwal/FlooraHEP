@@ -1,9 +1,15 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Session.css";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
+import {
+  getAssignmentCountsVersion,
+  subscribeAssignmentCountsVersion,
+} from "../../lib/assignmentCountsVersionStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -36,10 +42,21 @@ type Module = {
   description: string;
   session_number: number;
   module_exercise: ModuleExercise[];
+  assigned_user_count?: number;
 };
+
+function clientsAssignedLabel(count: number): string {
+  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+}
 
 function Session() {
   const navigate = useNavigate();
+  const { location, refreshToken } = useAssignmentCountsRefresh();
+  const countsVersion = useSyncExternalStore(
+    subscribeAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+    getAssignmentCountsVersion,
+  );
   const [modules, setModules] = useState<Module[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
   const [error, setError] = useState("");
@@ -50,7 +67,11 @@ function Session() {
     setError("");
     try {
       const headers = await authHeaders();
-      const res = await fetch(`${API_BASE}/api/admin/modules`, { method: "GET", headers });
+      const res = await fetch(`${API_BASE}/api/admin/modules`, {
+        method: "GET",
+        headers,
+        cache: "no-store",
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load sessions");
       setModules(Array.isArray(data) ? data : []);
@@ -64,17 +85,38 @@ function Session() {
 
   useEffect(() => {
     loadModules();
-  }, []);
+  }, [location.key, refreshToken, countsVersion]);
 
-  const filteredModules = modules.filter(
-    (m) => !search.trim() || m.title.toLowerCase().includes(search.toLowerCase())
-  );
-  const groupedBySession = filteredModules.reduce((acc, m) => {
-    const key = `Session ${m.session_number}`;
+  function sessionCategoryLabel(m: Module): string {
+    const c = m.description?.trim();
+    return c || "Uncategorized";
+  }
+
+  const q = search.trim().toLowerCase();
+  const filteredModules = modules.filter((m) => {
+    if (!q) return true;
+    const title = m.title.toLowerCase();
+    const cat = sessionCategoryLabel(m).toLowerCase();
+    return title.includes(q) || cat.includes(q);
+  });
+
+  const groupedByCategory = filteredModules.reduce((acc, m) => {
+    const key = sessionCategoryLabel(m);
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
     return acc;
   }, {} as Record<string, Module[]>);
+
+  const sortedCategoryGroups = Object.entries(groupedByCategory)
+    .map(([label, items]) => [
+      label,
+      [...items].sort((a, b) => a.title.localeCompare(b.title)),
+    ] as const)
+    .sort(([a], [b]) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    });
 
   return (
     <AppLayout>
@@ -131,7 +173,7 @@ function Session() {
             No sessions yet. Click &quot;+ New Session&quot; to create one.
           </p>
         ) : (
-          Object.entries(groupedBySession).map(([category, items]) => (
+          sortedCategoryGroups.map(([category, items]) => (
             <section className="session-category-section" key={category}>
               <h2 className="session-category-title">
                 {category} <span>{items.length} Sessions</span>
@@ -141,11 +183,11 @@ function Session() {
                   <div
                     className="session-card"
                     key={module.module_id}
-                    onClick={() => navigate(`/sessions/${module.module_id}`)}
+                    onClick={() => navigate(`/sessions/${module.module_id}/edit`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        navigate(`/sessions/${module.module_id}`);
+                        navigate(`/sessions/${module.module_id}/edit`);
                       }
                     }}
                     role="button"
@@ -162,11 +204,10 @@ function Session() {
                     />
                     <div className="session-info">
                       <h3>{module.title}</h3>
-                      <p>Session {module.session_number}</p>
+                      <p className="session-card-category">{sessionCategoryLabel(module)}</p>
                       <span className="session-tag">
-                        <span className="material-symbols-outlined">vital_signs</span>
-                        {module.module_exercise?.length ?? 0} exercise
-                        {(module.module_exercise?.length ?? 0) !== 1 ? "s" : ""}
+                        <AssignmentPulseIcon className="assignment-count-pulse-icon" />
+                        {clientsAssignedLabel(module.assigned_user_count ?? 0)}
                       </span>
                     </div>
                   </div>

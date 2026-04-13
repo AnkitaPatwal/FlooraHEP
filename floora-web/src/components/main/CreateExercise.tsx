@@ -33,7 +33,6 @@ const CreateExercise: React.FC = () => {
     setCount: "",
     repCount: "",
     exerciseCopy: "",
-    tags: "",
     video: null as File | null,
     thumbnail: null as File | null,
   });
@@ -106,9 +105,6 @@ const CreateExercise: React.FC = () => {
           default_sets: Number(exercise.setCount),
           default_reps: Number(exercise.repCount),
           category: exercise.category.trim(),
-          tags: exercise.tags.trim()
-            ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
-            : undefined,
         }),
       });
 
@@ -282,18 +278,6 @@ const CreateExercise: React.FC = () => {
               />
               {fieldErrors.repCount && <div className="field-error">{fieldErrors.repCount}</div>}
             </div>
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="tags">Tags (optional)</label>
-            <input
-              id="tags"
-              type="text"
-              name="tags"
-              value={exercise.tags}
-              onChange={handleChange}
-              placeholder="e.g. quadriceps, hamstrings (comma-separated)"
-            />
           </div>
 
           <div className={`input-group ${fieldErrors.exerciseCopy ? "error" : ""}`}>

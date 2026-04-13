@@ -179,26 +179,29 @@
   margin-bottom: 4px;
 }
 
-.session-info p {
+.session-info p,
+.session-info .session-card-category {
   font-size: 12px;
   color: #999;
   margin-bottom: 8px;
 }
 
+/* Same chip colors as Plan / Exercise assignment-count badges */
 .session-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  background-color: #d4e8e8;
-  color: #5a8e93;
-  font-size: 11px;
-  font-weight: 500;
+  background-color: #e6fffa;
+  color: #2c7a7b;
   padding: 4px 8px;
   border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  width: fit-content;
+  gap: 4px;
 }
 
-.session-tag .material-symbols-outlined {
-  font-size: 14px;
+.session-tag .assignment-count-pulse-icon {
+  flex-shrink: 0;
 }
 
 /* Error / empty state */

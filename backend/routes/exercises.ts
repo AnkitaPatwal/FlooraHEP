@@ -4,8 +4,113 @@ import { supabaseServer } from '../lib/supabaseServer';
 import { createSignedUrl } from '../lib/signedUrl';
 import { requireSuperAdmin } from '../middleware/requireSuperAdmin';
 import { linkVideoToExercise, BUCKET_NAME } from '../services/videoService';
+import { logDashboardActivity } from '../services/dashboardActivityLog';
 
 const router = express.Router();
+
+/** PostgREST often serializes bigint `exercise_id` as string; Map keys must match lookup type. */
+function normalizeExerciseId(id: unknown): number | null {
+  if (id == null) return null;
+  if (typeof id === 'bigint') {
+    const n = Number(id);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+  }
+  const n = typeof id === 'number' ? id : Number(String(id).trim());
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+}
+
+function rpcExerciseCountRows(data: unknown): { exercise_id: unknown; client_count: unknown }[] {
+  if (Array.isArray(data)) return data as { exercise_id: unknown; client_count: unknown }[];
+  if (data && typeof data === 'object' && data !== null && 'exercise_id' in data) {
+    return [data as { exercise_id: unknown; client_count: unknown }];
+  }
+  return [];
+}
+
+type ResolvedAssignmentCounts = {
+  counts: Map<number, number>;
+  /** True when row-level user_exercise fallback also failed */
+  assignmentCountsError: boolean;
+  /** True when DB RPC is missing/fails — plan-based counts not used; legacy may be all zeros */
+  assignmentCountsRpcUnavailable: boolean;
+};
+
+/**
+ * Distinct auth users with this exercise in their merged assignment — same pattern as plan counts:
+ * `count_assigned_clients_for_exercises` RPC, then a simple table fallback if the RPC is unavailable.
+ */
+async function resolveAssignmentCounts(exerciseIds: number[]): Promise<ResolvedAssignmentCounts> {
+  if (exerciseIds.length === 0) {
+    return {
+      counts: new Map(),
+      assignmentCountsError: false,
+      assignmentCountsRpcUnavailable: false,
+    };
+  }
+
+  const idsForRpc = [...new Set(exerciseIds.map((id) => normalizeExerciseId(id)).filter((id): id is number => id != null))];
+  if (idsForRpc.length === 0) {
+    return {
+      counts: new Map(),
+      assignmentCountsError: false,
+      assignmentCountsRpcUnavailable: false,
+    };
+  }
+
+  const { data: rpcData, error: rpcError } = await supabaseServer.rpc('count_assigned_clients_for_exercises', {
+    p_exercise_ids: idsForRpc,
+  });
+
+  if (!rpcError) {
+    const counts = new Map<number, number>();
+    for (const id of idsForRpc) counts.set(id, 0);
+    for (const row of rpcExerciseCountRows(rpcData)) {
+      const eid = normalizeExerciseId(row.exercise_id);
+      const cnt = Number(row.client_count ?? 0);
+      if (eid != null) counts.set(eid, cnt);
+    }
+    return {
+      counts,
+      assignmentCountsError: false,
+      assignmentCountsRpcUnavailable: false,
+    };
+  }
+
+  console.error(
+    'count_assigned_clients_for_exercises RPC failed, using user_exercise fallback. Apply migration 20260412000000_count_assigned_clients_per_exercise.sql (and 20260412100000 if present), then restart API. PostgREST:',
+    (rpcError as { message?: string })?.message ?? rpcError,
+  );
+
+  const legacy = await legacyUserExerciseRowCounts(exerciseIds);
+  return {
+    counts: legacy.counts,
+    assignmentCountsError: legacy.error,
+    assignmentCountsRpcUnavailable: true,
+  };
+}
+
+async function legacyUserExerciseRowCounts(
+  exerciseIds: number[]
+): Promise<{ counts: Map<number, number>; error: boolean }> {
+  const counts = new Map<number, number>();
+  const normalized = [...new Set(exerciseIds.map((id) => normalizeExerciseId(id)).filter((id): id is number => id != null))];
+  for (const id of normalized) counts.set(id, 0);
+  if (normalized.length === 0) return { counts, error: false };
+  const { data: ueRows, error: ueError } = await supabaseServer
+    .from('user_exercise')
+    .select('exercise_id')
+    .in('exercise_id', normalized);
+  if (ueError) {
+    console.error('legacy user_exercise counts error:', ueError);
+    return { counts, error: true };
+  }
+  for (const row of ueRows ?? []) {
+    const eid = normalizeExerciseId((row as { exercise_id: unknown }).exercise_id);
+    if (eid == null) continue;
+    counts.set(eid, (counts.get(eid) ?? 0) + 1);
+  }
+  return { counts, error: false };
+}
 
 function intParam(v: unknown, fallback: number) {
   const n = Number(v);
@@ -59,7 +164,6 @@ router.get('/', async (req, res) => {
           `description.ilike.%${encoded}%`,
           `body_part.ilike.%${encoded}%`,
         ];
-        orParts.push(`tags.cs.{"${encoded}"}`);
         query = query.or(orParts.join(','));
       }
     }
@@ -84,12 +188,40 @@ router.get('/', async (req, res) => {
       })
     );
 
+    const exerciseIds = withSigned
+      .map((row: { exercise_id: number }) => row.exercise_id)
+      .filter((id: number) => id != null && id !== undefined);
+
+    const resolved = await resolveAssignmentCounts(exerciseIds);
+    const assignmentCountByExerciseId = resolved.counts;
+    const assignmentCountsError = resolved.assignmentCountsError;
+    const assignmentCountsRpcUnavailable = resolved.assignmentCountsRpcUnavailable;
+
+    const withAssignments = withSigned.map((row: { exercise_id: unknown }) => {
+      const eid = normalizeExerciseId(row.exercise_id);
+      return {
+        ...row,
+        assigned_user_count: assignmentCountsError
+          ? null
+          : eid != null
+            ? (assignmentCountByExerciseId.get(eid) ?? 0)
+            : 0,
+      };
+    });
+
     const total = count ?? 0;
     const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
     res.json({
-      data: withSigned,
-      meta: { page, pageSize, total, totalPages },
+      data: withAssignments,
+      meta: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+        assignmentCountsError,
+        assignmentCountsRpcUnavailable,
+      },
     });
   } catch (err) {
     console.error('GET /api/exercises unexpected error:', err);
@@ -97,74 +229,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (!Number.isInteger(id) || id <= 0) {
-      return res.status(400).json({ message: 'Invalid exercise id' });
-    }
-
-    const { data, error } = await supabaseServer
-      .from('exercise')
-      .select(`
-        exercise_id,
-        title,
-        description,
-        default_sets,
-        default_reps,
-        body_part,
-        thumbnail_url,
-        tags,
-        created_at,
-        updated_at,
-        video_id,
-        video:video_id(
-          bucket,
-          object_key,
-          original_filename,
-          mime_type,
-          byte_size,
-          duration_seconds,
-          width,
-          height
-        )
-      `)
-      .eq('exercise_id', id)
-      .single();
-
-    if (error) {
-      console.error('GET /api/exercises/:id error:', error);
-      return res.status(500).json({ message: 'Failed to fetch exercise' });
-    }
-    if (!data) return res.status(404).json({ message: 'Exercise not found' });
-
-    const video_url = await createSignedUrl(data.video);
-
-    let assigned_user_count = 0;
-    try {
-      const { count } = await supabaseServer
-        .from('user_exercise')
-        .select('*', { count: 'exact', head: true })
-        .eq('exercise_id', id);
-      assigned_user_count = count ?? 0;
-    } catch {
-      /* mock 0 if table missing */
-    }
-
-    const result = {
-      ...data,
-      video_url,
-      assigned_user_count,
-    };
-
-    res.json(result);
-  } catch (err) {
-    console.error('GET /api/exercises/:id unexpected error:', err);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
-// GET /api/exercises/by-module/:moduleId - Fetch exercises assigned to a module/session
+// Registered before /:id so "by-module" is not captured as an exercise id.
 router.get('/by-module/:moduleId', async (req, res) => {
   try {
     const moduleId = Number(req.params.moduleId);
@@ -240,6 +305,71 @@ router.get('/by-module/:moduleId', async (req, res) => {
   }
 });
 
+router.get('/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ message: 'Invalid exercise id' });
+    }
+
+    const { data, error } = await supabaseServer
+      .from('exercise')
+      .select(`
+        exercise_id,
+        title,
+        description,
+        default_sets,
+        default_reps,
+        body_part,
+        thumbnail_url,
+        tags,
+        created_at,
+        updated_at,
+        video_id,
+        video:video_id(
+          bucket,
+          object_key,
+          original_filename,
+          mime_type,
+          byte_size,
+          duration_seconds,
+          width,
+          height
+        )
+      `)
+      .eq('exercise_id', id)
+      .single();
+
+    if (error) {
+      if ((error as { code?: string }).code === 'PGRST116') {
+        return res.status(404).json({ message: 'Exercise not found' });
+      }
+      console.error('GET /api/exercises/:id error:', error);
+      return res.status(500).json({ message: 'Failed to fetch exercise' });
+    }
+    if (!data) return res.status(404).json({ message: 'Exercise not found' });
+
+    const video_url = await createSignedUrl(data.video);
+
+    const resolved = await resolveAssignmentCounts([id]);
+    const assigned_user_count = resolved.assignmentCountsError
+      ? null
+      : (resolved.counts.get(id) ?? 0);
+
+    const result = {
+      ...data,
+      video_url,
+      assigned_user_count,
+      assigned_count_rpc_unavailable: resolved.assignmentCountsRpcUnavailable,
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.error('GET /api/exercises/:id unexpected error:', err);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // PATCH /api/exercises/:id - Update exercise (super_admin only)
 router.patch(
   '/:id',
@@ -250,7 +380,7 @@ router.patch(
       if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
-      const { title, description, default_sets, default_reps, category, tags } = req.body;
+      const { title, description, default_sets, default_reps, category } = req.body;
 
       const payload: any = {};
       if (title !== undefined) payload.title = String(title).trim();
@@ -258,8 +388,9 @@ router.patch(
       if (default_sets !== undefined) payload.default_sets = Number(default_sets) || null;
       if (default_reps !== undefined) payload.default_reps = Number(default_reps) || null;
       if (category !== undefined) payload.body_part = String(category).trim() || null;
-      if (tags !== undefined) {
-        payload.tags = Array.isArray(tags) ? tags.filter((t: unknown) => typeof t === 'string' && t.trim()) : [];
+
+      if (Object.keys(payload).length > 0) {
+        payload.tags = [];
       }
 
       if (Object.keys(payload).length === 0) {
@@ -315,6 +446,15 @@ router.delete(
         return res.status(400).json({ error: 'Invalid exercise id' });
       }
 
+      const { error: uaxErr } = await supabaseServer
+        .from('user_assignment_exercise')
+        .delete()
+        .eq('exercise_id', id);
+      if (uaxErr) {
+        console.error('DELETE user_assignment_exercise error:', uaxErr);
+        return res.status(500).json({ error: 'Failed to delete exercise', detail: uaxErr.message });
+      }
+
       const { error: userExErr } = await supabaseServer
         .from('user_exercise')
         .delete()
@@ -343,6 +483,7 @@ router.delete(
         return res.status(500).json({ error: 'Failed to delete exercise', detail: error.message });
       }
 
+      void logDashboardActivity(`Deleted: Exercise (id ${id})`);
       res.status(204).send();
     } catch (err: any) {
       console.error('DELETE /api/exercises unexpected error:', err);
@@ -357,7 +498,7 @@ router.post(
   requireSuperAdmin as express.RequestHandler,
   async (req: Request, res: Response) => {
     try {
-      const { title, description, default_sets, default_reps, category, tags } = req.body;
+      const { title, description, default_sets, default_reps, category } = req.body;
 
       if (!title || typeof title !== 'string' || !title.trim()) {
         return res.status(400).json({ error: 'Title is required' });
@@ -398,12 +539,9 @@ router.post(
         default_sets: sets,
         default_reps: reps,
         body_part: category.trim(),
+        tags: [],
         created_by_admin_id: null,
       };
-
-      if (tags !== undefined && Array.isArray(tags)) {
-        payload.tags = tags.filter((t: unknown) => typeof t === 'string' && t.trim());
-      }
 
       const { data, error } = await supabaseServer
         .from('exercise')

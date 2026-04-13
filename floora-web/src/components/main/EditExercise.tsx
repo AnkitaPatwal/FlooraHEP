@@ -35,7 +35,6 @@ const EditExercise: React.FC = () => {
     setCount: "",
     repCount: "",
     description: "",
-    tags: "",
     video: null as File | null,
     thumbnail: null as File | null,
   });
@@ -54,14 +53,12 @@ const EditExercise: React.FC = () => {
         const res = await fetch(`${API_URL}/api/exercises/${id}`, { headers });
         if (!res.ok) throw new Error("Failed to load exercise");
         const data = await res.json();
-        const tagsStr = Array.isArray(data.tags) ? data.tags.join(", ") : "";
         setExercise({
           title: data.title || "",
           category: data.body_part || "",
           setCount: data.default_sets != null ? String(data.default_sets) : "",
           repCount: data.default_reps != null ? String(data.default_reps) : "",
           description: data.description || "",
-          tags: tagsStr,
           video: null,
           thumbnail: null,
         });
@@ -130,20 +127,12 @@ const EditExercise: React.FC = () => {
         if (newReps !== (init.default_reps ?? null)) patchPayload.default_reps = newReps;
         const newCat = exercise.category.trim() || null;
         if (newCat !== (init.body_part ?? null)) patchPayload.category = newCat;
-        const newTags = exercise.tags.trim()
-          ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : [];
-        const initTags = Array.isArray(init.tags) ? init.tags : [];
-        if (JSON.stringify(newTags) !== JSON.stringify(initTags)) patchPayload.tags = newTags;
       } else {
         patchPayload.title = exercise.title.trim();
         patchPayload.description = exercise.description.trim();
         patchPayload.default_sets = exercise.setCount ? Number(exercise.setCount) : null;
         patchPayload.default_reps = exercise.repCount ? Number(exercise.repCount) : null;
         patchPayload.category = exercise.category.trim() || null;
-        patchPayload.tags = exercise.tags.trim()
-          ? exercise.tags.split(",").map((t) => t.trim()).filter(Boolean)
-          : [];
       }
 
       if (Object.keys(patchPayload).length === 0 && !exercise.video && !exercise.thumbnail) {
@@ -344,18 +333,6 @@ const EditExercise: React.FC = () => {
               placeholder="Describe how to perform this exercise..."
             />
             {fieldErrors.description && <div className="field-error">{fieldErrors.description}</div>}
-          </div>
-
-          <div className="input-group">
-            <label htmlFor="tags">Tags</label>
-            <input
-              id="tags"
-              type="text"
-              name="tags"
-              value={exercise.tags}
-              onChange={handleChange}
-              placeholder="e.g. quadriceps, hamstrings (comma-separated)"
-            />
           </div>
         </form>
       </div>

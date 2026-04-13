@@ -68,7 +68,7 @@ html, body, #root {
   box-shadow: 0 0 0 2px #2E6B6D; /* subtle teal focus ring */
 }
 
-/* ========== BUTTON ========== */
+/* =========== BUTTON =========== */
 .signin {
   width: 100%;
   background-color: #0D2C2C; /* dark teal */

@@ -43,6 +43,21 @@ function withDashboardTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 const sessionImage = require("../../assets/images/current-session.jpg");
+function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
+  if (!unlockIso) return false;
+  const d = new Date(unlockIso);
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const todayLocal = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  ).getTime();
+  return unlockLocal <= todayLocal;
+}
+
+const fallbackSessionImage = require("../../assets/images/current-session.jpg");
 
 const styles = StyleSheet.create({
   screen: {
@@ -362,6 +377,28 @@ const HomeScreen = () => {
                 exerciseCount: countsByModule[String(mod.module_id)] || 0,
               });
             }
+        const merged: SessionItem[] = [];
+        const orderedRows =
+          planModules.type === "assigned"
+            ? planModules.rows
+            : planModules.rows;
+
+        for (const pm of orderedRows as { module_id: number; order_index: number }[]) {
+          const mod = moduleMap.get(pm.module_id);
+          if (!mod) continue;
+          const unlockIso = unlockByModule.get(pm.module_id);
+          const unlocked = useAth420ShowAllSessions
+            ? true
+            : isUnlockedByLocalDate(unlockIso);
+          merged.push({
+            module_id: mod.module_id,
+            title: mod.title,
+            order_index: pm.order_index,
+            unlocked,
+            completed: completedModules.has(pm.module_id),
+            exerciseCount: countsByModule[String(mod.module_id)] || 0,
+          });
+        }
 
             const visible = merged.filter((s) => s.unlocked);
             visible.sort((a, b) => b.order_index - a.order_index);

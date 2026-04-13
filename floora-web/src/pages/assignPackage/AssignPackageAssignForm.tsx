@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { API_BASE, authHeaders } from "./authHeaders";
 import { assignPackageAssignmentSessionsPath } from "./assignPackagePaths";
+import { markAssignmentCountsStale } from "../../lib/assignmentsCountsStale";
 import { AssignBackLink } from "./ui/AssignBackLink";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
 import { ConfirmModal } from "./ui/ConfirmModal";
@@ -220,6 +221,7 @@ export default function AssignPackageAssignForm() {
         setMessage(data.error || "Failed to assign plan.");
         return;
       }
+      markAssignmentCountsStale();
       const assignedPlanId = Number(planId);
       setPlanId("");
       setStartDate(todayLocalIsoDate());
@@ -255,6 +257,7 @@ export default function AssignPackageAssignForm() {
         setMessage(data.error || "Failed to remove plan.");
         return;
       }
+      markAssignmentCountsStale();
       setRemoveModal(null);
       setMessage("Plan removed.");
       await loadAssignments();

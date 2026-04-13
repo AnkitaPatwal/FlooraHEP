@@ -41,7 +41,26 @@ jest.mock("../../lib/supabaseServer", () => {
 
   return {
     supabaseServer: {
-      from: jest.fn(() => chain),
+      from: jest.fn((table: string) => {
+        if (table === "user_module") {
+          return {
+            select: jest.fn(() => ({
+              in: jest.fn().mockResolvedValue({ data: [], error: null }),
+            })),
+          };
+        }
+        if (
+          table === "user_packages" ||
+          table === "plan_module" ||
+          table === "user_assignment_session"
+        ) {
+          return {
+            select: jest.fn().mockResolvedValue({ data: [], error: null }),
+          };
+        }
+        return chain;
+      }),
+      rpc: jest.fn().mockResolvedValue({ data: [], error: null }),
     },
   };
 });
