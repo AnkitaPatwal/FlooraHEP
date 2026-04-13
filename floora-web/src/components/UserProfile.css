@@ -129,31 +129,6 @@
   font-weight: 700;
 }
 
-/* ProfileAvatar (ua-*) used on this page; styles live in UserApproval.css for that flow only */
-.up-avatar-column .ua-avatar-wrap {
-  display: grid;
-  place-items: center;
-}
-
-.up-avatar-column .ua-avatar {
-  width: 116px;
-  height: 116px;
-  border-radius: 999px;
-  object-fit: cover;
-  box-sizing: border-box;
-  border: 2px solid #ffffff;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.08);
-}
-
-.up-avatar-column .ua-avatar.ua-avatar-fallback {
-  background: #e3eceb;
-  color: #4a7f7c;
-  font-size: 40px;
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-}
-
 .up-form-grid {
   width: 100%;
   max-width: 640px;
@@ -533,15 +508,6 @@
   .up-avatar-circle {
     width: 96px;
     height: 96px;
-    font-size: 34px;
-  }
-
-  .up-avatar-column .ua-avatar {
-    width: 96px;
-    height: 96px;
-  }
-
-  .up-avatar-column .ua-avatar.ua-avatar-fallback {
     font-size: 34px;
   }
 }

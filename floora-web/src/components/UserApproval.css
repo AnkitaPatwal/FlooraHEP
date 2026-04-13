@@ -237,19 +237,4 @@
     cursor: default;
     opacity: 1;
   }
-
-  .ua-field-plans {
-    margin-bottom: 0;
-  }
-  .ua-plans-list {
-    margin: 0;
-    padding-left: 1.25rem;
-    color: #374151;
-    font-size: 14px;
-    line-height: 1.5;
-  }
-  .ua-plans-empty {
-    margin: 0;
-    font-size: 14px;
-    color: #6b7280;
-  }
+  

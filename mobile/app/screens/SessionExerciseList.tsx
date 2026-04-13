@@ -18,7 +18,6 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
-import ScreenBackButton from "../../components/ScreenBackButton";
 import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Exercise } from "../../types/exercise";
@@ -30,9 +29,6 @@ import {
 } from "../../lib/sessionExerciseProgress";
 import { useAuth } from "../../providers/AuthProvider";
 import session1Img from "../../assets/images/prev-1.jpg";
-import { theme } from "../../constants/theme";
-import { fonts } from "../../constants/fonts";
-import { stackHeaderScreenOptions } from "../../constants/navigationTheme";
 
 type Params = {
   sessionId?: string;
@@ -360,11 +356,14 @@ export default function SessionExerciseList() {
     <>
       <Stack.Screen
         options={{
-          ...stackHeaderScreenOptions,
           title: planName || "Leakage",
           headerShown: true,
           headerTitleAlign: "center",
-          headerLeft: () => <ScreenBackButton onPress={() => router.back()} />,
+          headerLeft: () => (
+            <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 12 }} hitSlop={10}>
+              <Text style={{ fontSize: 24, color: "#111827" }}>‹</Text>
+            </TouchableOpacity>
+          ),
         }}
       />
       <ScrollView
@@ -393,7 +392,7 @@ export default function SessionExerciseList() {
           </View>
         ) : apiLoading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color={theme.color.primary} />
+            <ActivityIndicator size="large" color="#0F766E" />
             <Text style={styles.loadingText}>Loading exercises…</Text>
           </View>
         ) : exercises.length === 0 ? (
@@ -459,57 +458,28 @@ export default function SessionExerciseList() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: theme.color.surface },
-  contentContainer: {
-    paddingHorizontal: theme.space.screenHorizontal,
-    paddingBottom: 32,
-  },
+  container: { flex: 1, backgroundColor: "#FFFFFF" },
+  contentContainer: { paddingHorizontal: 20, paddingBottom: 32 },
   headerBlock: { paddingTop: 16, paddingBottom: 12 },
-  sessionLabel: {
-    ...theme.typography.sessionScreenTitle,
-    flexShrink: 1,
-  },
-  subtitle: {
-    ...theme.typography.sectionSubtitle,
-    fontFamily: fonts.medium,
-    marginTop: 2,
-  },
-  accentLine: {
-    marginTop: theme.space.accentLineMarginTop,
-    width: theme.layout.accentLineWidth,
-    height: theme.layout.accentLineHeight,
-    borderRadius: theme.radius.accentBar,
-    backgroundColor: theme.color.accent,
-    marginBottom: 4,
-  },
+  sessionLabel: { fontSize: 26, fontWeight: "700", color: "#111827" },
+  subtitle: { fontSize: 16, fontWeight: "600", color: "#0F766E", marginTop: 2 },
+  accentLine: { marginTop: 8, width: 80, height: 3, borderRadius: 999, backgroundColor: "#0F766E" },
   completeWrap: { marginTop: 16, marginBottom: 4 },
-  completeButton: {
-    ...theme.button.primary,
-  },
-  completeButtonDisabled: { opacity: 0.7 },
-  completeButtonText: {
-    ...theme.button.primaryText,
-  },
-  completedBanner: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    lineHeight: 20,
-    color: theme.color.success,
-  },
+  completedBanner: { fontSize: 15, fontWeight: "600", color: "#047857" },
   loadingWrap: { paddingVertical: 32, alignItems: "center" },
-  loadingText: { marginTop: 8, ...theme.typography.bodySmall },
+  loadingText: { marginTop: 8, fontSize: 14, color: "#6B7280" },
   emptyWrap: { paddingVertical: 32, paddingHorizontal: 8, alignItems: "center" },
-  emptyTitle: {
-    ...theme.typography.body,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  emptySub: { marginTop: 8, ...theme.typography.bodySmall, textAlign: "center" },
+  emptyTitle: { fontSize: 16, fontWeight: "600", color: "#374151", textAlign: "center" },
+  emptySub: { marginTop: 8, fontSize: 14, color: "#6B7280", textAlign: "center" },
   card: {
-    marginTop: theme.space.sessionTileGap,
-    borderRadius: theme.radius.mediaCard,
-    backgroundColor: theme.color.surface,
-    ...theme.shadow.exerciseCard,
+    marginTop: 16,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
     overflow: "hidden",
   },
   cardLocked: { opacity: 0.7 },
@@ -520,44 +490,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  lockOverlayText: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    lineHeight: 20,
-    color: theme.color.overlayText,
-  },
-  image: { width: "100%", aspectRatio: 16 / 9 },
+  lockOverlayText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
+  image: { width: "100%", height: 190 },
   playCircle: {
     position: "absolute",
     alignSelf: "center",
     top: "50%",
-    marginTop: -theme.radius.playOverlay,
-    width: theme.radius.playOverlay * 2,
-    height: theme.radius.playOverlay * 2,
-    borderRadius: theme.radius.playOverlay,
+    marginTop: -28,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "rgba(255,255,255,0.9)",
     justifyContent: "center",
     alignItems: "center",
   },
   playCircleLocked: { opacity: 0.5 },
-  playIcon: { fontFamily: fonts.regular, fontSize: 22, color: theme.color.heading },
-  textBlock: {
-    paddingHorizontal: theme.space.screenHorizontal,
-    paddingVertical: 12,
-  },
-  exerciseTitle: {
-    ...theme.typography.exerciseTitle,
-    flexShrink: 1,
-  },
-  category: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    lineHeight: 20,
-    color: theme.color.primary,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  description: {
-    ...theme.typography.descriptionCompact,
-  },
+  playIcon: { fontSize: 22, color: "#111827" },
+  textBlock: { paddingHorizontal: 16, paddingVertical: 12 },
+  exerciseTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
+  category: { fontSize: 15, color: "#0F766E", marginTop: 2, marginBottom: 4 },
+  description: { fontSize: 13, color: "#6B7280" },
 });
