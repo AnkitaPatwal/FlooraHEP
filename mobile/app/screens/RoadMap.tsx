@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Image,
   Pressable,
+  Alert,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
@@ -18,6 +19,7 @@ import { FlooraFonts } from "../../constants/fonts";
 import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
 import { CircularBackButton, CIRCULAR_BACK_BUTTON_SIZE } from "../../components/CircularBackButton";
+import { supabase } from "../../lib/supabaseClient";
 
 import session1Img from "../../assets/images/prev-1.jpg";
 
@@ -36,20 +38,22 @@ type SessionCardProps = {
   session: RoadmapSession;
   index: number;
   onPress: () => void;
+  onLockedPress?: () => void;
+  thumbnailUrl?: string;
 };
 
-function SessionCard({ session, index, onPress }: SessionCardProps) {
+function SessionCard({ session, index, onPress, onLockedPress, thumbnailUrl }: SessionCardProps) {
   const label = session.title || `Session ${index + 1}`;
   const locked = !session.isUnlocked;
-  const thumb = session.thumbnailUrl;
+  const thumb = thumbnailUrl ?? session.thumbnailUrl;
 
   return (
     <Pressable
       style={{ minHeight: 44 }}
-      onPress={locked ? undefined : onPress}
+      onPress={locked ? onLockedPress : onPress}
       accessible
       accessibilityLabel={locked ? `${label}, locked` : label}
-      accessibilityState={{ disabled: locked }}
+      accessibilityHint={locked ? "Shows when this session unlocks." : undefined}
     >
       <View style={sessionCardStyles.tile}>
         <View style={sessionCardStyles.mediaShell}>
@@ -88,10 +92,53 @@ export default function RoadMap() {
   const router = useRouter();
   const { data, loading, error, reload } = useRoadmap();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [sessionThumbs, setSessionThumbs] = React.useState<Record<string, string>>({});
+
   const lockedSessions = React.useMemo(() => {
     const list = data?.sessions ?? [];
-    return [...list].sort((a, b) => a.order_index - b.order_index);
+    return [...list]
+      .filter((s) => !s.isUnlocked)
+      .sort((a, b) => a.order_index - b.order_index);
   }, [data?.sessions]);
+
+  const showLockedUnlockAlert = React.useCallback((title: string) => {
+    Alert.alert("Session Locked", "It will unlock when the previous session is completed.");
+  }, []);
+
+  React.useEffect(() => {
+    const loadThumbs = async () => {
+      if (lockedSessions.length === 0) return;
+      try {
+        const entries = await Promise.all(
+          lockedSessions.map(async (s) => {
+            const moduleId = Number(s.module_id);
+            if (!Number.isFinite(moduleId)) return [String(s.module_id), ""] as const;
+
+            const { data: rows, error: rpcErr } = await supabase.rpc(
+              "get_current_assigned_session_exercises",
+              { p_module_id: moduleId }
+            );
+            if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
+              return [String(s.module_id), ""] as const;
+            }
+            const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+            return [String(s.module_id), thumb] as const;
+          })
+        );
+
+        setSessionThumbs((prev) => {
+          const next = { ...prev };
+          for (const [mid, url] of entries) {
+            if (url && url.startsWith("http")) next[mid] = url;
+          }
+          return next;
+        });
+      } catch {
+        // non-blocking
+      }
+    };
+    void loadThumbs();
+  }, [lockedSessions]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -164,6 +211,10 @@ export default function RoadMap() {
                 key={session.module_id}
                 session={session}
                 index={index}
+                thumbnailUrl={sessionThumbs[String(session.module_id)]}
+                onLockedPress={() =>
+                  showLockedUnlockAlert(session.title || `Session ${index + 1}`)
+                }
                 onPress={() =>
                   router.push({
                     pathname: "/screens/SessionExerciseList",
