@@ -42,6 +42,8 @@ const mockUpdate = jest.fn();
 const mockEq = jest.fn();
 const mockDelete = jest.fn();
 const mockOrder = jest.fn();
+/** Plan DELETE (and similar) uses `.select().eq().maybeSingle()` before `.delete().eq()`. */
+const mockMaybeSingle = jest.fn();
 
 jest.mock("@supabase/supabase-js", () => {
   return {
@@ -52,8 +54,12 @@ jest.mock("@supabase/supabase-js", () => {
         single: mockSingle.mockReturnThis(),
         update: mockUpdate.mockReturnThis(),
         eq: mockEq.mockReturnThis(),
-        delete: mockDelete.mockReturnThis(),
+        /** `await client.from(...).delete().eq(...)` — `eq` resolves on the inner builder, not the root. */
+        delete: mockDelete.mockImplementation(() => ({
+          eq: jest.fn().mockResolvedValue({ error: null }),
+        })),
         order: mockOrder.mockReturnThis(),
+        maybeSingle: mockMaybeSingle,
       })),
     })),
   };
@@ -74,6 +80,7 @@ afterEach(() => {
   mockEq.mockReset();
   mockDelete.mockReset();
   mockOrder.mockReset();
+  mockMaybeSingle.mockReset();
 
   mockInsert.mockReturnThis();
   mockSelect.mockReturnThis();
@@ -161,7 +168,7 @@ describe("PUT /api/admin/plans/:id", () => {
 
 describe("DELETE /api/admin/plans/:id", () => {
   it("deletes a plan successfully", async () => {
-    mockEq.mockResolvedValueOnce({ error: null });
+    mockMaybeSingle.mockResolvedValueOnce({ data: { title: "Plan to delete" }, error: null });
 
     const res = await request(app)
       .delete("/api/admin/plans/123")

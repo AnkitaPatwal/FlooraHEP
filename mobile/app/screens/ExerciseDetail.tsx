@@ -285,7 +285,7 @@ const ExerciseDetail = () => {
       Alert.alert("Could not save progress", error.message);
       return;
     }
-    Alert.alert("Session complete", "The next session will unlock soon.");
+    Alert.alert("Session complete", "The next session will unlock in 7 days.");
   }, [moduleIdNum, session?.user?.id, progressCurrent, progressTotal]);
 
   const handleVideoPlayToEnd = useCallback(async () => {

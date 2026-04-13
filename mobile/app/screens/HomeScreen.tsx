@@ -647,9 +647,9 @@ const HomeScreen = () => {
 
             {completedSessions.length > 0 ? (
               <>
-                {completedSessions.map((sessionItem) => (
+                {completedSessions.map((sessionItem, completedIndex) => (
                   <TouchableOpacity
-                    key={`completed-${String(sessionItem.module_id)}`}
+                    key={`completed-oidx-${sessionItem.order_index}-mid-${String(sessionItem.module_id)}-i-${completedIndex}`}
                     activeOpacity={0.9}
                     onPress={() =>
                       goToSession(

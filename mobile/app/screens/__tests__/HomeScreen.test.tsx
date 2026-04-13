@@ -283,4 +283,67 @@ describe("HomeScreen", () => {
       params: { sessionId: "1", sessionName: "week 1 foundations" },
     });
   });
+
+  /** ATH-441: same `module_id` twice in assigned sessions must not reuse React `key` (was `completed-${module_id}`). */
+  it("renders two completed cards for duplicate module_id rows without duplicate-key console errors", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    mockRpc.mockImplementation((fnName?: string, params?: Record<string, unknown>) => {
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { module_id: 1, order_index: 1, title: "Caption A" },
+            { module_id: 1, order_index: 2, title: "Caption B" },
+          ],
+          error: null,
+        });
+      }
+      if (fnName === "get_current_assigned_session_exercises") {
+        expect(params).toEqual({ p_module_id: 1 });
+        return Promise.resolve({
+          data: [{ exercise_id: 1, thumbnail_url: "https://example.com/thumb.jpg" }],
+          error: null,
+        });
+      }
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Dup Plan", error: null });
+      }
+      if (fnName === "ensure_first_session_unlock") {
+        return Promise.resolve({ data: null, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "user") return makeUserChain({ user_id: 56, fname: "Keshwa" });
+      if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
+      if (table === "user_session_unlock") {
+        return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+      }
+      if (table === "user_session_completion") {
+        return makeEqInSelectChain([{ module_id: 1, completed_at: "2020-01-01T00:00:00.000Z" }]);
+      }
+      return { select: jest.fn() };
+    });
+
+    const { getAllByText, getByText } = render(<HomeScreen />);
+
+    await waitFor(
+      () => {
+        expect(getAllByText("Completed").length).toBe(2);
+      },
+      { timeout: 8000 }
+    );
+
+    expect(getByText("Dup Plan")).toBeTruthy();
+    // `module` map last-write-wins for same module_id — both cards share the resolved title.
+    expect(getAllByText("Caption B").length).toBe(2);
+
+    const dupKeyMessages = consoleError.mock.calls.filter(
+      (c) => typeof c[0] === "string" && c[0].includes("same key")
+    );
+    expect(dupKeyMessages).toHaveLength(0);
+
+    consoleError.mockRestore();
+  });
 });
