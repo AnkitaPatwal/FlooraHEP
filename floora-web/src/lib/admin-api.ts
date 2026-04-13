@@ -5,12 +5,21 @@ const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+export type ClientPlan = {
+  plan_id: number;
+  title: string;
+};
+
 export type PendingClient = {
   user_id: number;
   email: string;
   fname: string;
   lname: string;
   status: boolean;
+  /** From `profiles.avatar_url` when email matches */
+  avatar_url?: string | null;
+  /** Plans assigned via `user_packages` */
+  plans?: ClientPlan[];
 };
 
 /** Same shape as PendingClient; used for approved users (status === true). */
@@ -65,6 +74,15 @@ export async function fetchActiveClients(): Promise<ActiveClient[]> {
   const data = await invoke({ list: "approved" });
   if (!Array.isArray(data)) return [];
   return data as ActiveClient[];
+}
+
+/**
+ * Fetches clients that were denied (recorded in audit_log); still listed in public.user.
+ */
+export async function fetchDeniedClients(): Promise<PendingClient[]> {
+  const data = await invoke({ list: "denied" });
+  if (!Array.isArray(data)) return [];
+  return data as PendingClient[];
 }
 
 /**

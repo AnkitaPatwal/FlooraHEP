@@ -6,8 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import ScreenBackButton from "../../components/ScreenBackButton";
+import { theme } from "../../constants/theme";
 
 export default function ResetPassword() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -61,15 +64,13 @@ export default function ResetPassword() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <View style={styles.header}>
-        <View style={{ width: 18 }} />
+        <ScreenBackButton onPress={() => router.back()} />
         <Text style={styles.headerTitle}>Reset Password</Text>
-        <View style={{ width: 18 }} />
+        <View style={styles.headerSpacer} />
       </View>
 
-      {/* Body */}
       <View style={styles.body}>
         <Text style={styles.title}>Set a new password</Text>
 
@@ -82,7 +83,7 @@ export default function ResetPassword() {
             value={newPassword}
             onChangeText={setNewPassword}
             placeholder="Enter new password"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.color.placeholder}
           />
           <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Ionicons
@@ -102,7 +103,7 @@ export default function ResetPassword() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             placeholder="Confirm new password"
-            placeholderTextColor="#999"
+            placeholderTextColor={theme.color.placeholder}
           />
         </View>
 
@@ -117,73 +118,59 @@ export default function ResetPassword() {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.color.surface,
   },
   header: {
-    height: 56,
+    minHeight: theme.space.headerRowHeight,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: theme.color.border,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: theme.space.screenHorizontal,
+    backgroundColor: theme.color.surface,
+  },
+  headerSpacer: {
+    width: theme.layout.minTouchTarget,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#333",
+    ...theme.typography.screenHeaderTitle,
+    flex: 1,
+    textAlign: "center",
   },
   body: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 36,
+    paddingHorizontal: theme.space.formBodyHorizontal,
+    paddingTop: theme.space.formBodyTop,
+    paddingBottom: theme.space.formBodyBottom,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#111827",
-    marginBottom: 28,
+    ...theme.typography.formPageTitle,
   },
   label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    ...theme.typography.formLabel,
   },
   inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
+    ...theme.form.fieldRow,
     marginBottom: 24,
-    paddingHorizontal: 14,
   },
   input: {
+    ...theme.typography.formInput,
     flex: 1,
     paddingVertical: 12,
-    fontSize: 15,
-    color: "#333",
   },
   button: {
-    backgroundColor: "#5A8E93",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    width: 180,
-    alignSelf: "center",
+    ...theme.button.primary,
+    alignSelf: "stretch",
+    marginTop: 8,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    ...theme.button.primaryText,
   },
 });

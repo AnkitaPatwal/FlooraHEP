@@ -15,6 +15,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
+import ScreenBackButton from "../../components/ScreenBackButton";
+import { theme } from "../../constants/theme";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -131,11 +133,9 @@ export default function ChangePassword() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity hitSlop={10} onPress={handleBack}>
-            <Text style={styles.backChevron}>‹</Text>
-          </TouchableOpacity>
+          <ScreenBackButton onPress={handleBack} />
           <Text style={styles.headerTitle}>Change Password</Text>
-          <View style={{ width: 18 }} />
+          <View style={styles.headerSpacer} />
         </View>
 
         <ScrollView
@@ -253,97 +253,66 @@ export default function ChangePassword() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: theme.color.surface,
   },
   flex: {
     flex: 1,
   },
   header: {
-    height: 56,
+    minHeight: theme.space.headerRowHeight,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: theme.color.border,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: theme.space.screenHorizontal,
+    backgroundColor: theme.color.surface,
   },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
+  headerSpacer: {
+    width: theme.layout.minTouchTarget,
   },
   headerTitle: {
+    ...theme.typography.screenHeaderTitle,
     flex: 1,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#333",
   },
   scrollView: {
     flex: 1,
   },
   body: {
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    paddingBottom: 40,
+    paddingHorizontal: theme.space.formBodyHorizontal,
+    paddingTop: theme.space.formBodyTop,
+    paddingBottom: theme.space.formBodyBottom,
   },
   title: {
-    fontSize: 18,
-    fontWeight: "700",
-    textAlign: "center",
-    color: "#111827",
-    marginBottom: 28,
+    ...theme.typography.formPageTitle,
   },
   label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
+    ...theme.typography.formLabel,
   },
   inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 8,
-    marginBottom: 20,
-    paddingHorizontal: 14,
+    ...theme.form.fieldRow,
   },
   input: {
+    ...theme.typography.formInput,
     flex: 1,
     paddingVertical: 12,
-    fontSize: 15,
-    color: "#333",
   },
   eyeButton: {
     padding: 4,
   },
   errorText: {
-    fontSize: 14,
-    color: "#B91C1C",
-    marginBottom: 12,
+    ...theme.typography.errorBanner,
   },
   button: {
-    backgroundColor: "#5A8E93",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 4,
-    width: 180,
-    alignSelf: "center",
-    marginTop: 8,
+    ...theme.button.primary,
+    alignSelf: "stretch",
+    marginTop: 12,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+    ...theme.button.primaryText,
   },
   successBlock: {
     alignItems: "center",
@@ -353,14 +322,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   successTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#059669",
-    marginBottom: 8,
+    ...theme.typography.successTitle,
+    textAlign: "center",
   },
   successText: {
-    fontSize: 15,
-    color: "#333",
+    ...theme.typography.body,
     textAlign: "center",
     marginBottom: 24,
   },
