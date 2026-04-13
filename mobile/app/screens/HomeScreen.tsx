@@ -29,6 +29,20 @@ type SessionItem = {
   completed: boolean;
 };
 
+function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
+  if (!unlockIso) return false;
+  const d = new Date(unlockIso);
+  if (isNaN(d.getTime())) return false;
+  const today = new Date();
+  const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const todayLocal = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate()
+  ).getTime();
+  return unlockLocal <= todayLocal;
+}
+
 const fallbackSessionImage = require("../../assets/images/current-session.jpg");
 
 const styles = StyleSheet.create({
@@ -426,7 +440,6 @@ const HomeScreen = () => {
           (modulesData || []).map((m: { module_id: number; title: string }) => [m.module_id, m])
         );
 
-        const now = Date.now();
         const merged: SessionItem[] = [];
         const orderedRows =
           planModules.type === "assigned"
@@ -439,7 +452,7 @@ const HomeScreen = () => {
           const unlockIso = unlockByModule.get(pm.module_id);
           const unlocked = useAth420ShowAllSessions
             ? true
-            : unlockIso != null && new Date(unlockIso).getTime() <= now;
+            : isUnlockedByLocalDate(unlockIso);
           merged.push({
             module_id: mod.module_id,
             title: mod.title,

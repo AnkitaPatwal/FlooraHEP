@@ -176,6 +176,16 @@ serve(async (req) => {
       action: "approve",
     });
 
+    // Best-effort dashboard activity entry (covers cases where audit_log isn't readable in API)
+    try {
+      const display = [existing?.fname, existing?.lname].filter(Boolean).join(" ").trim() || existing?.email || "Client";
+      await supabase.from("admin_dashboard_activity").insert({
+        message: `Added: Approved client account (${display})`,
+      });
+    } catch (_) {
+      // non-blocking
+    }
+
     const email = existing?.email;
     const name = [existing?.fname, existing?.lname].filter(Boolean).join(" ") || "there";
     if (email) {
@@ -236,6 +246,16 @@ serve(async (req) => {
         JSON.stringify({ error: "Failed to record denial. Ensure audit_log exists and service_role has INSERT." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Best-effort dashboard activity entry
+    try {
+      const display = [existing?.fname, existing?.lname].filter(Boolean).join(" ").trim() || existing?.email || "Client";
+      await supabase.from("admin_dashboard_activity").insert({
+        message: `Denied: Registration request (${display})`,
+      });
+    } catch (_) {
+      // non-blocking
     }
 
     const email = existing?.email;
@@ -311,6 +331,16 @@ serve(async (req) => {
     });
     if (auditError) {
       console.error("audit_log insert (delete) failed:", auditError.message);
+    }
+
+    // Best-effort dashboard activity entry (audit_log may fail and deleted user can't be resolved later)
+    try {
+      const display = [existing?.fname, existing?.lname].filter(Boolean).join(" ").trim() || existing?.email || "Client";
+      await supabase.from("admin_dashboard_activity").insert({
+        message: `Deleted: Client account (${display})`,
+      });
+    } catch (_) {
+      // non-blocking
     }
 
     // If this user is an admin, reassign their content to another admin so user (and admin row) can be deleted
