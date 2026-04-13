@@ -11,23 +11,25 @@ import {
 } from "react-native";
 import { useEventListener } from "expo";
 import { VideoView, useVideoPlayer } from "expo-video";
-import { Ionicons } from "@expo/vector-icons";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EXERCISES } from "../../constants/exercises";
-import { Exercise } from "../../types/exercise";
 import {
   fetchExerciseById,
   isExerciseApiConfigured,
   type ExerciseApiResponse,
 } from "../../lib/exerciseApi";
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
+import { theme } from "../../constants/theme";
+import { fonts } from "../../constants/fonts";
+import ScreenBackButton from "../../components/ScreenBackButton";
 import {
   getMaxCompletedExercisePosition,
   recordExerciseWatchedToEnd,
 } from "../../lib/sessionExerciseProgress";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
+import type { Exercise } from "../../types/exercise";
 
 type ExerciseVideoPlayerProps = {
   uri: string;
@@ -343,7 +345,7 @@ const ExerciseDetail = () => {
   if (fetchLoading && !displayExercise) {
     return (
       <View style={[styles.center, styles.screen]}>
-        <ActivityIndicator size="large" color={COLORS.teal} />
+        <ActivityIndicator size="large" color={theme.color.primary} />
         <Text style={styles.loadingText}>Loading exercise…</Text>
       </View>
     );
@@ -364,7 +366,7 @@ const ExerciseDetail = () => {
   if (sequentialAccess === "checking") {
     return (
       <View style={[styles.center, styles.screen]}>
-        <ActivityIndicator size="large" color={COLORS.teal} />
+        <ActivityIndicator size="large" color={theme.color.primary} />
         <Text style={styles.loadingText}>Loading…</Text>
       </View>
     );
@@ -394,17 +396,20 @@ const ExerciseDetail = () => {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.screen}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <TouchableOpacity onPress={handleBack} style={styles.backButton} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <Ionicons name="chevron-back" size={28} color={COLORS.textDark} />
-            <Text style={styles.backText}>Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.topTitle}>{sessionLabel}</Text>
-          <View style={{ width: 24 }} />
+          <View style={styles.topBarLeading}>
+            <ScreenBackButton onPress={handleBack} showLabel />
+          </View>
+          <Text style={styles.topTitle} numberOfLines={1}>
+            {sessionLabel}
+          </Text>
+          <View style={styles.topBarTrailing} />
         </View>
         <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
           <View style={styles.sessionRow}>
-            <View>
-              <Text style={styles.sessionLabel}>{sessionLabel}</Text>
+            <View style={styles.sessionLeft}>
+              <Text style={styles.sessionLabel} numberOfLines={2}>
+                {sessionLabel}
+              </Text>
               <Text style={styles.sessionSub}>Restore</Text>
             </View>
             <View style={styles.sessionRight}>
@@ -484,67 +489,166 @@ const ExerciseDetail = () => {
 
 export default ExerciseDetail;
 
-const COLORS = {
-  bg: "#FFFFFF",
-  textDark: "#111827",
-  textMuted: "#6B7280",
-  teal: "#135D66",
-  greyDot: "#E5E7EB",
-  border: "#F3F4F6",
-};
-
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: COLORS.bg },
+  screen: { flex: 1, backgroundColor: theme.color.surface },
   topBar: {
-    paddingTop: 16, paddingBottom: 10, paddingHorizontal: 16,
-    flexDirection: "row", alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg,
+    paddingTop: 16,
+    paddingBottom: 10,
+    paddingHorizontal: theme.space.screenHorizontal,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.color.border,
+    backgroundColor: theme.color.surface,
   },
-  backButton: { flexDirection: "row", alignItems: "center", paddingRight: 12, minWidth: 80 },
-  backText: { fontSize: 16, color: COLORS.textDark, marginLeft: 2 },
-  topTitle: { flex: 1, textAlign: "center", fontSize: 22, fontWeight: "600", color: COLORS.textDark },
-  container: { paddingHorizontal: 16, paddingBottom: 32 },
-  sessionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingTop: 24, paddingBottom: 16 },
-  sessionLabel: { fontSize: 28, fontWeight: "600", color: COLORS.textDark },
-  sessionSub: { marginTop: 4, fontSize: 18, fontWeight: "600", color: COLORS.teal },
-  sessionRight: { alignItems: "flex-end" },
-  progressText: { fontSize: 26, fontWeight: "600", color: COLORS.textDark },
-  dotsRow: { flexDirection: "row", marginTop: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.greyDot, marginLeft: 4 },
-  dotActive: { backgroundColor: COLORS.teal },
-  heroWrapper: { borderRadius: 16, overflow: "hidden", marginBottom: 24, position: "relative" },
-  heroImage: { width: "100%", height: 260 },
+  topBarLeading: {
+    width: theme.layout.topBarBalanceWidth,
+    alignItems: "flex-start",
+    justifyContent: "center",
+  },
+  topBarTrailing: {
+    width: theme.layout.topBarBalanceWidth,
+  },
+  topTitle: {
+    ...theme.typography.exerciseScreenTitle,
+    flex: 1,
+    minWidth: 0,
+    textAlign: "center",
+  },
+  container: {
+    paddingHorizontal: theme.space.screenHorizontal,
+    paddingBottom: 32,
+  },
+  sessionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    paddingTop: theme.space.screenTop,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  sessionLeft: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sessionLabel: {
+    ...theme.typography.sessionScreenTitle,
+  },
+  sessionSub: {
+    marginTop: 4,
+    ...theme.typography.sectionSubtitle,
+    fontFamily: fonts.medium,
+  },
+  sessionRight: { alignItems: "flex-end", flexShrink: 0 },
+  progressText: {
+    ...theme.typography.progressFraction,
+  },
+  dotsRow: { flexDirection: "row", marginTop: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 160 },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: theme.radius.dot,
+    backgroundColor: theme.color.border,
+    marginLeft: 4,
+    marginBottom: 4,
+  },
+  dotActive: { backgroundColor: theme.color.primary },
+  heroWrapper: {
+    borderRadius: theme.radius.mediaCard,
+    overflow: "hidden",
+    marginBottom: 24,
+    position: "relative",
+  },
+  heroImage: { width: "100%", aspectRatio: 16 / 9 },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center", alignItems: "center",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  videoOverlayText: { color: "#FFFFFF", marginTop: 8, fontSize: 14 },
-  videoErrorOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.8)", padding: 12 },
-  videoErrorText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
-  videoErrorHint: { color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 4 },
-  retryButton: { marginTop: 8, alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 12, backgroundColor: COLORS.teal, borderRadius: 8 },
-  retryButtonText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  videoOverlayText: {
+    ...theme.typography.bodySmall,
+    color: theme.color.overlayText,
+    marginTop: 8,
+  },
+  videoErrorOverlay: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: "rgba(0,0,0,0.8)",
+    padding: 12,
+  },
+  videoErrorText: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 18,
+    color: theme.color.overlayText,
+  },
+  videoErrorHint: {
+    ...theme.typography.descriptionCompact,
+    color: "rgba(255,255,255,0.85)",
+    marginTop: 4,
+  },
+  retryButton: {
+    ...theme.button.compact,
+    marginTop: 8,
+    alignSelf: "flex-start",
+  },
+  retryButtonText: {
+    ...theme.button.compactText,
+  },
   playButton: {
-    position: "absolute", top: "50%", left: "50%", marginLeft: -32, marginTop: -32,
-    width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(255,255,255,0.92)",
-    justifyContent: "center", alignItems: "center",
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    marginLeft: -32,
+    marginTop: -32,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "rgba(255,255,255,0.92)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   playTriangle: {
-    width: 0, height: 0,
-    borderLeftWidth: 18, borderLeftColor: "#111827",
-    borderTopWidth: 12, borderTopColor: "transparent",
-    borderBottomWidth: 12, borderBottomColor: "transparent",
+    width: 0,
+    height: 0,
+    borderLeftWidth: 18,
+    borderLeftColor: theme.color.heading,
+    borderTopWidth: 12,
+    borderTopColor: "transparent",
+    borderBottomWidth: 12,
+    borderBottomColor: "transparent",
     marginLeft: 4,
   },
   textBlock: { marginBottom: 24 },
-  exerciseTitle: { fontSize: 28, fontWeight: "600", color: COLORS.textDark, marginBottom: 4 },
-  prescriptionText: { fontSize: 16, fontWeight: "600", color: COLORS.textDark, marginBottom: 10 },
-  categoryText: { fontSize: 18, fontWeight: "600", color: COLORS.teal, marginBottom: 16 },
-  description: { fontSize: 16, lineHeight: 24, color: COLORS.textMuted },
-  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: COLORS.bg },
-  loadingText: { marginTop: 12, fontSize: 14, color: COLORS.textMuted },
-  notFound: { fontSize: 14, color: COLORS.textMuted },
-  errorText: { marginTop: 8, fontSize: 12, color: COLORS.textMuted, textAlign: "center" },
-  link: { marginTop: 6, color: COLORS.teal, fontWeight: "500" },
+  exerciseTitle: {
+    ...theme.typography.exerciseTitleLarge,
+    marginBottom: 4,
+  },
+  categoryText: {
+    fontFamily: fonts.medium,
+    fontSize: 16,
+    color: theme.color.primary,
+    marginBottom: 16,
+  },
+  description: {
+    ...theme.typography.description,
+  },
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: theme.space.screenHorizontal,
+    backgroundColor: theme.color.surface,
+  },
+  loadingText: { marginTop: 12, ...theme.typography.bodySmall },
+  notFound: { ...theme.typography.bodySmall },
+  errorText: {
+    ...theme.typography.descriptionCompact,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  link: { marginTop: 6, ...theme.typography.link },
 });

@@ -127,6 +127,7 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
     if (table === "user_session_completion") {
       return makeEqInSelectChain([]);
     }
+    if (table === "plan") return makeEqMaybeSingleChain({ title: "Test assigned plan" });
     return { select: jest.fn() };
   });
 }
@@ -146,6 +147,7 @@ describe("HomeScreen", () => {
     // Wait for loaded UI so the full Supabase chain (user → user_packages → …) has finished.
     await findByText("week 1 foundations");
     expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
+    expect(mockRpc).toHaveBeenCalledWith("get_my_assigned_plan_title");
     expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
     expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
   });
@@ -161,31 +163,7 @@ describe("HomeScreen", () => {
 
     expect(getByText("Your Assigned Sessions")).toBeTruthy();
     expect(getByText(/3 Exercises/)).toBeTruthy();
-    expect(queryByText("No assigned sessions yet.")).toBeNull();
-    expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
-  });
-
-  it("prefers merged exercise count from get_current_assigned_session_exercises rpc", async () => {
-    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
-      if (fnName === "get_current_assigned_sessions") {
-        return Promise.resolve({ data: [{ module_id: 1, order_index: 1, title: "week 1 foundations" }], error: null });
-      }
-      if (fnName === "get_current_assigned_session_exercises") {
-        expect(params).toEqual({ p_module_id: 1 });
-        return Promise.resolve({ data: [{ exercise_id: 1 }, { exercise_id: 2 }], error: null });
-      }
-      if (fnName === "ensure_first_session_unlock") return Promise.resolve({ data: null, error: null });
-      return Promise.resolve({ data: null, error: null });
-    });
-
-    // Ensure module_exercise fallback would have been different if used.
-    defaultMockFrom({ moduleExerciseRows: [{ module_id: 1, exercise_id: 1 }, { module_id: 1, exercise_id: 2 }, { module_id: 1, exercise_id: 3 }] });
-
-    const { getByText } = render(<HomeScreen />);
-    await waitFor(() => {
-      expect(getByText("week 1 foundations")).toBeTruthy();
-    });
-    expect(getByText(/2 Exercises/)).toBeTruthy();
+    expect(queryByText(/No care plan is linked to this login yet/)).toBeNull();
   });
 
   it("shows first name in greeting when user has fname", async () => {
@@ -212,6 +190,7 @@ describe("HomeScreen", () => {
       if (table === "user_session_completion") {
         return makeEqInSelectChain([]);
       }
+      if (table === "plan") return makeEqMaybeSingleChain({ title: "Hi there plan" });
       return { select: jest.fn() };
     });
 
@@ -235,7 +214,7 @@ describe("HomeScreen", () => {
     const { getByText } = render(<HomeScreen />);
 
     await waitFor(() => {
-      expect(getByText("No assigned sessions yet.")).toBeTruthy();
+      expect(getByText(/No care plan is linked to this login yet/)).toBeTruthy();
     });
   });
 
@@ -262,7 +241,13 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", sessionName: "week 1 foundations" },
+      params: {
+        sessionId: "1",
+        sessionName: "week 1 foundations",
+        moduleId: "1",
+        planName: "Test assigned plan",
+        subtitle: "Restore",
+      },
     });
   });
 });

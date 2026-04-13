@@ -1,81 +1,66 @@
 import { StyleSheet } from "react-native";
+import { theme } from "../../constants/theme";
+import { fonts } from "../../constants/fonts";
 
 export default StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#437C7D",
-    paddingHorizontal: 32,
+    backgroundColor: theme.color.authBackground,
+    paddingHorizontal: theme.space.authScreenHorizontal,
     paddingTop: 60,
-    paddingBottom: 80, 
+    paddingBottom: 80,
   },
-
   backButtonContainer: {
-    backgroundColor: "#F5EDE4", 
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
     marginBottom: 28,
   },
-
   backButtonCircle: {
     alignItems: "center",
     justifyContent: "center",
   },
-
   header: {
     marginBottom: 8,
   },
-
   title: {
+    fontFamily: fonts.bold,
     fontSize: 26,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    lineHeight: 32,
+    color: theme.color.surface,
     marginBottom: 10,
   },
-
   subtitle: {
+    fontFamily: fonts.regular,
     fontSize: 15,
-    color: "#FFFFFF",
-    marginBottom: 36, 
+    lineHeight: 22,
+    color: theme.color.surface,
+    marginBottom: 36,
   },
-
   field: {
     marginBottom: 20,
   },
-
   fieldLabel: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.color.surface,
+    fontFamily: fonts.medium,
     fontSize: 14,
     marginBottom: 6,
   },
-
   input: {
     width: "100%",
-    height: 50, 
-    backgroundColor: "#EAE4DA",
-    borderRadius: 6,
+    minHeight: 50,
+    backgroundColor: theme.color.authInputFill,
+    borderRadius: theme.radius.input,
     paddingHorizontal: 12,
-    fontSize: 15,
-    color: "#2B2B2B",
+    fontFamily: fonts.regular,
+    fontSize: 16,
+    color: theme.color.authInputText,
   },
-
   createButton: {
     width: "70%",
     alignSelf: "center",
-    backgroundColor: "#0D2C2C",
-    borderRadius: 8,
-    paddingVertical: 14,
+    ...theme.button.inverse,
     marginTop: 30,
-    alignItems: "center",
-    marginBottom: 40, 
+    marginBottom: 40,
   },
-
   createButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
+    ...theme.button.inverseText,
   },
 });

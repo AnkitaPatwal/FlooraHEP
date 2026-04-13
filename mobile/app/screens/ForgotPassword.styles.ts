@@ -1,119 +1,92 @@
 import { StyleSheet } from "react-native";
+import { theme } from "../../constants/theme";
+import { fonts } from "../../constants/fonts";
 
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: "#4B7B7D",
-    paddingHorizontal: 24,
+    backgroundColor: theme.color.authBackground,
+    paddingHorizontal: theme.space.formBodyHorizontal,
     paddingTop: 60,
   },
-
   backButtonContainer: {
-    backgroundColor: "#F5EDE4",
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
     marginBottom: 73,
   },
-
-  backArrow: {
-    fontSize: 22,
-    color: "#1A3D3C",
-    fontWeight: "600",
-  },
-
   headerContainer: {
     marginBottom: 50,
   },
-
   title: {
-    color: "#FFFFFF",
-    fontSize: 30,
-    fontWeight: "700",
+    color: theme.color.surface,
+    fontFamily: fonts.bold,
+    fontSize: 28,
+    lineHeight: 34,
     marginBottom: 6,
   },
-
   subtitle: {
-    color: "#FFFFFF",
-    opacity: 0.9,
-    fontSize: 14,
+    color: theme.color.surface,
+    opacity: 0.92,
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    lineHeight: 22,
   },
-
   field: {
     marginBottom: 16,
   },
-  
-
   fieldLabel: {
-    color: "#FFFFFF",
-    fontWeight: "600",
+    color: theme.color.surface,
+    fontFamily: fonts.medium,
     fontSize: 15,
     marginBottom: 8,
   },
-
   input: {
-    backgroundColor: "#F5EDE4",
-    borderRadius: 8,
+    backgroundColor: theme.layout.onDarkBackFill,
+    borderRadius: theme.radius.input,
     paddingHorizontal: 14,
     paddingVertical: 14,
+    fontFamily: fonts.regular,
     fontSize: 16,
-    color: "#000000",
+    color: theme.color.heading,
   },
-
-successBanner: {
-  backgroundColor: "#CFE6C6",
-  borderColor: "#6FAE63",
-  borderWidth: 2,
-  borderRadius: 6,
-  paddingVertical: 12,
-  paddingHorizontal: 14,
-  marginBottom: 16,
-  width: "100%",
-},
-
+  successBanner: {
+    backgroundColor: "#CFE6C6",
+    borderColor: "#6FAE63",
+    borderWidth: 2,
+    borderRadius: theme.radius.input,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+    width: "100%",
+  },
   successBannerText: {
     color: "#2F5B2A",
-    fontWeight: "500",
+    fontFamily: fonts.medium,
     textAlign: "center",
     fontSize: 14,
-    lineHeight: 16,
+    lineHeight: 20,
   },
-
   resetButton: {
-    backgroundColor: "#0F2D2E",
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 14,
+    ...theme.button.inverse,
     alignSelf: "center",
     width: "75%",
     marginTop: 0,
   },
-
   resetButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "400",
+    ...theme.button.inverseText,
   },
-
   resendContainer: {
     alignItems: "center",
     marginTop: 18,
     gap: 8,
   },
-
   resendPrompt: {
-    color: "#FFFFFF",
+    color: theme.color.surface,
+    fontFamily: fonts.regular,
     fontSize: 15,
-    fontWeight: "400",
   },
-
   resendLink: {
-    color: "#FFFFFF",
+    color: theme.color.surface,
+    fontFamily: fonts.medium,
     fontSize: 16,
-    fontWeight: "600",
     textDecorationLine: "underline",
   },
 });
