@@ -1,10 +1,13 @@
-/* Create Session page (same pattern as Create Exercise) */
+/* Create Session page — match Session/Plan: no extra horizontal inset (AppLayout pads). */
 .create-session-page {
-  padding: 24px;
+  padding: 0;
   padding-bottom: 48px;
   box-sizing: border-box;
   color: #1f2937;
   min-height: 100vh;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .create-session-header {
@@ -32,6 +35,7 @@
 .create-session-header-right {
   display: flex;
   gap: 12px;
+  align-items: center;
 }
 
 .create-session-header-right .back-btn {
@@ -47,6 +51,60 @@
 
 .create-session-header-right .back-btn:hover {
   background-color: #f0f6f6;
+}
+
+.create-session-header-right .delete-btn {
+  background: #fde2e2;
+  color: #b91c1c;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.create-session-header-right .delete-btn:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+.create-session-header-right .delete-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.create-session-header-right .delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.create-session-header-right .delete-confirm-yes,
+.create-session-header-right .delete-confirm-no {
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-size: 14px;
+}
+
+.create-session-header-right .delete-confirm-yes {
+  background: #b91c1c;
+  color: #ffffff;
+}
+
+.create-session-header-right .delete-confirm-no {
+  background: #ffffff;
+  color: #374151;
+  border-color: #e5e7eb;
 }
 
 .create-session-error {
@@ -148,7 +206,7 @@
   border: none;
   border-radius: 6px;
   padding: 8px 20px;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 14px;
   cursor: pointer;
 }
@@ -180,6 +238,8 @@
 .create-session-search-wrapper {
   position: relative;
   max-width: 360px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .create-session-search-icon {
@@ -193,6 +253,9 @@
 
 .create-session-search-input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border: 1px solid #d1d5db;
   border-radius: 8px;
   padding: 10px 14px 10px 40px;
@@ -404,4 +467,337 @@
     align-items: flex-start;
     gap: 16px;
   }
+}
+
+/* —— Create Session v2 (Figma-style) —— */
+.create-session-page--v2 {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  padding-bottom: 48px;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.create-session-header--v2 {
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.create-session-header-right .back-btn--v2 {
+  background-color: #fff;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+.create-session-header-right .back-btn--v2:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+/* Full-width page flow — no inset “white card” around the form + grid. */
+.create-session-unified {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: visible;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.create-session-panel-hero {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 28px 40px;
+  padding: 0 0 20px 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.create-session-panel-body {
+  padding: 0 0 32px 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.create-session-meta-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.create-session-meta-card--hero {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 28px 40px;
+  padding: 28px 32px;
+}
+
+.create-session-stack-visual {
+  flex-shrink: 0;
+  width: min(200px, 100%);
+  max-width: 220px;
+}
+
+.create-session-stack-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.create-session-meta-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px 32px;
+}
+
+.create-session-meta-fields--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex: 1;
+  min-width: 0;
+  max-width: min(560px, 100%);
+}
+
+@media (max-width: 640px) {
+  .create-session-meta-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .create-session-meta-card--hero,
+  .create-session-panel-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .create-session-stack-visual {
+    width: 180px;
+    max-width: none;
+  }
+}
+
+.create-session-meta-card .input-group label,
+.create-session-unified .input-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.create-session-meta-card .input-group input,
+.create-session-unified .input-group input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 15px;
+  color: #1f2937;
+  background: #f9fafb;
+  outline: none;
+}
+
+.create-session-meta-card .input-group input:focus,
+.create-session-unified .input-group input:focus {
+  border-color: #5a8e93;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(90, 142, 147, 0.18);
+}
+
+.create-session-exercises-section {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px 24px 28px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+}
+
+.create-session-exercises-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, min(280px, 100%));
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+}
+
+.create-session-exercises-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.create-session-select-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.create-session-exercises-total {
+  font-size: 14px;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.create-session-search-wrapper--toolbar {
+  max-width: 100%;
+  width: 100%;
+  min-width: 0;
+  justify-self: end;
+}
+
+@media (max-width: 560px) {
+  .create-session-exercises-toolbar {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: stretch;
+  }
+
+  .create-session-search-wrapper--toolbar {
+    justify-self: stretch;
+    max-width: 100%;
+  }
+}
+
+.create-session-exercises-divider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 18px 0 22px;
+}
+
+.create-session-category-block {
+  margin-bottom: 28px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.create-session-category-block:last-child {
+  margin-bottom: 0;
+}
+
+.create-session-category-heading {
+  margin: 0 0 14px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.create-session-category-count {
+  font-size: 14px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin-left: 6px;
+}
+
+/* Same responsive idea as .session-grid / .plan-grid — columns shrink with the main column */
+.create-session-exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr));
+  gap: 28px;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Polaroid-style exercise tile: padded “frame”, inset rounded photo, caption block below */
+.create-session-exercise-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  padding: 14px 14px 16px;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  background: #f3f4f6;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.create-session-exercise-card:hover {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.create-session-exercise-card.is-selected {
+  border-color: #5a8e93;
+  background: #eef5f6;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.25);
+}
+
+.create-session-exercise-card-img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  border-radius: 12px;
+  background: #e5e7eb;
+  flex-shrink: 0;
+}
+
+.create-session-exercise-card-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+  padding: 14px 2px 0;
+  margin-top: 0;
+}
+
+.create-session-exercise-card-title {
+  margin: 0 0 2px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.create-session-exercise-card-cat {
+  margin: 0 0 16px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
+.create-session-exercise-card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background-color: #e6fffa;
+  color: #2c7a7b;
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: auto;
+}
+
+.create-session-pulse-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }

@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
 import "../../components/main/Exercise.css";
 import "./ExerciseDetail.css";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -26,7 +27,6 @@ interface Exercise {
   default_reps?: number;
   video_url?: string;
   thumbnail_url?: string;
-  tags?: string[];
   assigned_user_count?: number | null;
   assigned_count_rpc_unavailable?: boolean;
 }
@@ -166,14 +166,6 @@ function ExerciseDetail() {
               <p className="exercise-detail-category">{exercise.body_part}</p>
             )}
 
-            {exercise.tags && exercise.tags.length > 0 && (
-              <div className="exercise-detail-tags">
-                {exercise.tags.map((t) => (
-                  <span key={t} className="exercise-detail-tag">{t}</span>
-                ))}
-              </div>
-            )}
-
             {(exercise.default_sets != null || exercise.default_reps != null) && (
               <div className="exercise-detail-meta">
                 <span className="exercise-detail-meta-label">Sets × Reps</span>
@@ -208,43 +200,22 @@ function ExerciseDetail() {
                     Delete
                   </button>
                 </div>
-              ) : (
-                <div className="exercise-detail-delete-confirm">
-                  <span>
-                    {exercise.assigned_user_count == null ? (
-                      <>Client assignment count could not be loaded (counts may be incomplete). </>
-                    ) : (
-                      <>
-                        {exercise.assigned_user_count}{" "}
-                        {exercise.assigned_user_count === 1 ? "client is" : "clients are"} assigned this
-                        exercise.{" "}
-                      </>
-                    )}
-                    Do you want to delete it?
-                  </span>
-                  <div className="exercise-detail-delete-buttons">
-                    <button
-                      type="button"
-                      className="exercise-detail-delete-yes"
-                      onClick={handleDelete}
-                      disabled={deleting}
-                    >
-                      {deleting ? "Deleting..." : "Confirm"}
-                    </button>
-                    <button
-                      type="button"
-                      className="exercise-detail-delete-no"
-                      onClick={() => setDeleteConfirm(false)}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              ) : null}
             </aside>
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Are you sure you want to delete this exercise?"
+        message="This will permanently remove the exercise from the library."
+        confirmLabel="Delete"
+        variant="danger"
+        busy={deleting}
+        onCancel={() => setDeleteConfirm(false)}
+        onConfirm={handleDelete}
+      />
     </AppLayout>
   );
 }

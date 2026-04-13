@@ -33,6 +33,48 @@ const supabaseAdmin = createClient(
 
 const router = express.Router();
 
+/** First session in plan order → first exercise in that session (by order_index) → thumbnail_url */
+function coverThumbnailFromPlanRow(plan: { plan_module?: unknown }): string | null {
+  const pms = Array.isArray(plan.plan_module) ? [...plan.plan_module] : [];
+  pms.sort(
+    (a: { order_index?: number }, b: { order_index?: number }) =>
+      (Number(a.order_index) || 0) - (Number(b.order_index) || 0),
+  );
+  const firstPm = pms[0] as
+    | {
+        module?: {
+          module_exercise?: { order_index?: number; exercise?: { thumbnail_url?: string | null } }[];
+        };
+      }
+    | undefined;
+  if (!firstPm?.module) return null;
+  const mes = Array.isArray(firstPm.module.module_exercise)
+    ? [...firstPm.module.module_exercise]
+    : [];
+  mes.sort(
+    (a: { order_index?: number }, b: { order_index?: number }) =>
+      (Number(a.order_index) || 0) - (Number(b.order_index) || 0),
+  );
+  for (const me of mes) {
+    const url = me?.exercise?.thumbnail_url;
+    if (typeof url === 'string' && url.trim()) return url.trim();
+  }
+  return null;
+}
+
+function slimPlanModulesForList(plan: { plan_module?: unknown }) {
+  const pms = Array.isArray(plan.plan_module) ? [...plan.plan_module] : [];
+  pms.sort(
+    (a: { order_index?: number }, b: { order_index?: number }) =>
+      (Number(a.order_index) || 0) - (Number(b.order_index) || 0),
+  );
+  return pms.map((pm: any) => ({
+    plan_module_id: pm.plan_module_id != null ? Number(pm.plan_module_id) : undefined,
+    module_id: Number(pm.module_id),
+    order_index: Number(pm.order_index) || 0,
+  }));
+}
+
 async function resolvePlanAssignedCounts(planIds: number[]): Promise<Map<number, number>> {
   const map = new Map<number, number>();
   for (const id of planIds) map.set(id, 0);
@@ -322,6 +364,7 @@ router.post('/clients/:id/approve', async (req, res) => {
     }
 
     await sendApprovalEmail(client.email, client.name);
+    void logDashboardActivity(`Added: Approved client account (${client.name || client.email || 'Client'})`);
     return res.status(200).json({ message: 'Client approved and email sent' });
   } catch (err) {
     console.error('Error approving client:', err);
@@ -354,6 +397,7 @@ router.post('/clients/:id/deny', async (req, res) => {
     }
 
     await sendDenialEmail(client.email, client.name);
+    void logDashboardActivity(`Denied: Registration request (${client.name || client.email || 'Client'})`);
     return res.status(200).json({ message: 'Client denied and email sent' });
   } catch (err) {
     console.error('Error denying client:', err);
@@ -624,6 +668,7 @@ router.post("/invite", requireSuperAdmin, async (req, res) => {
             return res.status(500).json({ ok: false, error: retryError.message });
           }
 
+          void logDashboardActivity(`Added: Admin invite re-sent (${email})`);
           return res.status(200).json({ ok: true });
         }
 
@@ -637,6 +682,7 @@ router.post("/invite", requireSuperAdmin, async (req, res) => {
       return res.status(500).json({ ok: false, error: inviteError.message || "Failed to send invite" });
     }
 
+    void logDashboardActivity(`Added: Admin invited (${email})`);
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Admin invite error:", err);
@@ -892,7 +938,15 @@ router.get('/plans', async (req, res) => {
           name
         ),
         plan_module (
-          module_id
+          plan_module_id,
+          order_index,
+          module_id,
+          module (
+            module_exercise (
+              order_index,
+              exercise ( thumbnail_url )
+            )
+          )
         )
       `)
       .order('plan_id', { ascending: false });
@@ -904,10 +958,17 @@ router.get('/plans', async (req, res) => {
 
     const planIds = (plans ?? []).map((p: { plan_id: number }) => Number(p.plan_id)).filter((id) => Number.isFinite(id));
     const counts = await resolvePlanAssignedCounts(planIds);
-    const enriched = (plans ?? []).map((p: { plan_id: number }) => ({
-      ...p,
-      assigned_user_count: counts.get(Number(p.plan_id)) ?? 0,
-    }));
+    const enriched = (plans ?? []).map((p: { plan_id: number; plan_module?: unknown }) => {
+      const cover = coverThumbnailFromPlanRow(p);
+      const slimPm = slimPlanModulesForList(p);
+      const { plan_module: _nested, ...rest } = p as Record<string, unknown>;
+      return {
+        ...rest,
+        plan_module: slimPm,
+        cover_thumbnail_url: cover,
+        assigned_user_count: counts.get(Number(p.plan_id)) ?? 0,
+      };
+    });
 
     return res.status(200).json(enriched);
   } catch (error) {
@@ -1112,13 +1173,6 @@ router.delete('/plans/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: planRow } = await supabaseAdmin
-      .from('plan')
-      .select('title')
-      .eq('plan_id', id)
-      .maybeSingle();
-    const planTitle = String((planRow as { title?: string } | null)?.title ?? 'Plan');
-
     const { error: deleteError } = await supabaseAdmin
       .from('plan')
       .delete()
@@ -1129,7 +1183,7 @@ router.delete('/plans/:id', async (req, res) => {
       return res.status(500).json({ error: 'Failed to delete plan.' });
     }
 
-    void logDashboardActivity(`Deleted: Plan "${planTitle}"`);
+    void logDashboardActivity(`Deleted: Plan (id ${id})`);
     return res.status(200).json({ message: 'Plan deleted successfully.' });
   } catch (error) {
     console.error('Failed to delete plan:', error);

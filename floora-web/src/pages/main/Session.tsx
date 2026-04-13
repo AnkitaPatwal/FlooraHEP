@@ -87,15 +87,36 @@ function Session() {
     loadModules();
   }, [location.key, refreshToken, countsVersion]);
 
-  const filteredModules = modules.filter(
-    (m) => !search.trim() || m.title.toLowerCase().includes(search.toLowerCase())
-  );
-  const groupedBySession = filteredModules.reduce((acc, m) => {
-    const key = `Session ${m.session_number}`;
+  function sessionCategoryLabel(m: Module): string {
+    const c = m.description?.trim();
+    return c || "Uncategorized";
+  }
+
+  const q = search.trim().toLowerCase();
+  const filteredModules = modules.filter((m) => {
+    if (!q) return true;
+    const title = m.title.toLowerCase();
+    const cat = sessionCategoryLabel(m).toLowerCase();
+    return title.includes(q) || cat.includes(q);
+  });
+
+  const groupedByCategory = filteredModules.reduce((acc, m) => {
+    const key = sessionCategoryLabel(m);
     if (!acc[key]) acc[key] = [];
     acc[key].push(m);
     return acc;
   }, {} as Record<string, Module[]>);
+
+  const sortedCategoryGroups = Object.entries(groupedByCategory)
+    .map(([label, items]) => [
+      label,
+      [...items].sort((a, b) => a.title.localeCompare(b.title)),
+    ] as const)
+    .sort(([a], [b]) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    });
 
   return (
     <AppLayout>
@@ -152,7 +173,7 @@ function Session() {
             No sessions yet. Click &quot;+ New Session&quot; to create one.
           </p>
         ) : (
-          Object.entries(groupedBySession).map(([category, items]) => (
+          sortedCategoryGroups.map(([category, items]) => (
             <section className="session-category-section" key={category}>
               <h2 className="session-category-title">
                 {category} <span>{items.length} Sessions</span>
@@ -162,11 +183,11 @@ function Session() {
                   <div
                     className="session-card"
                     key={module.module_id}
-                    onClick={() => navigate(`/sessions/${module.module_id}`)}
+                    onClick={() => navigate(`/sessions/${module.module_id}/edit`)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        navigate(`/sessions/${module.module_id}`);
+                        navigate(`/sessions/${module.module_id}/edit`);
                       }
                     }}
                     role="button"
@@ -183,7 +204,7 @@ function Session() {
                     />
                     <div className="session-info">
                       <h3>{module.title}</h3>
-                      <p>Session {module.session_number}</p>
+                      <p className="session-card-category">{sessionCategoryLabel(module)}</p>
                       <span className="session-tag">
                         <AssignmentPulseIcon className="assignment-count-pulse-icon" />
                         {clientsAssignedLabel(module.assigned_user_count ?? 0)}

@@ -32,6 +32,13 @@ function formatStartDate(raw: string | null): string {
   return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
 }
 
+function formatUnlockDate(raw: string | null): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return "";
+  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+}
+
 // ── Session Card ──────────────────────────────────────────────────────────────
 
 type SessionCardProps = {
