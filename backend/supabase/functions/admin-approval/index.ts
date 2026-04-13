@@ -66,6 +66,11 @@ function profilesEmailOrFilter(emails: string[]): string {
     .join(",");
 }
 
+/** Auth user ids are UUIDs; JS Map keys are case-sensitive so normalize for joins. */
+function normUuid(id: string): string {
+  return id.trim().toLowerCase();
+}
+
 /** Join profiles (avatar) and user_packages + plan (titles) for admin user lists. */
 async function enrichUsers(
   supabase: ReturnType<typeof createClient>,
@@ -105,7 +110,7 @@ async function enrichUsers(
     const em = (p.email as string | null)?.trim().toLowerCase();
     if (em) {
       emailToProfile.set(em, {
-        id: String(p.id),
+        id: normUuid(String(p.id)),
         avatar_url: (p.avatar_url as string | null) ?? null,
       });
     }
@@ -122,7 +127,7 @@ async function enrichUsers(
     if (upErr) console.error("enrichUsers user_packages:", upErr.message);
     for (const row of upRows ?? []) {
       packages.push({
-        user_id: String((row as { user_id: string }).user_id),
+        user_id: normUuid(String((row as { user_id: string }).user_id)),
         package_id: Number((row as { package_id: number }).package_id),
       });
     }
@@ -156,7 +161,7 @@ async function enrichUsers(
     const em = (r.email ?? "").trim().toLowerCase();
     const prof = em ? emailToProfile.get(em) : undefined;
     const avatar_url = prof?.avatar_url ?? null;
-    const plans = prof ? uuidToPlans.get(prof.id) ?? [] : [];
+    const plans = prof ? uuidToPlans.get(normUuid(prof.id)) ?? [] : [];
     return { ...r, avatar_url, plans };
   });
 }

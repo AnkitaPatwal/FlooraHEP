@@ -26,12 +26,14 @@ type User = {
 };
 
 function planSubtitle(plans: ActiveClient["plans"]): string {
-  const list = plans?.filter((p) => p.title?.trim()) ?? [];
+  const list = plans ?? [];
   const n = list.length;
   if (!n) return "No plan assigned";
-  const first = list[0].title.trim();
+  const firstEntry = list.find((p) => p.title?.trim()) ?? list[0];
+  const first = (firstEntry?.title ?? "Plan").trim() || "Plan";
   if (n === 1) return first;
-  return `${first} +${n}`;
+  /** First plan title (first non-empty title), then how many other assignments exist. */
+  return `${first} + ${n - 1}`;
 }
 
 function toUser(c: ActiveClient): User {

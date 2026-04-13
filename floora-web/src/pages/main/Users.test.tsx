@@ -102,7 +102,7 @@ describe("Users page (client management)", () => {
     expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
   });
 
-  it("shows first plan title and +N when multiple plans", async () => {
+  it("shows first plan title and +count of additional plans", async () => {
     const active: ActiveClient[] = [
       {
         user_id: 2,
@@ -121,7 +121,29 @@ describe("Users page (client management)", () => {
 
     renderUsers();
     await waitFor(() => {
-      expect(screen.getByText("Alpha +3")).toBeInTheDocument();
+      expect(screen.getByText("Alpha + 2")).toBeInTheDocument();
+    });
+  });
+
+  it("shows first title + 1 when exactly two plans are assigned", async () => {
+    const active: ActiveClient[] = [
+      {
+        user_id: 9,
+        email: "ankita@example.com",
+        fname: "Ankita",
+        lname: "Patwal",
+        status: true,
+        plans: [
+          { plan_id: 1, title: "example" },
+          { plan_id: 2, title: "sadaf" },
+        ],
+      },
+    ];
+    mockFetchActive.mockResolvedValueOnce(active);
+
+    renderUsers();
+    await waitFor(() => {
+      expect(screen.getByText("example + 1")).toBeInTheDocument();
     });
   });
 
