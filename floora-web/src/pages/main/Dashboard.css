@@ -331,12 +331,6 @@
   margin-bottom: 0;
 }
 
-.dashboard-error {
-  margin: 0 0 16px;
-  font-size: 0.875rem;
-  color: #b91c1c;
-}
-
 .dashboard-loading-hint {
   margin: 0 0 16px;
   font-size: 0.875rem;
