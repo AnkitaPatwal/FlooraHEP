@@ -46,14 +46,6 @@
   align-items: center;
 }
 
-.detail-topbar-confirm {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
 .session-detail-back {
   background: transparent;
   border: 1px solid #5a8e93;
@@ -146,9 +138,7 @@
 }
 
 .session-detail-edit-btn,
-.session-detail-delete-btn,
-.session-detail-delete-yes,
-.session-detail-delete-no {
+.session-detail-delete-btn {
   padding: 10px 12px;
   border-radius: 8px;
   font-weight: 800;
@@ -173,28 +163,6 @@
 
 .session-detail-delete-btn:hover {
   background: #fef2f2;
-}
-
-.session-detail-delete-confirm {
-  display: grid;
-  gap: 10px;
-  color: #374151;
-}
-
-.session-detail-delete-buttons {
-  display: flex;
-  gap: 10px;
-}
-
-.session-detail-delete-yes {
-  background: #b91c1c;
-  color: #ffffff;
-}
-
-.session-detail-delete-no {
-  background: #ffffff;
-  color: #374151;
-  border-color: #e5e7eb;
 }
 
 @media (max-width: 980px) {

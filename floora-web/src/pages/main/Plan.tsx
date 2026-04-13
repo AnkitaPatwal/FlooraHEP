@@ -41,8 +41,8 @@ interface PlanData {
   cover_thumbnail_url?: string | null;
 }
 
-function clientsAssignedLabel(count: number): string {
-  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+function activeUsersLabel(count: number): string {
+  return count === 1 ? "1 Active User" : `${count} Active Users`;
 }
 
 function mapDataToPlan(plan: PlanData): Plan {
@@ -151,7 +151,7 @@ export default function Plan() {
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -165,7 +165,7 @@ export default function Plan() {
               <input
                 type="text"
                 className="plan-search-bar"
-                placeholder="Search plans..."
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -201,7 +201,7 @@ export default function Plan() {
                     <p>{plan.category}</p>
                     <span className="plan-tag">
                       <AssignmentPulseIcon className="assignment-count-pulse-icon" />
-                      {clientsAssignedLabel(plan.assigned_user_count)}
+                      {activeUsersLabel(plan.assigned_user_count)}
                     </span>
                   </div>
                 </div>

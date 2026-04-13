@@ -132,52 +132,11 @@
   text-decoration: underline;
 }
 
-/* Search (match Plan/Session/Users) */
-.assign-package-search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
+/* Search: shared `PlanSearchField.css` (`.plan-search-*`) */
+
+.assign-package-header .plan-search-wrapper {
   width: 340px;
   max-width: 100%;
-}
-
-.assign-package-search-icon {
-  position: absolute;
-  left: 14px;
-  color: #9ca3af;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.assign-package-search-svg {
-  width: 18px;
-  height: 18px;
-}
-
-.assign-package-search-input {
-  border: 1px solid #d1d5db;
-  border-radius: 25px;
-  padding: 10px 14px 10px 44px;
-  width: 100%;
-  font-size: 15px;
-  color: #4b5563;
-  background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05),
-    inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.assign-package-search-input::placeholder {
-  color: #9ca3af;
-}
-
-.assign-package-search-input:focus {
-  outline: none;
-  border-color: #bcd1d1;
-  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.2);
 }
 
 .assign-package-grid {

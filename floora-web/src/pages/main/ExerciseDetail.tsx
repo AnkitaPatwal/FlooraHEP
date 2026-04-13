@@ -3,7 +3,10 @@ import { useParams, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
+import "../../components/main/CreateExercise.css";
 import "../../components/main/Exercise.css";
+import "./CreatePlan.css";
+import "./CreateSession.css";
 import "./ExerciseDetail.css";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
@@ -96,8 +99,8 @@ function ExerciseDetail() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="exercise-detail-page">
-          <p className="exercise-detail-loading">Loading...</p>
+        <div className="exercise-detail-page ce-page--mock">
+          <p className="ce-loading-text">Loading…</p>
         </div>
       </AppLayout>
     );
@@ -106,14 +109,17 @@ function ExerciseDetail() {
   if (!exercise) {
     return (
       <AppLayout>
-        <div className="exercise-detail-page">
-          <div className="exercise-detail-error">{error || "Exercise not found"}</div>
-          <button
-            className="exercise-detail-back"
-            onClick={() => navigate("/exercise-dashboard")}
-          >
-            Back to Exercises
-          </button>
+        <div className="exercise-detail-page ce-page--mock create-plan-page--unified">
+          <div className="ce-content">
+            <div className="exercise-detail-error">{error || "Exercise not found"}</div>
+            <button
+              type="button"
+              className="back-btn back-btn--v2 create-plan-back-btn"
+              onClick={() => navigate("/exercise-dashboard")}
+            >
+              Back to exercises
+            </button>
+          </div>
         </div>
       </AppLayout>
     );
@@ -121,24 +127,44 @@ function ExerciseDetail() {
 
   return (
     <AppLayout>
-      <div className="exercise-detail-page">
-        {successMessage && (
-          <div className="message-banner success-banner">{successMessage}</div>
-        )}
-        {error && (
-          <div className="message-banner error-banner">{error}</div>
-        )}
-        <div className="exercise-detail-main">
-          <div className="exercise-detail-content">
-            <header className="exercise-detail-header">
-              <button
-                className="exercise-detail-back"
-                onClick={() => navigate("/exercise-dashboard")}
-              >
-                ← Back
-              </button>
-            </header>
+      <div className="exercise-detail-page ce-page--mock create-plan-page--unified">
+        <div className="ce-content">
+          {successMessage && (
+            <div className="message-banner success-banner">{successMessage}</div>
+          )}
+          {error && (
+            <div className="message-banner error-banner">{error}</div>
+          )}
 
+          <header className="create-session-header create-session-header--v2 create-plan-page-header exercise-detail-header exercise-detail-header--actions-right">
+            <div className="create-session-header-right">
+              {!isAuthLoading && isSuperAdmin && (
+                <button
+                  type="button"
+                  className="delete-btn"
+                  onClick={() => setDeleteConfirm(true)}
+                  disabled={deleting}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                type="button"
+                className="back-btn back-btn--v2 create-plan-back-btn"
+                onClick={() => navigate("/exercise-dashboard")}
+                disabled={deleting}
+              >
+                Back
+              </button>
+              {!isAuthLoading && isSuperAdmin && (
+                <button type="button" className="save-btn create-plan-save-btn" onClick={handleEdit}>
+                  Edit
+                </button>
+              )}
+            </div>
+          </header>
+
+          <div className="exercise-detail-body">
             <div className="exercise-detail-video-section">
               {exercise.video_url ? (
                 <video
@@ -152,64 +178,46 @@ function ExerciseDetail() {
               )}
             </div>
 
-            <h1 className="exercise-detail-title">{exercise.title}</h1>
+            <div className="exercise-detail-info">
+              <header className="exercise-detail-info-hero">
+                <h1 className="exercise-detail-title">{exercise.title}</h1>
+                {exercise.body_part && (
+                  <p className="exercise-detail-category">{exercise.body_part}</p>
+                )}
+              </header>
 
-            {exercise.assigned_count_rpc_unavailable && (
-              <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
-                Plan-based client counts are unavailable (database function missing or failed). Run migrations
-                including <code>20260412000000_count_assigned_clients_per_exercise.sql</code> on Supabase,
-                then restart the API. The number shown may not include assigned plans.
-              </div>
-            )}
+              {exercise.assigned_count_rpc_unavailable && (
+                <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
+                  Plan-based client counts are unavailable (database function missing or failed). Run migrations
+                  including <code>20260412000000_count_assigned_clients_per_exercise.sql</code> on Supabase,
+                  then restart the API. The number shown may not include assigned plans.
+                </div>
+              )}
 
-            {exercise.body_part && (
-              <p className="exercise-detail-category">{exercise.body_part}</p>
-            )}
+              {(exercise.default_sets != null || exercise.default_reps != null) && (
+                <section className="exercise-detail-section" aria-label="Default sets and reps">
+                  <p className="exercise-detail-label">Sets × Reps</p>
+                  <p className="exercise-detail-value">
+                    {exercise.default_sets ?? "—"} sets × {exercise.default_reps ?? "—"} reps
+                  </p>
+                </section>
+              )}
 
-            {(exercise.default_sets != null || exercise.default_reps != null) && (
-              <div className="exercise-detail-meta">
-                <span className="exercise-detail-meta-label">Sets × Reps</span>
-                <span className="exercise-detail-meta-value">
-                  {exercise.default_sets ?? "—"} sets × {exercise.default_reps ?? "—"} reps
-                </span>
-              </div>
-            )}
-
-            <div className="exercise-detail-description">
-              <h3>Description</h3>
-              <p>{exercise.description || "No description."}</p>
+              <section className="exercise-detail-section" aria-label="Description">
+                <p className="exercise-detail-label">Description</p>
+                <p className="exercise-detail-prose">
+                  {exercise.description?.trim() || "No description added yet."}
+                </p>
+              </section>
             </div>
           </div>
-
-          {!isAuthLoading && isSuperAdmin && (
-            <aside className="exercise-detail-actions-panel">
-              {!deleteConfirm ? (
-                <div className="exercise-detail-actions-row">
-                  <button
-                    type="button"
-                    className="exercise-detail-edit-btn"
-                    onClick={handleEdit}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="exercise-detail-delete-btn"
-                    onClick={() => setDeleteConfirm(true)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              ) : null}
-            </aside>
-          )}
         </div>
       </div>
 
       <ConfirmDialog
         open={deleteConfirm}
-        title="Are you sure you want to delete this exercise?"
-        message="This will permanently remove the exercise from the library."
+        title="Remove Exercise"
+        message="Are you sure you want to delete this exercise?"
         confirmLabel="Delete"
         variant="danger"
         busy={deleting}
