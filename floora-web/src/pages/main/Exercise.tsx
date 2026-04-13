@@ -1,5 +1,6 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
+import "../../components/common/PlanSearchField.css";
 import "../../components/main/Exercise.css";
 import { useState, useEffect, useSyncExternalStore } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
@@ -41,8 +42,8 @@ export interface Exercise {
   assigned_user_count?: number | null;
 }
 
-function clientsAssignedLabel(count: number): string {
-  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+function activeUsersLabel(count: number): string {
+  return count === 1 ? "1 Active User" : `${count} Active Users`;
 }
 
 /** List grouping + card subtitle: API stores category as `body_part`; prefer `category` if present. */
@@ -127,13 +128,13 @@ function ExerciseDashboard() {
           </div>
 
           <div className="exercise-header-right">
-            <div className="search-wrapper">
-              <span className="search-icon">
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -146,8 +147,8 @@ function ExerciseDashboard() {
               </span>
               <input
                 type="text"
-                className="search-bar"
-                placeholder="Search exercises..."
+                className="plan-search-bar"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -232,7 +233,7 @@ function ExerciseDashboard() {
                         {assignmentCountsError ? (
                           <span className="exercise-card-assignment-error">Count unavailable</span>
                         ) : (
-                          clientsAssignedLabel(exercise.assigned_user_count ?? 0)
+                          activeUsersLabel(exercise.assigned_user_count ?? 0)
                         )}
                       </span>
                     </div>

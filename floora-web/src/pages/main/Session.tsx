@@ -1,5 +1,6 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
+import "../../components/common/PlanSearchField.css";
 import "../../components/main/Session.css";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import sessionImg from "../../assets/exercise.jpg";
@@ -45,8 +46,8 @@ type Module = {
   assigned_user_count?: number;
 };
 
-function clientsAssignedLabel(count: number): string {
-  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+function activeUsersLabel(count: number): string {
+  return count === 1 ? "1 Active User" : `${count} Active Users`;
 }
 
 function Session() {
@@ -134,13 +135,13 @@ function Session() {
             </Link>
           </div>
           <div className="session-header-right">
-            <div className="session-search-wrapper">
-              <span className="session-search-icon">
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -153,8 +154,8 @@ function Session() {
               </span>
               <input
                 type="text"
-                className="session-search-bar"
-                placeholder="Search sessions"
+                className="plan-search-bar"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -207,7 +208,7 @@ function Session() {
                       <p className="session-card-category">{sessionCategoryLabel(module)}</p>
                       <span className="session-tag">
                         <AssignmentPulseIcon className="assignment-count-pulse-icon" />
-                        {clientsAssignedLabel(module.assigned_user_count ?? 0)}
+                        {activeUsersLabel(module.assigned_user_count ?? 0)}
                       </span>
                     </div>
                   </div>

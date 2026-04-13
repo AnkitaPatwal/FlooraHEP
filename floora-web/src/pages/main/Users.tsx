@@ -7,6 +7,7 @@ import {
   type ActiveClient,
   type PendingClient,
 } from "../../lib/admin-api";
+import "../../components/common/PlanSearchField.css";
 import "../../components/main/Users.css";
 
 type User = {
@@ -70,8 +71,8 @@ function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{user.name}</h3>
-          <p className="user-card-muted">{user.plan ?? "No Plan"}</p>
-          <p className="user-card-muted">{user.session ?? "No Session"}</p>
+          <p className="user-card-plan">{user.plan ?? "No Plan"}</p>
+          <p className="user-card-session">{user.session ?? "No Session"}</p>
         </div>
       </div>
     </article>
@@ -94,7 +95,7 @@ function PendingUserCard({
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{name}</h3>
-          <p className="user-card-email">{client.email}</p>
+          <p className="user-card-plan user-card-plan--email">{client.email}</p>
         </div>
       </div>
     </article>
@@ -236,9 +237,6 @@ export default function Users() {
             <h1 className="user-title">Users</h1>
             <p className="user-count">{active.length} Active Users</p>
           </div>
-          <button type="button" className="new-user-btn">
-            + New User
-          </button>
         </header>
 
         <hr className="user-divider" />
@@ -304,15 +302,15 @@ export default function Users() {
               Active Users
             </h2>
 
-            <div className="user-search-wrap">
-              <span className="user-search-icon" aria-hidden>
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon" aria-hidden>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
                   fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
                   stroke="currentColor"
-                  strokeWidth="2"
-                  className="user-search-svg"
+                  className="icon"
                 >
                   <path
                     strokeLinecap="round"
@@ -323,7 +321,8 @@ export default function Users() {
               </span>
 
               <input
-                className="user-search-input"
+                type="text"
+                className="plan-search-bar"
                 placeholder="Search"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}

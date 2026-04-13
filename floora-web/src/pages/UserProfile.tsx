@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { deleteClient, type ActiveClient } from "../lib/admin-api";
 import "../components/UserProfile.css";
 
@@ -352,39 +353,16 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {showConfirm ? (
-        <div className="up-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
-          <div className="up-modal">
-            <h2 id="up-modal-title" className="up-modal-title">
-              Are you sure you want to delete this client?
-            </h2>
-
-            <p className="up-modal-text">
-              This will remove the user from the system and they will no longer be able to sign in.
-            </p>
-
-            <div className="up-modal-actions">
-              <button
-                type="button"
-                className="up-btn up-btn-back"
-                onClick={handleConfirmCancel}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="up-btn up-btn-delete-solid"
-                onClick={handleConfirmDelete}
-                disabled={busy}
-              >
-                {busy ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        open={showConfirm}
+        title="Remove Client"
+        message="Are you sure you want to delete this client?"
+        confirmLabel="Delete"
+        variant="danger"
+        busy={busy}
+        onCancel={handleConfirmCancel}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </AppLayout>
   );
 }

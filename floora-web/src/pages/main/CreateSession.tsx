@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
 import sessionImg from "../../assets/exercise.jpg";
+import "../../components/common/PlanSearchField.css";
 import "./CreateSession.css";
+import "./CreatePlan.css";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { StackedCardIllustration } from "../../components/main/StackedCardIllustration";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -60,76 +63,6 @@ function activeUsersLabel(count: number | null | undefined): string {
 
 const EXERCISES_PAGE_SIZE = 100;
 const EXERCISES_MAX_PAGES = 200;
-
-/** Stacked cards; center number = count of exercises currently selected. */
-function SessionStackIllustration({ selectedCount }: { selectedCount: number }) {
-  const label =
-    selectedCount === 0
-      ? "No exercises selected"
-      : selectedCount === 1
-        ? "1 exercise selected"
-        : `${selectedCount} exercises selected`;
-  const digits = String(selectedCount);
-  const fontSize = digits.length > 2 ? 28 : digits.length > 1 ? 36 : 44;
-
-  return (
-    <div
-      className="create-session-stack-visual"
-      aria-live="polite"
-      aria-label={label}
-    >
-      <svg
-        className="create-session-stack-svg"
-        viewBox="0 0 200 168"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <rect
-          x="28"
-          y="36"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#e5e7eb"
-          strokeWidth="2"
-        />
-        <rect
-          x="20"
-          y="24"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#d1d5db"
-          strokeWidth="2"
-        />
-        <rect
-          x="12"
-          y="12"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#5a8e93"
-          strokeWidth="2"
-        />
-        <text
-          x="78"
-          y="64"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#5a8e93"
-          fontSize={fontSize}
-          fontWeight="700"
-          fontFamily="system-ui, Segoe UI, sans-serif"
-        >
-          {digits}
-        </text>
-      </svg>
-    </div>
-  );
-}
 
 export default function CreateSession() {
   const navigate = useNavigate();
@@ -410,21 +343,14 @@ export default function CreateSession() {
 
   return (
     <AppLayout>
-      <div className="create-session-page create-session-page--v2">
-        <header className="create-session-header create-session-header--v2">
+      <div className="create-session-page create-session-page--v2 create-plan-page--unified">
+        <header className="create-session-header create-session-header--v2 create-plan-page-header">
           <div className="create-session-header-left">
             <h1 className="create-session-title">
               {isEditMode ? "Edit Session" : "Create New Session"}
             </h1>
           </div>
           <div className="create-session-header-right">
-            <button
-              type="button"
-              className="back-btn back-btn--v2"
-              onClick={() => navigate("/sessions")}
-            >
-              Back
-            </button>
             {isEditMode && editingModule?.module_id ? (
               !deleteConfirmOpen ? (
                 <button
@@ -439,9 +365,17 @@ export default function CreateSession() {
             ) : null}
             <button
               type="button"
-              className="save-btn"
+              className="back-btn back-btn--v2 create-plan-back-btn"
+              onClick={() => navigate("/sessions")}
+              disabled={saving || deleting}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className="save-btn create-plan-save-btn"
               onClick={handleSaveClick}
-              disabled={saving || !newTitle.trim()}
+              disabled={saving || pageBusy || !newTitle.trim()}
             >
               {saving ? "Saving…" : "Save"}
             </button>
@@ -455,9 +389,12 @@ export default function CreateSession() {
           <p>Loading session…</p>
         ) : (
           <div className="create-session-unified">
-            <div className="create-session-panel-hero">
-              <SessionStackIllustration selectedCount={selectedExerciseIds.length} />
-              <div className="create-session-meta-fields create-session-meta-fields--stacked">
+            <div className="create-session-panel-hero create-plan-panel-hero">
+              <StackedCardIllustration
+                variant="session"
+                selectedCount={selectedExerciseIds.length}
+              />
+              <div className="create-session-meta-fields create-session-meta-fields--stacked create-plan-hero-fields">
                 <div className="input-group">
                   <label htmlFor="session-title-v2">Title of Session</label>
                   <input
@@ -491,16 +428,15 @@ export default function CreateSession() {
                       {exercises.length} Exercises
                     </span>
                   </div>
-                  <div className="create-session-search-wrapper create-session-search-wrapper--toolbar">
-                    <span className="create-session-search-icon" aria-hidden>
+                  <div className="plan-search-wrapper plan-search-wrapper--toolbar">
+                    <span className="plan-search-icon" aria-hidden>
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         fill="none"
                         viewBox="0 0 24 24"
-                        strokeWidth={2}
+                        strokeWidth={1.5}
                         stroke="currentColor"
-                        width="18"
-                        height="18"
+                        className="icon"
                       >
                         <path
                           strokeLinecap="round"
@@ -511,7 +447,7 @@ export default function CreateSession() {
                     </span>
                     <input
                       type="text"
-                      className="create-session-search-input"
+                      className="plan-search-bar"
                       placeholder="Search"
                       value={exerciseSearch}
                       onChange={(e) => setExerciseSearch(e.target.value)}
@@ -581,8 +517,8 @@ export default function CreateSession() {
 
       <ConfirmDialog
         open={deleteConfirmOpen}
-        title="Are you sure you want to delete this session?"
-        message="This will permanently remove the session from the library."
+        title="Remove Session"
+        message="Are you sure you want to delete this session?"
         confirmLabel="Delete"
         variant="danger"
         busy={deleting}

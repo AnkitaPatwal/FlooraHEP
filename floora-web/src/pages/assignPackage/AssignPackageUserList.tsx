@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { API_BASE, authHeaders } from "./authHeaders";
+import "../../components/common/PlanSearchField.css";
 import "./AssignPackage.css";
 
 type User = {
@@ -62,15 +63,15 @@ export default function AssignPackageUserList() {
           </p>
         </div>
 
-        <div className="assign-package-search-wrap">
-          <span className="assign-package-search-icon" aria-hidden>
+        <div className="plan-search-wrapper">
+          <span className="plan-search-icon" aria-hidden>
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
               fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
               stroke="currentColor"
-              strokeWidth="2"
-              className="assign-package-search-svg"
+              className="icon"
             >
               <path
                 strokeLinecap="round"
@@ -80,7 +81,8 @@ export default function AssignPackageUserList() {
             </svg>
           </span>
           <input
-            className="assign-package-search-input"
+            type="text"
+            className="plan-search-bar"
             placeholder="Search clients"
             value={search}
             onChange={(e) => setSearch(e.target.value)}

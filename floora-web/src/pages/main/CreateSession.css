@@ -222,59 +222,6 @@
   cursor: not-allowed;
 }
 
-/* Search row */
-.create-session-search-row {
-  margin-bottom: 14px;
-}
-
-.create-session-search-row label {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 8px;
-}
-
-.create-session-search-wrapper {
-  position: relative;
-  max-width: 360px;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.create-session-search-icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #9ca3af;
-  pointer-events: none;
-}
-
-.create-session-search-input {
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  padding: 10px 14px 10px 40px;
-  font-size: 15px;
-  color: #1f2937;
-  outline: none;
-  background: #fff;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
-}
-
-.create-session-search-input:focus {
-  border-color: #5a8e93;
-  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.2);
-}
-
-.create-session-search-input::placeholder {
-  color: #9ca3af;
-}
-
 /* Two columns */
 .create-session-two-col {
   display: grid;
@@ -653,22 +600,10 @@
   font-weight: 500;
 }
 
-.create-session-search-wrapper--toolbar {
-  max-width: 100%;
-  width: 100%;
-  min-width: 0;
-  justify-self: end;
-}
-
 @media (max-width: 560px) {
   .create-session-exercises-toolbar {
     grid-template-columns: minmax(0, 1fr);
     justify-items: stretch;
-  }
-
-  .create-session-search-wrapper--toolbar {
-    justify-self: stretch;
-    max-width: 100%;
   }
 }
 
