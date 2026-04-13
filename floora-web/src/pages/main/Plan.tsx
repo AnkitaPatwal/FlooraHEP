@@ -1,8 +1,20 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import "../../components/AdminInlineMessage.css";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Plan.css";
-import { useState, useEffect, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useNavigate } from "react-router-dom";
+import {
+  messageFromApiResponse,
+  messageFromUnknownError,
+  parseResponseJson,
+} from "../../lib/api-errors";
 import { supabase } from "../../lib/supabase-client";
 import planFallbackImg from "../../assets/exercise.jpg";
 import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
@@ -41,6 +53,10 @@ interface PlanData {
   cover_thumbnail_url?: string | null;
 }
 
+type PlansBanner =
+  | { variant: "error"; message: string }
+  | { variant: "success"; message: string };
+
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
@@ -63,6 +79,12 @@ export default function Plan() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [banner, setBanner] = useState<PlansBanner | null>(null);
+  const [busy, setBusy] = useState(false);
+  const expectSuccessAfterLoadRef = useRef(false);
+  const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const navigate = useNavigate();
   const { location, refreshToken } = useAssignmentCountsRefresh();
   const countsVersion = useSyncExternalStore(
@@ -72,36 +94,89 @@ export default function Plan() {
   );
 
   useEffect(() => {
-    const loadPlans = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        const res = await fetch(`${API_BASE}/api/admin/plans`, {
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
-          },
-          cache: "no-store",
-        });
-        const data: unknown = await res.json();
-        console.log("RAW DATA:", data);
-        if (!Array.isArray(data)) {
-          console.error("Expected array from API, got:", typeof data);
-          setPlans([]);
-          return;
-        }
-        setPlans((data as PlanData[]).map(mapDataToPlan));
-      } catch (err) {
-        console.error("Failed to fetch plans:", err);
-        setPlans([]);
+    return () => {
+      if (successDismissTimerRef.current) {
+        clearTimeout(successDismissTimerRef.current);
       }
     };
+  }, []);
 
-    loadPlans();
-  }, [location.key, refreshToken, countsVersion]);
+  const dismissBanner = useCallback(() => {
+    if (successDismissTimerRef.current) {
+      clearTimeout(successDismissTimerRef.current);
+      successDismissTimerRef.current = null;
+    }
+    setBanner(null);
+  }, []);
+
+  const loadPlans = useCallback(async () => {
+    setBanner(null);
+    setBusy(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const res = await fetch(`${API_BASE}/api/admin/plans`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
+        },
+        cache: "no-store",
+      });
+      const body = await parseResponseJson(res);
+
+      if (!res.ok) {
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: messageFromApiResponse(res, body, "Could not load plans."),
+        });
+        return;
+      }
+
+      if (!Array.isArray(body)) {
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: "Received an unexpected response from the server.",
+        });
+        return;
+      }
+
+      setPlans((body as PlanData[]).map(mapDataToPlan));
+
+      if (expectSuccessAfterLoadRef.current) {
+        expectSuccessAfterLoadRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Plans refreshed." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+      }
+    } catch (e) {
+      expectSuccessAfterLoadRef.current = false;
+      setBanner({
+        variant: "error",
+        message: messageFromUnknownError(e, "Could not load plans."),
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, [refreshToken, countsVersion]);
+
+  const handleRetry = useCallback(() => {
+    expectSuccessAfterLoadRef.current = true;
+    void loadPlans();
+  }, [loadPlans]);
+
+  useEffect(() => {
+    void loadPlans();
+  }, [location.key, loadPlans]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -174,6 +249,41 @@ export default function Plan() {
         </header>
 
         <hr className="plan-divider" />
+
+        {banner && (
+          <div
+            className={`admin-inline-message admin-inline-message--${banner.variant}`}
+            role={banner.variant === "error" ? "alert" : "status"}
+            aria-live={banner.variant === "error" ? "assertive" : "polite"}
+          >
+            <p className="admin-inline-message__text">{banner.message}</p>
+            <div className="admin-inline-message__actions">
+              {banner.variant === "error" && (
+                <button
+                  type="button"
+                  className="admin-inline-message__btn"
+                  onClick={handleRetry}
+                  disabled={busy}
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                type="button"
+                className="admin-inline-message__btn admin-inline-message__btn--ghost"
+                onClick={dismissBanner}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
+        {busy && plans.length === 0 && !banner && (
+          <p className="plan-loading-hint" aria-live="polite">
+            Loading plans…
+          </p>
+        )}
 
         {Object.entries(groupedPlans).map(([category, items]) => (
           <section className="plan-category-section" key={category}>

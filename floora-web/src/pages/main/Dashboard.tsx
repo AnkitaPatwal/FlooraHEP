@@ -13,6 +13,7 @@ import {
   parseResponseJson,
 } from "../../lib/api-errors";
 import { supabase } from "../../lib/supabase-client";
+import "../../components/AdminInlineMessage.css";
 import "./Dashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -202,16 +203,16 @@ export default function Dashboard() {
 
         {banner && (
           <div
-            className={`dashboard-message dashboard-message--${banner.variant}`}
+            className={`admin-inline-message admin-inline-message--${banner.variant}`}
             role={banner.variant === "error" ? "alert" : "status"}
             aria-live={banner.variant === "error" ? "assertive" : "polite"}
           >
-            <p className="dashboard-message__text">{banner.message}</p>
-            <div className="dashboard-message__actions">
+            <p className="admin-inline-message__text">{banner.message}</p>
+            <div className="admin-inline-message__actions">
               {banner.variant === "error" && (
                 <button
                   type="button"
-                  className="dashboard-message__btn"
+                  className="admin-inline-message__btn"
                   onClick={handleRetry}
                   disabled={busy}
                 >
@@ -220,7 +221,7 @@ export default function Dashboard() {
               )}
               <button
                 type="button"
-                className="dashboard-message__btn dashboard-message__btn--ghost"
+                className="admin-inline-message__btn admin-inline-message__btn--ghost"
                 onClick={dismissBanner}
               >
                 Dismiss
