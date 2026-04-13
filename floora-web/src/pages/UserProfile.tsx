@@ -38,6 +38,10 @@ function ProfileAvatar({ name, url }: { name: string; url?: string | null }) {
       ) : (
         <div className="ua-avatar ua-avatar-fallback">{initials}</div>
       )}
+    </div>
+  );
+}
+
 type SessionCardItem = {
   id: number;
   title: string;
@@ -233,17 +237,6 @@ export default function UserProfile() {
     return [user.fname, user.lname].filter(Boolean).join(" ") || "—";
   }, [user]);
 
-  const initials = useMemo(
-    () =>
-      name
-        .split(" ")
-        .map((s) => s[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [name]
-  );
-
   const displayedPlanTitle =
     selectedPlan === "Select a Plan" ? "Plan Title" : selectedPlan;
 
@@ -297,8 +290,6 @@ export default function UserProfile() {
     );
   }
 
-  const name = [user.fname, user.lname].filter(Boolean).join(" ") || "—";
-
   return (
     <AppLayout>
       <div className="up-page">
@@ -329,9 +320,6 @@ export default function UserProfile() {
             </div>
           </header>
 
-          <div className="ua-body">
-            <aside className="ua-left">
-              <ProfileAvatar name={name} url={user.avatar_url} />
           {error ? (
             <p className="up-inline-error" role="alert">
               {error}
@@ -340,9 +328,7 @@ export default function UserProfile() {
 
           <section className="up-profile-row">
             <div className="up-avatar-column">
-              <div className="up-avatar-circle" aria-hidden>
-                {initials}
-              </div>
+              <ProfileAvatar name={name} url={user.avatar_url} />
             </div>
 
             <form className="up-form-grid" onSubmit={(e) => e.preventDefault()}>
@@ -357,7 +343,10 @@ export default function UserProfile() {
               </label>
 
               <div className="ua-field ua-field-plans">
-                <span className="ua-label">Assigned plans</span>
+                <span className="ua-label">
+                  Assigned plans
+                  {user.plans?.length ? ` (${user.plans.length})` : ""}
+                </span>
                 {user.plans?.length ? (
                   <ul className="ua-plans-list">
                     {user.plans.map((p) => (
@@ -399,42 +388,47 @@ export default function UserProfile() {
             <SessionRow title="Retrain" weeks="Weeks 5 - 8" />
             <SessionRow title="Reclaim" weeks="Weeks 9 - 12" />
           </section>
+
+          {showConfirm ? (
+            <div
+              className="up-modal-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="up-modal-title"
+            >
+              <div className="up-modal">
+                <h2 id="up-modal-title" className="up-modal-title">
+                  Are you sure you want to delete this client?
+                </h2>
+
+                <p className="up-modal-text">
+                  This will remove the user from the system and they will no longer be able to sign in.
+                </p>
+
+                <div className="up-modal-actions">
+                  <button
+                    type="button"
+                    className="up-btn up-btn-back"
+                    onClick={handleConfirmCancel}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="up-btn up-btn-delete-solid"
+                    onClick={handleConfirmDelete}
+                    disabled={busy}
+                  >
+                    {busy ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
-
-      {showConfirm ? (
-        <div className="up-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
-          <div className="up-modal">
-            <h2 id="up-modal-title" className="up-modal-title">
-              Are you sure you want to delete this client?
-            </h2>
-
-            <p className="up-modal-text">
-              This will remove the user from the system and they will no longer be able to sign in.
-            </p>
-
-            <div className="up-modal-actions">
-              <button
-                type="button"
-                className="up-btn up-btn-back"
-                onClick={handleConfirmCancel}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="up-btn up-btn-delete-solid"
-                onClick={handleConfirmDelete}
-                disabled={busy}
-              >
-                {busy ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </AppLayout>
   );
 }

@@ -53,6 +53,19 @@ type EnrichedUser = UserRow & {
   plans: { plan_id: number; title: string }[];
 };
 
+/**
+ * PostgREST `.in("email", …)` is case-sensitive. `public.user` and `profiles` often differ in
+ * casing, which yields no profile row → missing avatar_url and plans. Use ILIKE per email.
+ */
+function profilesEmailOrFilter(emails: string[]): string {
+  return emails
+    .map((em) => {
+      const inner = em.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+      return `email.ilike."${inner}"`;
+    })
+    .join(",");
+}
+
 /** Join profiles (avatar) and user_packages + plan (titles) for admin user lists. */
 async function enrichUsers(
   supabase: ReturnType<typeof createClient>,
@@ -72,12 +85,17 @@ async function enrichUsers(
     return rows.map((r) => ({ ...r, avatar_url: null, plans: [] }));
   }
 
-  const { data: profs, error: profErr } = await supabase
-    .from("profiles")
-    .select("id, email, avatar_url")
-    .in("email", emails);
-
-  if (profErr) console.error("enrichUsers profiles:", profErr.message);
+  const profs: { id: unknown; email: unknown; avatar_url: unknown }[] = [];
+  const chunkSize = 35;
+  for (let i = 0; i < emails.length; i += chunkSize) {
+    const chunk = emails.slice(i, i + chunkSize);
+    const { data, error: profErr } = await supabase
+      .from("profiles")
+      .select("id, email, avatar_url")
+      .or(profilesEmailOrFilter(chunk));
+    if (profErr) console.error("enrichUsers profiles:", profErr.message);
+    profs.push(...(data ?? []));
+  }
 
   const emailToProfile = new Map<
     string,
@@ -263,11 +281,14 @@ serve(async (req) => {
     });
   };
 
+  const listParam =
+    body.list != null ? String(body.list).trim().toLowerCase() : "";
+
   // POST with list === "approved" → list approved clients
-  if (req.method === "POST" && body.list === "approved") return listApproved();
+  if (req.method === "POST" && listParam === "approved") return listApproved();
 
   // POST with list === "denied" → list denied clients (for admin UI)
-  if (req.method === "POST" && body.list === "denied") return listDenied();
+  if (req.method === "POST" && listParam === "denied") return listDenied();
 
   // POST with no user_id and no action → list pending (Supabase invoke uses POST by default)
   if (req.method === "POST" && body.user_id == null && body.action == null) return listPending();

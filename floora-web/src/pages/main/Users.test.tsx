@@ -99,10 +99,10 @@ describe("Users page (client management)", () => {
     await waitFor(() => {
       expect(screen.getByText("Solo Plan")).toBeInTheDocument();
     });
-    expect(screen.queryByText(/\+.*more/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\+/)).not.toBeInTheDocument();
   });
 
-  it("shows first plan and +N more when multiple plans", async () => {
+  it("shows first plan title and +N when multiple plans", async () => {
     const active: ActiveClient[] = [
       {
         user_id: 2,
@@ -121,7 +121,7 @@ describe("Users page (client management)", () => {
 
     renderUsers();
     await waitFor(() => {
-      expect(screen.getByText("Alpha +2 more")).toBeInTheDocument();
+      expect(screen.getByText("Alpha +3")).toBeInTheDocument();
     });
   });
 

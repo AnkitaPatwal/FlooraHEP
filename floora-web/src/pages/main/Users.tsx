@@ -27,11 +27,11 @@ type User = {
 
 function planSubtitle(plans: ActiveClient["plans"]): string {
   const list = plans?.filter((p) => p.title?.trim()) ?? [];
-  if (!list.length) return "No plan assigned";
+  const n = list.length;
+  if (!n) return "No plan assigned";
   const first = list[0].title.trim();
-  const rest = list.length - 1;
-  if (rest <= 0) return first;
-  return `${first} +${rest} more`;
+  if (n === 1) return first;
+  return `${first} +${n}`;
 }
 
 function toUser(c: ActiveClient): User {
