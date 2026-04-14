@@ -35,11 +35,25 @@ jest.mock("@react-navigation/native", () => {
   };
 });
 
+jest.mock("react-native-safe-area-context", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return {
+    SafeAreaView: ({ children, style, edges: _edges, ...rest }: { children: React.ReactNode; style?: object; edges?: string[] }) => (
+      <View style={style} {...rest}>
+        {children}
+      </View>
+    ),
+  };
+});
+
 const mockFrom = jest.fn();
 const mockRpc = jest.fn(
   (_fnName?: string, _params?: Record<string, unknown>) =>
     Promise.resolve({ data: null, error: null })
-);
+) as jest.MockedFunction<
+  (fnName?: string, params?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
+>;
 const mockGetPublicUrl = jest.fn(() => ({ data: { publicUrl: "https://storage.test/public.mp4" } }));
 
 jest.mock("../../../providers/AuthProvider", () => ({
@@ -106,7 +120,12 @@ describe("SessionExerciseList (ATH-428)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(getMaxCompletedExercisePosition).mockResolvedValue(0);
-    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockImplementation((fnName?: string) => {
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Leakage", error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     mockIsApiConfigured.mockReturnValue(false);
     mockFetchByModule.mockResolvedValue([]);
     routeParams.sessionId = "1";
@@ -153,14 +172,24 @@ describe("SessionExerciseList (ATH-428)", () => {
     });
   });
 
-  it("renders session name and default subtitle in header", async () => {
+  it("puts plan name in top bar and session name in content", async () => {
     routeParams.sessionName = "Week 1";
     delete routeParams.subtitle;
     const { getByText } = render(<SessionExerciseList />);
     await waitFor(() => {
       expect(getByText("Week 1")).toBeTruthy();
     });
-    expect(getByText("Restore")).toBeTruthy();
+    expect(getByText("Leakage")).toBeTruthy();
+  });
+
+  it("prefers plan title from database over route param", async () => {
+    routeParams.planName = "Stale Param";
+    const { getByText, queryByText } = render(<SessionExerciseList />);
+    await waitFor(() => {
+      expect(getByText("Squats")).toBeTruthy();
+    });
+    expect(getByText("Leakage")).toBeTruthy();
+    expect(queryByText("Stale Param")).toBeNull();
   });
 
   it("shows loading then exercises from Supabase (module_exercise + exercise)", async () => {
@@ -170,7 +199,6 @@ describe("SessionExerciseList (ATH-428)", () => {
       expect(getByText("Squats")).toBeTruthy();
     });
     expect(queryByText("Loading exercises…")).toBeNull();
-    expect(getByText("Leg work")).toBeTruthy();
   });
 
   it("loads exercises from API when configured and API returns rows", async () => {
@@ -195,7 +223,6 @@ describe("SessionExerciseList (ATH-428)", () => {
       expect(getByText("Lunge")).toBeTruthy();
     });
     expect(mockFetchByModule).toHaveBeenCalledWith(1);
-    expect(getByText("Balance")).toBeTruthy();
   });
 
   it("shows empty state when module has no exercises", async () => {
@@ -215,7 +242,10 @@ describe("SessionExerciseList (ATH-428)", () => {
   });
 
   it("prefers assigned exercise list from RPC when available", async () => {
-    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+    mockRpc.mockImplementation((fnName: string | undefined, params?: Record<string, unknown>) => {
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Leakage", error: null });
+      }
       if (fnName === "get_current_assigned_session_exercises") {
         expect(params).toEqual({ p_module_id: 1 });
         return Promise.resolve({
@@ -247,13 +277,15 @@ describe("SessionExerciseList (ATH-428)", () => {
     await waitFor(() => {
       expect(getByText("Assigned Only")).toBeTruthy();
     });
-    expect(getByText("From overrides")).toBeTruthy();
     expect(mockFrom.mock.calls.map((c) => c[0])).not.toContain("module_exercise");
   });
 
   it("navigates to ExerciseDetail with id, sessionName, and progress params", async () => {
     // Provide sets/reps on the exercise object to verify they are passed through route params.
-    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+    mockRpc.mockImplementation((fnName: string | undefined, params?: Record<string, unknown>) => {
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Leakage", error: null });
+      }
       if (fnName === "get_current_assigned_session_exercises") {
         expect(params).toEqual({ p_module_id: 1 });
         return Promise.resolve({

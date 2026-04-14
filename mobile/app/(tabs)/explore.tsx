@@ -23,13 +23,7 @@ export default function TabTwoScreen() {
       }>
       <ThemedView style={[styles.titleContainer, { paddingBottom: 100 }]}>
 
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
+        <ThemedText type="title">Explore</ThemedText>
       </ThemedView>
       <ThemedText>This app includes example code to help you get started.</ThemedText>
       <Collapsible title="File-based routing">

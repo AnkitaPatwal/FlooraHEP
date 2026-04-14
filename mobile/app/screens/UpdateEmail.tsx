@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
+import { FlooraFonts } from "../../constants/fonts";
+import { CircularBackButton } from "../../components/CircularBackButton";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -101,11 +103,8 @@ export default function UpdateEmail() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
-        <TouchableOpacity hitSlop={10} onPress={() => router.push("/profile")}>
-          <Text style={styles.backChevron}>‹</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Email</Text>
-        <View style={{ width: 18 }} />
+        <CircularBackButton onPress={() => router.back()} />
+        <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.body}>
@@ -162,34 +161,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     backgroundColor: "#FFFFFF",
   },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
-  },
-  headerTitle: {
-    flex: 1,
-    textAlign: "center",
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#333",
-  },
+  headerSpacer: { flex: 1 },
   body: {
     flex: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
   },
   title: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 18,
-    fontWeight: "700",
     textAlign: "center",
     color: "#111827",
     marginBottom: 28,
   },
   label: {
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 15,
-    fontWeight: "600",
     color: "#333",
     marginBottom: 8,
   },
@@ -198,11 +185,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    fontFamily: FlooraFonts.regular,
     fontSize: 15,
     color: "#333",
     marginBottom: 24,
   },
   errorText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     color: "#B91C1C",
     marginBottom: 12,
@@ -224,8 +213,8 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   buttonText: {
+    fontFamily: FlooraFonts.medium,
     color: "#fff",
     fontSize: 16,
-    fontWeight: "500",
   },
 });

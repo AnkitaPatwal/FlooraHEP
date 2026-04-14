@@ -18,16 +18,23 @@ import {
   Alert,
   RefreshControl,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { CircularBackButton, CIRCULAR_BACK_BUTTON_SIZE } from "../../components/CircularBackButton";
 import { useFocusEffect } from "@react-navigation/native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { FontAwesome } from "@expo/vector-icons";
 import { Exercise } from "../../types/exercise";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
+import { fetchAssignedPlanTitleForCurrentUser } from "../../lib/assignedPlanTitle";
 import { supabase } from "../../lib/supabaseClient";
 import {
   getMaxCompletedExercisePosition,
   isExercisePositionUnlocked,
 } from "../../lib/sessionExerciseProgress";
 import { useAuth } from "../../providers/AuthProvider";
+import { FlooraFonts } from "../../constants/fonts";
+import colors from "../../constants/colors";
+import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import session1Img from "../../assets/images/prev-1.jpg";
 
 type Params = {
@@ -44,8 +51,18 @@ export default function SessionExerciseList() {
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
+  const [listRefreshing, setListRefreshing] = useState(false);
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [maxCompletedExercisePosition, setMaxCompletedExercisePosition] = useState(0);
+  const [fetchedPlanName, setFetchedPlanName] = useState("");
+
+  const paramPlanName = typeof planName === "string" ? planName.trim() : "";
+  const planFromDbOrRoute = fetchedPlanName.trim() || paramPlanName;
+  /** Passed to exercise detail; avoid showing generic placeholder when we have a real title. */
+  const displayPlanName = planFromDbOrRoute || "Your Plan";
+  const planInNav = planFromDbOrRoute !== "";
+
+  const headerTitle = (sessionName != null ? String(sessionName) : "").trim() || "Session";
 
   const moduleIdNum = useMemo(() => {
     const n = sessionId ? parseInt(String(sessionId), 10) : NaN;
@@ -78,6 +95,20 @@ export default function SessionExerciseList() {
       void loadExerciseProgress();
     }, [refreshCompletion, loadExerciseProgress])
   );
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    let cancelled = false;
+    void (async () => {
+      const title = await fetchAssignedPlanTitleForCurrentUser();
+      if (!cancelled) setFetchedPlanName(title);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session?.user?.id]);
+
+  const topBarTitle = planInNav ? planFromDbOrRoute : headerTitle;
 
   const mapToExercise = (ex: {
     exercise_id: number;
@@ -212,8 +243,6 @@ export default function SessionExerciseList() {
 
   const exercises = useMemo(() => apiExercises, [apiExercises]);
 
-  const headerTitle = sessionName || "Session";
-
   const openExerciseDetail = (exercise: Exercise, positionInSession: number, sessionTotal: number) => {
     const videoUrl = (exercise as { videoSignedUrl?: string }).videoSignedUrl;
     const sets = (exercise as any)?.sets;
@@ -226,7 +255,7 @@ export default function SessionExerciseList() {
         moduleId: moduleIdParam,
         sessionId: moduleIdParam,
         sessionName: headerTitle,
-        planName: planName ?? "",
+        planName: displayPlanName,
         exercisePosition: String(positionInSession),
         sessionExerciseTotal: String(sessionTotal),
         exerciseTitle: exercise.title || "Exercise",
@@ -254,129 +283,137 @@ export default function SessionExerciseList() {
   const moduleIdValid = sessionId && Number.isInteger(parseInt(String(sessionId), 10)) && parseInt(String(sessionId), 10) > 0;
 
   const onRefresh = useCallback(async () => {
-    setApiLoading(true);
-    // trigger loadExercises effect by reusing sessionId dependency (no-op) and calling direct loader fallback
-    // simplest: just re-run the screen by updating state via route-based key isn't needed; replicate minimal call path.
-    // We call the same RPC/API/Supabase sequence by re-invoking load through a local function.
-    const moduleId = sessionId ? parseInt(String(sessionId), 10) : NaN;
-    if (!Number.isInteger(moduleId) || moduleId < 1) {
-      setApiExercises([]);
-      setApiLoading(false);
-      return;
-    }
+    setListRefreshing(true);
     try {
-      const { data: assignedRows, error: assignedErr } = await supabase.rpc(
-        "get_current_assigned_session_exercises",
-        { p_module_id: moduleId }
-      );
-      if (!assignedErr && Array.isArray(assignedRows) && assignedRows.length > 0) {
-        setApiExercises(
-          (assignedRows as any[]).map((r) =>
-            mapToExercise({
-              exercise_id: Number((r as any).exercise_id),
-              title: String((r as any).title ?? ""),
-              description: (r as any).description ?? "",
-              thumbnail_url: (r as any).thumbnail_url ?? null,
-              video_url: (r as any).video_url ?? null,
-              sets: (r as any).sets == null ? null : Number((r as any).sets),
-              reps: (r as any).reps == null ? null : Number((r as any).reps),
-            })
-          )
-        );
-        setApiLoading(false);
+      const moduleId = sessionId ? parseInt(String(sessionId), 10) : NaN;
+      if (!Number.isInteger(moduleId) || moduleId < 1) {
+        setApiExercises([]);
+        await refreshCompletion();
+        await loadExerciseProgress();
         return;
       }
-    } catch {
-      // fall through
-    }
-    try {
-      if (isExerciseApiConfigured()) {
-        const apiRows = await fetchExerciseListByModule(moduleId);
-        if (apiRows.length > 0) {
-          setApiExercises(apiRows.map((ex) => mapToExercise(ex)));
-          setApiLoading(false);
+      try {
+        const { data: assignedRows, error: assignedErr } = await supabase.rpc(
+          "get_current_assigned_session_exercises",
+          { p_module_id: moduleId }
+        );
+        if (!assignedErr && Array.isArray(assignedRows) && assignedRows.length > 0) {
+          setApiExercises(
+            (assignedRows as any[]).map((r) =>
+              mapToExercise({
+                exercise_id: Number((r as any).exercise_id),
+                title: String((r as any).title ?? ""),
+                description: (r as any).description ?? "",
+                thumbnail_url: (r as any).thumbnail_url ?? null,
+                video_url: (r as any).video_url ?? null,
+                sets: (r as any).sets == null ? null : Number((r as any).sets),
+                reps: (r as any).reps == null ? null : Number((r as any).reps),
+              })
+            )
+          );
+          await refreshCompletion();
+          await loadExerciseProgress();
+          return;
+        }
+      } catch {
+        // fall through
+      }
+      try {
+        if (isExerciseApiConfigured()) {
+          const apiRows = await fetchExerciseListByModule(moduleId);
+          if (apiRows.length > 0) {
+            setApiExercises(apiRows.map((ex) => mapToExercise(ex)));
+            await refreshCompletion();
+            await loadExerciseProgress();
+            return;
+          }
+        }
+      } catch {
+        // fall through
+      }
+      const { data: meRows, error: meError } = await supabase
+        .from("module_exercise")
+        .select("exercise_id, order_index")
+        .eq("module_id", moduleId)
+        .order("order_index", { ascending: true });
+      if (!meError && meRows?.length) {
+        const exIds = meRows.map((r) => r.exercise_id);
+        const { data: exRows, error: exError } = await supabase
+          .from("exercise")
+          .select("exercise_id, title, description, thumbnail_url, video_url, video:video_id(bucket, object_key)")
+          .in("exercise_id", exIds)
+          .order("exercise_id", { ascending: true });
+        if (!exError && exRows?.length) {
+          type ExerciseRow = {
+            exercise_id: number;
+            title: string;
+            description: string | null;
+            thumbnail_url: string | null;
+            video_url: string | null;
+            video:
+              | { bucket: string; object_key: string }
+              | { bucket: string; object_key: string }[]
+              | null;
+          };
+          const ordered = meRows
+            .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
+            .filter((row): row is NonNullable<typeof row> => Boolean(row))
+            .map((row) => {
+              const r = row as ExerciseRow;
+              const v = r.video;
+              const video = Array.isArray(v) ? (v[0] ?? null) : v ?? null;
+              return { ...r, video };
+            });
+          setApiExercises(
+            ordered.map((ex) => {
+              let videoUrl = ex.video_url ?? "";
+              if (!videoUrl && ex.video?.bucket && ex.video?.object_key) {
+                const { data } = supabase.storage.from(ex.video.bucket).getPublicUrl(ex.video.object_key);
+                videoUrl = data?.publicUrl ?? "";
+              }
+              return mapToExercise({ ...ex, video_url: videoUrl });
+            })
+          );
+          await refreshCompletion();
+          await loadExerciseProgress();
           return;
         }
       }
-    } catch {
-      // fall through
+      setApiExercises([]);
+      await refreshCompletion();
+      await loadExerciseProgress();
+    } finally {
+      setListRefreshing(false);
     }
-    const { data: meRows, error: meError } = await supabase
-      .from("module_exercise")
-      .select("exercise_id, order_index")
-      .eq("module_id", moduleId)
-      .order("order_index", { ascending: true });
-    if (!meError && meRows?.length) {
-      const exIds = meRows.map((r) => r.exercise_id);
-      const { data: exRows, error: exError } = await supabase
-        .from("exercise")
-        .select("exercise_id, title, description, thumbnail_url, video_url, video:video_id(bucket, object_key)")
-        .in("exercise_id", exIds)
-        .order("exercise_id", { ascending: true });
-      if (!exError && exRows?.length) {
-        type ExerciseRow = {
-          exercise_id: number;
-          title: string;
-          description: string | null;
-          thumbnail_url: string | null;
-          video_url: string | null;
-          video:
-            | { bucket: string; object_key: string }
-            | { bucket: string; object_key: string }[]
-            | null;
-        };
-        const ordered = meRows
-          .map((me) => exRows.find((e) => e.exercise_id === me.exercise_id))
-          .filter((row): row is NonNullable<typeof row> => Boolean(row))
-          .map((row) => {
-            const r = row as ExerciseRow;
-            const v = r.video;
-            const video = Array.isArray(v) ? (v[0] ?? null) : v ?? null;
-            return { ...r, video };
-          });
-        setApiExercises(
-          ordered.map((ex) => {
-            let videoUrl = ex.video_url ?? "";
-            if (!videoUrl && ex.video?.bucket && ex.video?.object_key) {
-              const { data } = supabase.storage.from(ex.video.bucket).getPublicUrl(ex.video.object_key);
-              videoUrl = data?.publicUrl ?? "";
-            }
-            return mapToExercise({ ...ex, video_url: videoUrl });
-          })
-        );
-        setApiLoading(false);
-        return;
-      }
-    }
-    setApiExercises([]);
-    setApiLoading(false);
-  }, [sessionId]);
+  }, [sessionId, refreshCompletion, loadExerciseProgress]);
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          title: planName || "Leakage",
-          headerShown: true,
-          headerTitleAlign: "center",
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()} style={{ paddingHorizontal: 12 }} hitSlop={10}>
-              <Text style={{ fontSize: 24, color: "#111827" }}>‹</Text>
-            </TouchableOpacity>
-          ),
-        }}
-      />
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={apiLoading} onRefresh={onRefresh} tintColor="#0F766E" />
-        }
-      >
+      <Stack.Screen options={{ headerShown: false }} />
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        <View style={styles.topBar}>
+          <CircularBackButton onPress={() => router.back()} />
+          <Text style={styles.topBarTitle} numberOfLines={1}>
+            {topBarTitle}
+          </Text>
+          <View style={{ width: CIRCULAR_BACK_BUTTON_SIZE }} />
+        </View>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={listRefreshing} onRefresh={onRefresh} tintColor="#0D2C2C" />
+          }
+        >
         <View style={styles.headerBlock}>
-          <Text style={styles.sessionLabel}>{headerTitle}</Text>
-          <Text style={styles.subtitle}>{subtitle || "Restore"}</Text>
+          {planInNav ? (
+            <>
+              <Text style={styles.sessionLabel}>{headerTitle}</Text>
+              <Text style={styles.exercisesSectionLabel}>Exercises</Text>
+            </>
+          ) : null}
+          {!planInNav && subtitle ? <Text style={styles.sessionHint}>{subtitle}</Text> : null}
           <View style={styles.accentLine} />
           {moduleIdValid && !apiLoading && exercises.length > 0 && sessionCompleted ? (
             <View style={styles.completeWrap}>
@@ -415,83 +452,115 @@ export default function SessionExerciseList() {
             const total = exercises.length;
             const unlocked =
               sessionCompleted || isExercisePositionUnlocked(maxCompletedExercisePosition, position);
+            const isCurrentExercise =
+              !sessionCompleted && unlocked && position === maxCompletedExercisePosition + 1;
+            const mediaShell = (
+              <View style={sessionCardStyles.mediaShell}>
+                <Image
+                  source={exerciseImage}
+                  style={[sessionCardStyles.mediaImage, !unlocked && styles.imageLocked]}
+                  resizeMode="cover"
+                />
+                {!unlocked ? (
+                  <View style={styles.lockOverlay}>
+                    <FontAwesome name="lock" size={36} color="#FFFFFF" />
+                  </View>
+                ) : null}
+                <View style={[styles.playCircle, !unlocked && styles.playCircleLocked]}>
+                  {unlocked ? (
+                    <FontAwesome name="play" size={24} color="#111827" style={styles.playIconNudge} />
+                  ) : null}
+                </View>
+              </View>
+            );
             return (
               <TouchableOpacity
                 key={exercise.id}
                 activeOpacity={0.9}
-                style={[styles.card, !unlocked && styles.cardLocked]}
+                style={[
+                  isCurrentExercise ? styles.exerciseRowCurrent : sessionCardStyles.tile,
+                  index === 0 && styles.listFirstTile,
+                  !unlocked && styles.cardLocked,
+                ]}
                 onPress={() => onExercisePress(exercise, position, total)}
               >
-                <View style={styles.imageWrapper}>
-                  <Image source={exerciseImage} style={styles.image} resizeMode="cover" />
-                  {!unlocked ? (
-                    <View style={styles.lockOverlay}>
-                      <Text style={styles.lockOverlayText}>Locked</Text>
-                    </View>
-                  ) : null}
-                  <View style={[styles.playCircle, !unlocked && styles.playCircleLocked]}>
-                    <Text style={styles.playIcon}>{unlocked ? "▶" : ""}</Text>
-                  </View>
-                </View>
-                <View style={styles.textBlock}>
-                  <Text style={styles.exerciseTitle} numberOfLines={2}>
+                {isCurrentExercise ? (
+                  <View style={sessionCardStyles.mediaElevatedCurrent}>{mediaShell}</View>
+                ) : (
+                  mediaShell
+                )}
+                <Text style={sessionCardStyles.caption} numberOfLines={2}>
+                  <Text style={sessionCardStyles.captionStrong}>
                     {exercise.title || "Exercise"}
                   </Text>
-                  {exercise.tags?.[0] ? (
-                    <Text style={styles.category} numberOfLines={1}>
-                      {exercise.tags[0]}
-                    </Text>
-                  ) : null}
-                  {exercise.description ? (
-                    <Text style={styles.description} numberOfLines={2}>
-                      {exercise.description}
-                    </Text>
-                  ) : null}
-                </View>
+                </Text>
               </TouchableOpacity>
             );
           })
         )}
-      </ScrollView>
+        </ScrollView>
+      </SafeAreaView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
+  topBar: {
+    minHeight: 56,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
+  },
+  topBarTitle: {
+    flex: 1,
+    textAlign: "center",
+    fontFamily: FlooraFonts.extraBold,
+    fontSize: 24,
+    color: colors.brand,
+  },
   container: { flex: 1, backgroundColor: "#FFFFFF" },
   contentContainer: { paddingHorizontal: 20, paddingBottom: 32 },
-  headerBlock: { paddingTop: 16, paddingBottom: 12 },
-  sessionLabel: { fontSize: 26, fontWeight: "700", color: "#111827" },
-  subtitle: { fontSize: 16, fontWeight: "600", color: "#0F766E", marginTop: 2 },
-  accentLine: { marginTop: 8, width: 80, height: 3, borderRadius: 999, backgroundColor: "#0F766E" },
-  completeWrap: { marginTop: 16, marginBottom: 4 },
-  completedBanner: { fontSize: 15, fontWeight: "600", color: "#047857" },
-  loadingWrap: { paddingVertical: 32, alignItems: "center" },
-  loadingText: { marginTop: 8, fontSize: 14, color: "#6B7280" },
-  emptyWrap: { paddingVertical: 32, paddingHorizontal: 8, alignItems: "center" },
-  emptyTitle: { fontSize: 16, fontWeight: "600", color: "#374151", textAlign: "center" },
-  emptySub: { marginTop: 8, fontSize: 14, color: "#6B7280", textAlign: "center" },
-  card: {
-    marginTop: 16,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 2,
-    overflow: "hidden",
+  headerBlock: { paddingTop: 12, paddingBottom: 12 },
+  sessionLabel: { fontFamily: FlooraFonts.bold, fontSize: 22, color: "#111827" },
+  exercisesSectionLabel: {
+    fontFamily: FlooraFonts.regular,
+    fontSize: 18,
+    color: "#111827",
+    marginTop: 4,
   },
-  cardLocked: { opacity: 0.7 },
-  imageWrapper: { position: "relative" },
+  sessionHint: { fontFamily: FlooraFonts.medium, fontSize: 15, color: "#64748B", marginTop: 4 },
+  /** Matches HomeScreen accent under “Sessions” (light teal, rounded bar). */
+  accentLine: {
+    width: 150,
+    height: 6,
+    borderRadius: 4,
+    backgroundColor: colors.accent,
+    marginTop: 8,
+  },
+  completeWrap: { marginTop: 16, marginBottom: 4 },
+  completedBanner: { fontFamily: FlooraFonts.semiBold, fontSize: 15, color: "#047857" },
+  loadingWrap: { paddingVertical: 32, alignItems: "center" },
+  loadingText: { fontFamily: FlooraFonts.regular, marginTop: 8, fontSize: 14, color: "#6B7280" },
+  emptyWrap: { paddingVertical: 32, paddingHorizontal: 8, alignItems: "center" },
+  emptyTitle: { fontFamily: FlooraFonts.semiBold, fontSize: 16, color: "#374151", textAlign: "center" },
+  emptySub: { fontFamily: FlooraFonts.regular, marginTop: 8, fontSize: 14, color: "#6B7280", textAlign: "center" },
+  listFirstTile: { marginTop: 16 },
+  /** Matches Home current session — shadow only on thumbnail, not caption. */
+  exerciseRowCurrent: {
+    marginBottom: 12,
+  },
+  cardLocked: { opacity: 0.85 },
   lockOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
     justifyContent: "center",
     alignItems: "center",
   },
-  lockOverlayText: { color: "#FFFFFF", fontSize: 16, fontWeight: "700" },
-  image: { width: "100%", height: 190 },
+  imageLocked: { opacity: 0.35 },
   playCircle: {
     position: "absolute",
     alignSelf: "center",
@@ -505,9 +574,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   playCircleLocked: { opacity: 0.5 },
-  playIcon: { fontSize: 22, color: "#111827" },
-  textBlock: { paddingHorizontal: 16, paddingVertical: 12 },
-  exerciseTitle: { fontSize: 18, fontWeight: "700", color: "#111827" },
-  category: { fontSize: 15, color: "#0F766E", marginTop: 2, marginBottom: 4 },
-  description: { fontSize: 13, color: "#6B7280" },
+  /** Vector icon avoids Poppins rendering "▶" as a tiny glyph (matches pre–global-font look). */
+  playIconNudge: { marginLeft: 4 },
 });

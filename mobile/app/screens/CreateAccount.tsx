@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { CircularBackButton } from "../../components/CircularBackButton";
 import styles from "./CreateAccount.styles";
 import { createClient } from "@supabase/supabase-js";
 
@@ -73,15 +73,9 @@ export default function CreateAccount() {
 
   return (
     <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Back Arrow */}
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButtonContainer}
-      >
-        <View style={styles.backButtonCircle}>
-          <Ionicons name="chevron-back" size={24} color="#000000" />
-        </View>
-      </TouchableOpacity>
+      <View style={styles.backRow}>
+        <CircularBackButton onPress={() => router.back()} />
+      </View>
 
       {/* Title & Subtitle */}
       <View style={styles.header}>
