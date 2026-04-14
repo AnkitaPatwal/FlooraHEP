@@ -126,10 +126,9 @@ describe("CreateAdmin component", () => {
       .mockResolvedValueOnce(mockSuperAdminSession) // access check
       .mockResolvedValueOnce(mockSuperAdminSession); // handleSubmit
   
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ ok: true }),
-    });
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
   
     renderWithRouter();
   
@@ -158,10 +157,9 @@ describe("CreateAdmin component", () => {
       .mockResolvedValueOnce(mockSuperAdminSession)
       .mockResolvedValueOnce(mockSuperAdminSession);
   
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: () => Promise.resolve({ ok: true }),
-    });
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
   
     renderWithRouter();
   
@@ -184,10 +182,12 @@ describe("CreateAdmin component", () => {
       .mockResolvedValueOnce(mockSuperAdminSession)
       .mockResolvedValueOnce(mockSuperAdminSession);
   
-    mockFetch.mockResolvedValueOnce({
-      ok: false,
-      json: () => Promise.resolve({ message: "Email rate limit exceeded" }),
-    });
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ message: "Email rate limit exceeded" }),
+        { status: 429 },
+      ),
+    );
   
     renderWithRouter();
   
