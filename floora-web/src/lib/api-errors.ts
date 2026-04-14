@@ -13,18 +13,28 @@ export async function parseResponseJson(
   }
 }
 
+function stringField(
+  body: unknown,
+  key: "error" | "message",
+): string | null {
+  if (!body || typeof body !== "object" || !(key in body)) return null;
+  const v = (body as Record<string, unknown>)[key];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
 /**
- * Prefer server `{ error: string }`, then a generic HTTP message.
+ * Prefer server `{ error: string }`, then `{ message: string }` (used by some
+ * admin auth responses), then a generic HTTP message.
  */
 export function messageFromApiResponse(
   res: Response,
   body: unknown,
   fallbackWhenNotOk: string,
 ): string {
-  if (body && typeof body === "object" && "error" in body) {
-    const err = (body as { error?: unknown }).error;
-    if (typeof err === "string" && err.trim()) return err.trim();
-  }
+  const fromError = stringField(body, "error");
+  if (fromError) return fromError;
+  const fromMessage = stringField(body, "message");
+  if (fromMessage) return fromMessage;
   if (!res.ok) {
     return `Request failed (HTTP ${res.status}).`;
   }

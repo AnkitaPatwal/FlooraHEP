@@ -30,6 +30,28 @@ describe("messageFromApiResponse", () => {
     ).toBe("Server exploded");
   });
 
+  it("uses message field when error is absent (e.g. admin 401)", () => {
+    const res = new Response(null, { status: 401 });
+    expect(
+      messageFromApiResponse(
+        res,
+        { message: "Unauthorized: Please log in." },
+        "fallback",
+      ),
+    ).toBe("Unauthorized: Please log in.");
+  });
+
+  it("prefers error over message when both are present", () => {
+    const res = new Response(null, { status: 400 });
+    expect(
+      messageFromApiResponse(
+        res,
+        { error: "Bad", message: "Other" },
+        "fallback",
+      ),
+    ).toBe("Bad");
+  });
+
   it("uses HTTP status when not ok and no error string", () => {
     const res = new Response(null, { status: 503 });
     expect(messageFromApiResponse(res, {}, "fallback")).toBe(
