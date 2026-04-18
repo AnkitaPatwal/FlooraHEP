@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Platform,
 } from "react-native";
 import ScreenBackButton from "../../components/ScreenBackButton";
 import { useFocusEffect } from "@react-navigation/native";
@@ -372,7 +373,9 @@ export default function SessionExerciseList() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={apiLoading} onRefresh={onRefresh} tintColor="#0F766E" />
+          Platform.OS === "web" ? undefined : (
+            <RefreshControl refreshing={apiLoading} onRefresh={onRefresh} tintColor="#0F766E" />
+          )
         }
       >
         <View style={styles.headerBlock}>

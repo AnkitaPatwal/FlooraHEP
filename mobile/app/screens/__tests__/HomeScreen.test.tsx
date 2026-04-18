@@ -149,7 +149,6 @@ describe("HomeScreen", () => {
     expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
     expect(mockRpc).toHaveBeenCalledWith("get_my_assigned_plan_title");
     expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
-    expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
   });
 
   it("renders assigned sessions section and exercise count from module_exercise", async () => {

@@ -40,6 +40,60 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Align Auth with `public.user` when approving (mirrors check-email-exists bootstrap). */
+async function ensureAuthUserFromPublicRow(
+  supabase: ReturnType<typeof createClient>,
+  userId: number,
+  loginEmail: string
+): Promise<void> {
+  const target = loginEmail.trim().toLowerCase();
+  if (!target || !Number.isFinite(userId)) return;
+
+  let page = 1;
+  const perPage = 1000;
+  for (let i = 0; i < 25; i++) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.error("admin-approval ensureAuth listUsers:", error.message);
+      return;
+    }
+    const users = data?.users ?? [];
+    if (users.some((u: { email?: string | null }) => (u.email ?? "").trim().toLowerCase() === target)) {
+      return;
+    }
+    if (users.length < perPage) break;
+    page += 1;
+  }
+
+  const { data: row, error: pwdErr } = await supabase
+    .from("user")
+    .select("password")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (pwdErr || !row) {
+    console.error("admin-approval ensureAuth password fetch:", pwdErr?.message);
+    return;
+  }
+
+  const password = String((row as { password?: string }).password ?? "").trim();
+  if (password.length < 8) return;
+  if (/^\$2[aby]\$/.test(password)) {
+    console.warn("admin-approval: user.password looks bcrypt; skip Auth bootstrap");
+    return;
+  }
+
+  const { error: cErr } = await supabase.auth.admin.createUser({
+    email: target,
+    password,
+    email_confirm: true,
+  });
+
+  if (cErr && !/already|registered|exists|duplicate/i.test(String(cErr.message))) {
+    console.error("admin-approval ensureAuth createUser:", cErr.message);
+  }
+}
+
 type UserRow = {
   user_id: number;
   email: string;
@@ -419,6 +473,11 @@ serve(async (req) => {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const approveEmail = (existing?.email ?? "").trim().toLowerCase();
+    if (approveEmail) {
+      await ensureAuthUserFromPublicRow(supabase, user_id, approveEmail);
     }
 
     await supabase.from("audit_log").insert({

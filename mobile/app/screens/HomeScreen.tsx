@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -43,6 +44,7 @@ function withDashboardTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 const sessionImage = require("../../assets/images/current-session.jpg");
+
 function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
   if (!unlockIso) return false;
   const d = new Date(unlockIso);
@@ -56,8 +58,6 @@ function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
   ).getTime();
   return unlockLocal <= todayLocal;
 }
-
-const fallbackSessionImage = require("../../assets/images/current-session.jpg");
 
 const styles = StyleSheet.create({
   screen: {
@@ -168,10 +168,14 @@ const HomeScreen = () => {
   const [planTitle, setPlanTitle] = useState("");
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const fetchAssignedSessions = useCallback(async () => {
+  const fetchAssignedSessions = useCallback(
+    async (opts?: { background?: boolean }) => {
       try {
-        setLoading(true);
+        if (!opts?.background) {
+          setLoading(true);
+        }
         setError("");
 
         if (authLoading) {
@@ -359,7 +363,6 @@ const HomeScreen = () => {
               (modulesData || []).map((m: { module_id: number; title: string }) => [m.module_id, m])
             );
 
-            const now = Date.now();
             const merged: SessionItem[] = [];
             for (const pm of planModules as { module_id: number; order_index: number }[]) {
               const mod = moduleMap.get(pm.module_id);
@@ -367,7 +370,7 @@ const HomeScreen = () => {
               const unlockIso = unlockByModule.get(pm.module_id);
               const unlocked = useAth420ShowAllSessions
                 ? true
-                : unlockIso != null && new Date(unlockIso).getTime() <= now;
+                : isUnlockedByLocalDate(unlockIso);
               merged.push({
                 module_id: mod.module_id,
                 title: mod.title,
@@ -377,28 +380,6 @@ const HomeScreen = () => {
                 exerciseCount: countsByModule[String(mod.module_id)] || 0,
               });
             }
-        const merged: SessionItem[] = [];
-        const orderedRows =
-          planModules.type === "assigned"
-            ? planModules.rows
-            : planModules.rows;
-
-        for (const pm of orderedRows as { module_id: number; order_index: number }[]) {
-          const mod = moduleMap.get(pm.module_id);
-          if (!mod) continue;
-          const unlockIso = unlockByModule.get(pm.module_id);
-          const unlocked = useAth420ShowAllSessions
-            ? true
-            : isUnlockedByLocalDate(unlockIso);
-          merged.push({
-            module_id: mod.module_id,
-            title: mod.title,
-            order_index: pm.order_index,
-            unlocked,
-            completed: completedModules.has(pm.module_id),
-            exerciseCount: countsByModule[String(mod.module_id)] || 0,
-          });
-        }
 
             const visible = merged.filter((s) => s.unlocked);
             visible.sort((a, b) => b.order_index - a.order_index);
@@ -415,9 +396,22 @@ const HomeScreen = () => {
         }
         setSessions([]);
       } finally {
-        setLoading(false);
+        if (!opts?.background) {
+          setLoading(false);
+        }
       }
-  }, [session, authLoading]);
+    },
+    [session, authLoading]
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await fetchAssignedSessions({ background: true });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchAssignedSessions]);
 
   useFocusEffect(
     useCallback(() => {
@@ -497,7 +491,9 @@ const HomeScreen = () => {
         contentContainerStyle={[styles.container, { paddingBottom: theme.space.scrollBottom }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+          Platform.OS === "web" ? undefined : (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+          )
         }
       >
         {hasAssignedPlan ? (
@@ -542,100 +538,6 @@ const HomeScreen = () => {
               ? "No unlocked sessions yet. Complete the previous session or wait until the next unlock date."
               : "No care plan is linked to this login yet. Your clinic assigns plans to your account email. If you use a different email in the app than the one they used, ask them to update it or sign in with that email."}
           </Text>
-        ) : (
-          <>
-            {currentSession ? (
-              <>
-                <TouchableOpacity
-                  key={`current-${String(currentSession.module_id)}`}
-                  activeOpacity={0.9}
-                  onPress={() =>
-                    goToSession(
-                      String(currentSession.module_id),
-                      currentSession.title || "Session"
-                    )
-                  }
-                  style={{ minHeight: 44 }}
-                >
-                  <View style={[styles.sessionTile, styles.sessionTileCurrent]}>
-                    <View style={styles.currentBadge} pointerEvents="none">
-                      <Text style={styles.currentBadgeText}>Current</Text>
-                    </View>
-                    <View style={styles.card}>
-                      <Image
-                        source={
-                          sessionThumbs[String(currentSession.module_id)]
-                            ? { uri: sessionThumbs[String(currentSession.module_id)] }
-                            : fallbackSessionImage
-                        }
-                        style={styles.cardImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                    <Text style={styles.cardCaption}>
-                      <Text style={styles.cardCaptionStrong}>
-                        {currentSession.title || "Session"}
-                      </Text>
-                      <Text style={styles.cardCaptionMeta}>
-                        {` | ${currentSession.exerciseCount ?? 0} `}
-                        {(currentSession.exerciseCount ?? 0) === 1
-                          ? "Exercise"
-                          : "Exercises"}
-                      </Text>
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              </>
-            ) : null}
-
-            {/* Sequential UX: show only the single "current" session to do next. */}
-
-            {completedSessions.length > 0 ? (
-              <>
-                {completedSessions.map((sessionItem) => (
-                  <TouchableOpacity
-                    key={`completed-${String(sessionItem.module_id)}`}
-                    activeOpacity={0.9}
-                    onPress={() =>
-                      goToSession(
-                        String(sessionItem.module_id),
-                        sessionItem.title || "Session"
-                      )
-                    }
-                    style={{ minHeight: 44 }}
-                  >
-                    <View style={styles.sessionTile}>
-                      <View style={styles.completedBadge} pointerEvents="none">
-                        <Text style={styles.completedBadgeText}>Completed</Text>
-                      </View>
-                      <View style={styles.card}>
-                        <Image
-                          source={
-                            sessionThumbs[String(sessionItem.module_id)]
-                              ? { uri: sessionThumbs[String(sessionItem.module_id)] }
-                              : fallbackSessionImage
-                          }
-                          style={styles.cardImage}
-                          resizeMode="cover"
-                        />
-                      </View>
-                      <Text style={styles.cardCaption}>
-                        <Text style={styles.cardCaptionStrong}>
-                          {sessionItem.title || "Session"}
-                        </Text>
-                        <Text style={styles.cardCaptionMeta}>
-                          {` | ${sessionItem.exerciseCount ?? 0} `}
-                          {(sessionItem.exerciseCount ?? 0) === 1
-                            ? "Exercise"
-                            : "Exercises"}
-                        </Text>
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </>
-            ) : null}
-          </>
         )}
       </ScrollView>
     </SafeAreaView>

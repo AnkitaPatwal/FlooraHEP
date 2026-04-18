@@ -9,11 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
-import colors from "../../constants/colors";
+import { theme } from "../../constants/theme";
+import ScreenBackButton from "../../components/ScreenBackButton";
 import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
 import { supabase } from "../../lib/supabaseClient";
 
@@ -96,7 +98,9 @@ export default function RoadMap() {
     const unlockOn = formatUnlockDate(unlockDate);
     Alert.alert(
       "Session Locked",
-      `${title} is locked. The session will unlock soon.`
+      unlockOn
+        ? `${title} is locked until ${unlockOn}.`
+        : `${title} is locked. The session will unlock soon.`
     );
   }, []);
 
@@ -163,7 +167,9 @@ export default function RoadMap() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+            Platform.OS === "web" ? undefined : (
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
+            )
           }
         >
           <Text style={styles.planTitle} numberOfLines={2}>
@@ -181,58 +187,35 @@ export default function RoadMap() {
             {data?.sessions?.length ? `Sessions 1–${data.sessions.length}` : "No sessions assigned yet"}
           </Text>
 
-          {(data?.sessions ?? []).map((s, idx) => {
-            const state = s.isCompleted
-              ? "completed"
-              : s.isUnlocked
-              ? "available"
-              : "locked";
-
-            return (
-              <SessionCard
-                key={String(s.module_id)}
-                title={s.title || `Session ${idx + 1}`}
-                exerciseCount={s.exercise_count ?? 0}
-                image={session1Img}
-                state={state as any}
-                onPress={
-                  s.isUnlocked
-                    ? () =>
-                        router.push({
-                          pathname: "/screens/SessionExerciseList",
-                          params: {
-                            sessionId: String(s.module_id),
-                            sessionName: s.title || `Session ${idx + 1}`,
-                            planName: data?.planName ?? "",
-                            subtitle: "Restore",
-                          },
-                        })
-                    : undefined
-                key={session.module_id}
-                session={session}
-                index={index}
-                planName={data.planName}
-                thumbnailUrl={sessionThumbs[String(session.module_id)]}
-                onLockedPress={() =>
-                  showLockedUnlockAlert(
-                    session.title || `Session ${index + 1}`,
-                    session.unlockDate
-                  )
-                }
-                onPress={() =>
-                  router.push({
-                    pathname: "/screens/SessionExerciseList",
-                    params: {
-                      sessionId: String(session.module_id),
-                      sessionName: session.title || `Session ${index + 1}`,
-                      planName: data.planName,
-                      subtitle: "Restore",
-                    },
-                  })
-                }
-              />
-            );
-          })}
+          {(data?.sessions ?? []).map((s, idx) => (
+            <SessionCard
+              key={String(s.module_id)}
+              session={s}
+              index={idx}
+              planName={data?.planName ?? ""}
+              thumbnailUrl={sessionThumbs[String(s.module_id)]}
+              onLockedPress={
+                s.isUnlocked
+                  ? undefined
+                  : () =>
+                      showLockedUnlockAlert(
+                        s.title || `Session ${idx + 1}`,
+                        s.unlockDate
+                      )
+              }
+              onPress={() =>
+                router.push({
+                  pathname: "/screens/SessionExerciseList",
+                  params: {
+                    sessionId: String(s.module_id),
+                    sessionName: s.title || `Session ${idx + 1}`,
+                    planName: data?.planName ?? "",
+                    subtitle: "Restore",
+                  },
+                })
+              }
+            />
+          ))}
 
           {(data?.sessions?.length ?? 0) === 0 ? (
             <Text style={styles.emptyText}>No sessions assigned yet.</Text>
@@ -314,5 +297,50 @@ const styles = StyleSheet.create({
     ...theme.typography.bodySmall,
     color: theme.color.muted,
     marginTop: 6,
+  },
+  card: {
+    borderRadius: theme.radius.card,
+    overflow: "hidden",
+    backgroundColor: theme.color.surface,
+    marginBottom: theme.space.sessionTileGap,
+    position: "relative",
+  },
+  cardImage: {
+    width: "100%",
+    aspectRatio: 16 / 9,
+  },
+  cardImageLocked: {
+    opacity: theme.session.lockedOpacity,
+  },
+  lockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  completedBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: theme.color.success,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+  },
+  completedBadgeText: {
+    fontSize: 12,
+    color: theme.color.overlayText,
+    fontWeight: "700",
+  },
+  caption: {
+    ...theme.typography.cardCaption,
+    marginTop: theme.space.cardCaptionTop,
+    marginBottom: theme.space.cardCaptionBottom,
+  },
+  captionStrong: {
+    ...theme.typography.cardCaptionStrong,
+  },
+  captionLocked: {
+    color: theme.color.muted,
   },
 });
