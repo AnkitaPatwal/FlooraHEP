@@ -9,6 +9,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
 import {
   fetchActiveClients,
+  fetchClientProfileAvatars,
   fetchDeniedClients,
   fetchPendingClients,
   type ActiveClient,
@@ -34,6 +35,21 @@ function planSubtitle(plans: ActiveClient["plans"]): string {
   if (n === 1) return first;
   /** First plan title (first non-empty title), then how many other assignments exist. */
   return `${first} + ${n - 1}`;
+}
+
+async function mergeProfileAvatars<
+  T extends { user_id: number; avatar_url?: string | null },
+>(clients: T[]): Promise<T[]> {
+  if (!clients.length) return clients;
+  try {
+    const byId = await fetchClientProfileAvatars(clients.map((c) => c.user_id));
+    return clients.map((c) => {
+      if (!byId.has(c.user_id)) return c;
+      return { ...c, avatar_url: byId.get(c.user_id) ?? null };
+    });
+  } catch {
+    return clients;
+  }
 }
 
 function toUser(c: ActiveClient): User {
@@ -172,7 +188,7 @@ export default function Users() {
     setPendingError(null);
     try {
       const list = await fetchPendingClients();
-      setPendingClients(list);
+      setPendingClients(await mergeProfileAvatars(list));
     } catch (err) {
       setPendingError(
         err instanceof Error ? err.message : "Failed to load pending clients"
@@ -188,7 +204,7 @@ export default function Users() {
     setActiveError(null);
     try {
       const list = await fetchActiveClients();
-      setActiveClients(list);
+      setActiveClients(await mergeProfileAvatars(list));
     } catch (err) {
       setActiveError(
         err instanceof Error ? err.message : "Failed to load active users"
@@ -204,7 +220,7 @@ export default function Users() {
     setDeniedError(null);
     try {
       const list = await fetchDeniedClients();
-      setDeniedClients(list);
+      setDeniedClients(await mergeProfileAvatars(list));
     } catch (err) {
       setDeniedError(
         err instanceof Error ? err.message : "Failed to load denied clients"

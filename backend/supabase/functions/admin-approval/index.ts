@@ -289,6 +289,83 @@ serve(async (req) => {
   const listParam =
     body.list != null ? String(body.list).trim().toLowerCase() : "";
 
+  // POST list === "avatars" → [{ user_id, avatar_url }] from profiles (floora-web Users grid)
+  if (req.method === "POST" && listParam === "avatars") {
+    const rawIds = body.user_ids;
+    if (!Array.isArray(rawIds)) {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid user_ids array" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const user_ids = [
+      ...new Set(
+        rawIds
+          .map((x) => Number(x))
+          .filter((n) => Number.isFinite(n) && n > 0)
+      ),
+    ].slice(0, 500);
+    if (!user_ids.length) {
+      return new Response(JSON.stringify([]), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { data, error } = await supabase
+      .from("user")
+      .select("user_id, email, fname, lname, status")
+      .in("user_id", user_ids);
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const enriched = await enrichUsers(supabase, (data ?? []) as UserRow[]);
+    const payload = enriched.map((r) => ({
+      user_id: r.user_id,
+      avatar_url: r.avatar_url,
+    }));
+    return new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // POST list === "avatar" → { user_id, avatar_url } for one client (floora-web UserProfile)
+  if (req.method === "POST" && listParam === "avatar") {
+    const user_id = Number(body.user_id);
+    if (!Number.isFinite(user_id) || user_id <= 0) {
+      return new Response(
+        JSON.stringify({ error: "Missing or invalid user_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const { data, error } = await supabase
+      .from("user")
+      .select("user_id, email, fname, lname, status")
+      .eq("user_id", user_id)
+      .maybeSingle();
+    if (error) {
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!data) {
+      return new Response(JSON.stringify({ error: "User not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const enriched = await enrichUsers(supabase, [data as UserRow]);
+    const avatar_url = enriched[0]?.avatar_url ?? null;
+    return new Response(JSON.stringify({ user_id, avatar_url }), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   // POST with list === "approved" → list approved clients
   if (req.method === "POST" && listParam === "approved") return listApproved();
 

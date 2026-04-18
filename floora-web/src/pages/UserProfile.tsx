@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
-import { deleteClient, type ActiveClient } from "../lib/admin-api";
+import {
+  deleteClient,
+  fetchClientProfileAvatar,
+  type ActiveClient,
+} from "../lib/admin-api";
 import "../components/UserProfile.css";
 
 const DEFAULT_ADMIN_ID = 1;
@@ -231,11 +235,33 @@ export default function UserProfile() {
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("Select a Plan");
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null | undefined>(
+    undefined
+  );
 
   const name = useMemo(() => {
     if (!user) return "—";
     return [user.fname, user.lname].filter(Boolean).join(" ") || "—";
   }, [user]);
+
+  useEffect(() => {
+    if (!user?.user_id) return;
+    setResolvedAvatarUrl(undefined);
+    let cancelled = false;
+    fetchClientProfileAvatar(user.user_id)
+      .then((url) => {
+        if (!cancelled) setResolvedAvatarUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedAvatarUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.user_id]);
+
+  const avatarUrlForDisplay =
+    resolvedAvatarUrl !== undefined ? resolvedAvatarUrl : user?.avatar_url;
 
   const displayedPlanTitle =
     selectedPlan === "Select a Plan" ? "Plan Title" : selectedPlan;
@@ -328,7 +354,7 @@ export default function UserProfile() {
 
           <section className="up-profile-row">
             <div className="up-avatar-column">
-              <ProfileAvatar name={name} url={user.avatar_url} />
+              <ProfileAvatar name={name} url={avatarUrlForDisplay} />
             </div>
 
             <form className="up-form-grid" onSubmit={(e) => e.preventDefault()}>
@@ -341,22 +367,6 @@ export default function UserProfile() {
                 <span className="up-label">Email</span>
                 <input className="up-input" value={user.email ?? ""} readOnly />
               </label>
-
-              <div className="ua-field ua-field-plans">
-                <span className="ua-label">
-                  Assigned plans
-                  {user.plans?.length ? ` (${user.plans.length})` : ""}
-                </span>
-                {user.plans?.length ? (
-                  <ul className="ua-plans-list">
-                    {user.plans.map((p) => (
-                      <li key={p.plan_id}>{p.title}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="ua-plans-empty">No plans assigned</p>
-                )}
-              </div>
             </form>
           </section>
 

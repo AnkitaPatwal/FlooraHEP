@@ -85,6 +85,43 @@ export async function fetchDeniedClients(): Promise<PendingClient[]> {
   return data as PendingClient[];
 }
 
+export type ClientAvatarRow = { user_id: number; avatar_url: string | null };
+
+/**
+ * Loads profile picture URLs from `profiles.avatar_url` for many clients (admin-approval edge).
+ */
+export async function fetchClientProfileAvatars(
+  userIds: number[]
+): Promise<Map<number, string | null>> {
+  const ids = [...new Set(userIds.filter((n) => Number.isFinite(n) && n > 0))];
+  const out = new Map<number, string | null>();
+  if (!ids.length) return out;
+
+  const data = await invoke({ list: "avatars", user_ids: ids });
+  if (!Array.isArray(data)) return out;
+  for (const row of data) {
+    const r = row as ClientAvatarRow;
+    if (typeof r.user_id === "number" && Number.isFinite(r.user_id)) {
+      out.set(r.user_id, r.avatar_url ?? null);
+    }
+  }
+  return out;
+}
+
+/**
+ * Loads `profiles.avatar_url` for one client by `public.user.user_id`.
+ */
+export async function fetchClientProfileAvatar(
+  userId: number
+): Promise<string | null> {
+  if (!Number.isFinite(userId) || userId <= 0) return null;
+  const data = (await invoke({
+    list: "avatar",
+    user_id: userId,
+  })) as { user_id?: number; avatar_url?: string | null };
+  return data?.avatar_url ?? null;
+}
+
 /**
  * Approves a pending client.
  */

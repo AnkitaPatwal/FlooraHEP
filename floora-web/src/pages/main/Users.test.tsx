@@ -13,12 +13,15 @@ import type { ActiveClient, PendingClient } from "../../lib/admin-api";
 const mockFetchPending = vi.fn();
 const mockFetchActive = vi.fn();
 const mockFetchDenied = vi.fn();
+const mockFetchClientProfileAvatars = vi.fn();
 const mockNavigate = vi.fn();
 
 vi.mock("../../lib/admin-api", () => ({
   fetchPendingClients: () => mockFetchPending(),
   fetchActiveClients: () => mockFetchActive(),
   fetchDeniedClients: () => mockFetchDenied(),
+  fetchClientProfileAvatars: (ids: number[]) =>
+    mockFetchClientProfileAvatars(ids),
 }));
 
 vi.mock("../../components/layouts/AppLayout", () => ({
@@ -57,6 +60,8 @@ describe("Users page (client management)", () => {
     mockFetchPending.mockResolvedValue([]);
     mockFetchActive.mockResolvedValue([]);
     mockFetchDenied.mockResolvedValue([]);
+    mockFetchClientProfileAvatars.mockReset();
+    mockFetchClientProfileAvatars.mockResolvedValue(new Map());
   });
 
   it("does not render Add / New User button", async () => {

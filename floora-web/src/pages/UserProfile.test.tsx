@@ -9,11 +9,14 @@ import { cleanup } from "@testing-library/react";
 afterEach(() => cleanup());
 
 const mockDeleteClient = vi.fn();
+const mockFetchClientProfileAvatar = vi.fn();
 vi.mock("../lib/admin-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/admin-api")>();
   return {
     ...actual,
     deleteClient: (...args: unknown[]) => mockDeleteClient(...args),
+    fetchClientProfileAvatar: (userId: number) =>
+      mockFetchClientProfileAvatar(userId),
   };
 });
 
@@ -40,6 +43,8 @@ function renderWithRouter(initialEntry: string, state?: { user: ActiveClient }) 
 describe("UserProfile", () => {
   beforeEach(() => {
     mockDeleteClient.mockReset();
+    mockFetchClientProfileAvatar.mockReset();
+    mockFetchClientProfileAvatar.mockResolvedValue(null);
   });
 
   it("shows empty message when no user in state", () => {
@@ -62,27 +67,7 @@ describe("UserProfile", () => {
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("jane@example.com")).toBeInTheDocument();
-    expect(screen.getByText("No plans assigned")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
-  });
-
-  it("lists assigned plans when present", () => {
-    const user: ActiveClient = {
-      user_id: 5,
-      email: "jane@example.com",
-      fname: "Jane",
-      lname: "Doe",
-      status: true,
-      plans: [
-        { plan_id: 1, title: "Recovery A" },
-        { plan_id: 2, title: "Strength B" },
-      ],
-    };
-
-    renderWithRouter("/user-profile", { user });
-
-    expect(screen.getByText("Recovery A")).toBeInTheDocument();
-    expect(screen.getByText("Strength B")).toBeInTheDocument();
   });
 
   it("renders avatar image when avatar_url is set", async () => {
@@ -94,6 +79,7 @@ describe("UserProfile", () => {
       status: true,
       avatar_url: "https://example.com/profile.png",
     };
+    mockFetchClientProfileAvatar.mockResolvedValue("https://example.com/profile.png");
 
     const { container } = renderWithRouter("/user-profile", { user });
 
@@ -115,6 +101,7 @@ describe("UserProfile", () => {
       status: true,
       avatar_url: "https://example.com/missing.png",
     };
+    mockFetchClientProfileAvatar.mockResolvedValue("https://example.com/missing.png");
 
     const { container } = renderWithRouter("/user-profile", { user });
 
