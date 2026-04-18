@@ -1,12 +1,11 @@
 /**
- * Registered Roboto family names (must match keys in `robotoFontSources.ts`).
- * Use these with `fontFamily`; avoid relying on `fontWeight` with custom fonts on Android.
+ * PostScript names from @expo-google-fonts/poppins — matches floora-web
+ * (see floora-web/index.html + App.css: Poppins 400–700, heavy headings use 800).
  */
-export const fonts = {
-  thin: "Roboto-Thin",
-  light: "Roboto-Light",
-  regular: "Roboto-Regular",
-  medium: "Roboto-Medium",
-  bold: "Roboto-Bold",
-  black: "Roboto-Black",
+export const FlooraFonts = {
+  regular: "Poppins_400Regular",
+  medium: "Poppins_500Medium",
+  semiBold: "Poppins_600SemiBold",
+  bold: "Poppins_700Bold",
+  extraBold: "Poppins_800ExtraBold",
 } as const;

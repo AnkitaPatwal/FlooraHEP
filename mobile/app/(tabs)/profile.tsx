@@ -13,15 +13,21 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
+import { FlooraFonts } from "../../constants/fonts";
+import { CircularIconButton } from "../../components/CircularBackButton";
 import defaultProfile from "../../assets/images/default-profile.png";
-import { theme } from "../../constants/theme";
+
+/** Matches `inputWrapper` so edit chips sit flush with the field row. */
+const PROFILE_INPUT_SURFACE = "#F5F5F5";
+/** Pencil on the same surface — slightly darker for legibility. */
+const PROFILE_EDIT_ICON_COLOR = "#9CA3AF";
 
 type ProfileRecord = {
   email: string | null;
@@ -58,7 +64,6 @@ async function fetchAvatarUrlFromUpdateProfile(
 }
 
 export default function Profile() {
-  const router = useRouter();
   const { session } = useAuth();
 
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -150,7 +155,6 @@ export default function Profile() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.replace("/screens/LoginScreen");
   };
 
   const onSignOutPress = () => {
@@ -405,14 +409,12 @@ export default function Profile() {
                   placeholderTextColor="#999"
                 />
                 <Link href="/screens/UpdateName" asChild>
-                  <TouchableOpacity
-                    style={StyleSheet.flatten([
-                      styles.iconContainer,
-                      { minHeight: 44, justifyContent: "center" },
-                    ])}
+                  <CircularIconButton
+                    accessibilityLabel="Edit name"
+                    style={styles.editIconCircle}
                   >
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -428,14 +430,12 @@ export default function Profile() {
                   placeholderTextColor="#999"
                 />
                 <Link href="/screens/UpdateEmail" asChild>
-                  <TouchableOpacity
-                    style={StyleSheet.flatten([
-                      styles.iconContainer,
-                      { minHeight: 44, justifyContent: "center" },
-                    ])}
+                  <CircularIconButton
+                    accessibilityLabel="Edit email"
+                    style={styles.editIconCircle}
                   >
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -450,14 +450,12 @@ export default function Profile() {
                   style={styles.input}
                 />
                 <Link href="/screens/ChangePassword" asChild>
-                  <TouchableOpacity
-                    style={StyleSheet.flatten([
-                      styles.iconContainer,
-                      { minHeight: 44, justifyContent: "center" },
-                    ])}
+                  <CircularIconButton
+                    accessibilityLabel="Change password"
+                    style={styles.editIconCircle}
                   >
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -478,31 +476,34 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 0,
-    paddingTop: theme.space.screenTop - 4,
-    paddingBottom: 20,
-    flexGrow: 1,
-  },
+  paddingHorizontal: 0,
+  paddingTop: 20,
+  paddingBottom: 20,
+  flexGrow: 1,
+},
   header: {
-    ...theme.typography.profileScreenTitle,
-    marginTop: 4,
+    fontFamily: FlooraFonts.bold,
+    fontSize: 22,
+    textAlign: "center",
+    marginBottom: 12,
+    marginTop: 20,
   },
   headerLine: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: theme.color.border,
+    height: 1,
+    backgroundColor: "#F0F0F0",
     width: "100%",
-    marginBottom: 24,
+    marginBottom: 30,
   },
   avatarWrap: {
     alignSelf: "center",
-    marginBottom: 24,
+    marginBottom: 30,
     position: "relative",
   },
   centerContent: {
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: theme.space.formBodyHorizontal,
-    marginTop: 32,
+    paddingHorizontal: 24,
+    marginTop: 40,
   },
   avatar: {
     width: 110,
@@ -510,7 +511,7 @@ const styles = StyleSheet.create({
     borderRadius: 55,
   },
   avatarPlaceholder: {
-    backgroundColor: theme.color.inputFill,
+    backgroundColor: "#F5F5F5",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -521,71 +522,97 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: theme.color.primary,
+    backgroundColor: "#5A8E93",
     justifyContent: "center",
     alignItems: "center",
   },
   statusText: {
+    fontFamily: FlooraFonts.regular,
     marginTop: 12,
-    ...theme.typography.body,
+    fontSize: 16,
+    color: "#333",
   },
   errorText: {
-    ...theme.typography.errorBanner,
-    textAlign: "center",
+    fontFamily: FlooraFonts.regular,
+    fontSize: 14,
+    color: "#B91C1C",
     marginBottom: 8,
+    textAlign: "center",
   },
   successText: {
-    ...theme.typography.successBanner,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 14,
+    color: "#059669",
+    marginBottom: 8,
+    textAlign: "center",
   },
   fieldContainer: {
-    marginBottom: theme.space.profileSectionGap,
-    paddingHorizontal: theme.space.formBodyHorizontal,
+    marginBottom: 18,
+    paddingHorizontal: 24,
   },
   messageContainer: {
     marginBottom: 8,
   },
   label: {
-    ...theme.typography.formLabel,
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 14,
+    color: "#333",
     marginBottom: 6,
   },
   inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.color.inputFill,
-    borderRadius: theme.radius.input,
-    paddingRight: 14,
-  },
+  flexDirection: "row",
+  alignItems: "center",
+  backgroundColor: PROFILE_INPUT_SURFACE,
+  borderRadius: 8,
+  paddingRight: 14,
+},
   input: {
-    ...theme.typography.formInput,
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 14,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    color: "#333",
   },
-  iconContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 8,
+  editIconCircle: {
+    marginLeft: 4,
+    backgroundColor: PROFILE_INPUT_SURFACE,
+    shadowOpacity: 0.06,
+    elevation: 2,
   },
   signOutButton: {
-    marginTop: 32,
+    marginTop: 40,
     alignSelf: "center",
-    ...theme.button.primary,
-    paddingHorizontal: 32,
-    minWidth: 200,
-    minHeight: theme.layout.minTouchTarget,
+    backgroundColor: "#5A8E93",
+    paddingVertical: 12,
+    paddingHorizontal: 50,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+    minHeight: 44,
+    justifyContent: "center",
   },
   signOutText: {
-    ...theme.button.primaryText,
+    fontFamily: FlooraFonts.medium,
+    color: "#fff",
+    fontSize: 16,
   },
   retryButton: {
     marginTop: 12,
     alignSelf: "center",
-    ...theme.button.primary,
+    backgroundColor: "#5A8E93",
+    paddingVertical: 12,
     paddingHorizontal: 24,
-    minHeight: theme.layout.minTouchTarget,
+    borderRadius: 10,
+    minHeight: 44,
+    justifyContent: "center",
   },
   retryButtonText: {
-    ...theme.button.primaryText,
+    fontFamily: FlooraFonts.semiBold,
+    color: "#fff",
+    fontSize: 15,
   },
 });

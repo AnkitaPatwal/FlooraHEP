@@ -13,7 +13,8 @@ import {
 
 import { useRouter } from "expo-router";
 import styles from "./ForgotPassword.styles";
-import ScreenBackButton from "../../components/ScreenBackButton";
+import { Ionicons } from "@expo/vector-icons";
+import { CircularBackButton } from "../../components/CircularBackButton";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -76,7 +77,9 @@ export default function ForgotPassword() {
   // Return the JSX
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <ScreenBackButton variant="onDark" onPress={() => router.back()} style={styles.backButtonContainer} />
+      <View style={styles.backRow}>
+        <CircularBackButton onPress={() => router.back()} />
+      </View>
 
       {/* header */}
       <View style={styles.headerContainer}>

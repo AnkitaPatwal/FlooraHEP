@@ -1,6 +1,7 @@
-import { StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps } from "react-native";
 
-import { useThemeColor } from '@/hooks/use-theme-color';
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { FlooraFonts } from "@/constants/fonts";
 
 export type ThemedTextProps = TextProps & {
   lightColor?: string;
@@ -35,26 +36,28 @@ export function ThemedText({
 
 const styles = StyleSheet.create({
   default: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     lineHeight: 24,
   },
   defaultSemiBold: {
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 16,
     lineHeight: 24,
-    fontWeight: '600',
   },
   title: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 32,
-    fontWeight: 'bold',
     lineHeight: 32,
   },
   subtitle: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 20,
-    fontWeight: 'bold',
   },
   link: {
+    fontFamily: FlooraFonts.regular,
     lineHeight: 30,
     fontSize: 16,
-    color: '#0a7ea4',
+    color: "#0a7ea4",
   },
 });

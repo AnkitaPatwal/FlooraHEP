@@ -1,167 +1,41 @@
+// components/SessionCard.tsx
 import React from "react";
-import {
-  View,
-  Text,
-  Image,
-  StyleSheet,
-  Pressable,
-  ImageSourcePropType,
-  Platform,
-} from "react-native";
-import { theme, type SessionTileState } from "../constants/theme";
+import { View, Text, Image, StyleSheet, ImageSourcePropType } from "react-native";
+import { FlooraFonts } from "../constants/fonts";
 
-export type { SessionTileState };
+type Props = { title: string; subtitle: string; image: ImageSourcePropType };
 
-type Props = {
-  title: string;
-  exerciseCount: number;
-  image: ImageSourcePropType;
-  state?: SessionTileState;
-  onPress?: () => void;
-  testID?: string;
-};
-
-export default function SessionCard({
-  title,
-  exerciseCount,
-  image,
-  state = "available",
-  onPress,
-  testID,
-}: Props) {
-  const locked = state === "locked";
-  const isCurrent = state === "current";
-  const completed = state === "completed";
-  const exerciseWord = exerciseCount === 1 ? "Exercise" : "Exercises";
-
-  const content = (
-    <View
-      style={[
-        styles.tile,
-        isCurrent && styles.tileCurrent,
-        locked && styles.tileLocked,
-      ]}
-    >
-      <View style={[styles.card, theme.shadow.card]}>
-        <View style={styles.imageWrap}>
-          <Image source={image} style={styles.image} resizeMode="cover" />
-          {completed ? (
-            <View accessible accessibilityLabel="Completed" style={styles.completedBadge}>
-              <Text
-                style={styles.completedBadgeText}
-                {...(Platform.OS === "android" ? { includeFontPadding: false } : {})}
-              >
-                Completed
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </View>
-
-      <View style={styles.captionBlock}>
-        <Text
-          style={styles.caption}
-          numberOfLines={3}
-          {...(Platform.OS === "android" ? { includeFontPadding: false } : {})}
-        >
-          <Text style={styles.captionStrong}>{title}</Text>
-          <Text style={styles.captionMeta}>{` | ${exerciseCount} ${exerciseWord}`}</Text>
-          {isCurrent ? <Text style={styles.captionMeta}> — Current</Text> : null}
-        </Text>
-        {locked ? <Text style={styles.statusLocked}>Locked</Text> : null}
-      </View>
-    </View>
-  );
-
-  if (locked || !onPress) {
-    return (
-      <View
-        style={styles.minTouch}
-        accessibilityState={{ disabled: true }}
-        testID={testID}
-      >
-        {content}
-      </View>
-    );
-  }
-
+export default function SessionCard({ title, subtitle, image }: Props) {
   return (
-    <Pressable
-      style={({ pressed }) => [styles.minTouch, pressed && styles.pressed]}
-      onPress={onPress}
-      testID={testID}
-    >
-      {content}
-    </Pressable>
+    <View style={styles.card}>
+      <Image source={image} style={styles.image} resizeMode="cover" />
+      <Text style={styles.meta}>
+        <Text style={styles.metaStrong}>{title}</Text>
+        <Text> | {subtitle}</Text>
+      </Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  minTouch: { minHeight: theme.layout.minTouchTarget },
-  pressed: { opacity: 0.92 },
-  tile: {
-    marginBottom: theme.space.sessionTileGap,
-    borderRadius: theme.radius.card,
-    borderWidth: 2,
-    borderColor: "transparent",
-    paddingHorizontal: 8,
-    paddingTop: 6,
-    paddingBottom: 4,
-  },
-  tileCurrent: {
-    borderColor: theme.session.currentBorderColor,
-  },
-  tileLocked: {
-    opacity: theme.session.lockedOpacity,
-  },
   card: {
-    borderRadius: theme.radius.card,
+    borderRadius: 14,
     overflow: "hidden",
-    backgroundColor: theme.color.surface,
-  },
-  imageWrap: {
-    position: "relative",
-    width: "100%",
-  },
-  image: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
-  completedBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    backgroundColor: theme.color.success,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    maxWidth: "46%",
+    backgroundColor: "#FFF",
     shadowColor: "#000",
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 2,
+    marginBottom: 8,
   },
-  completedBadgeText: {
-    fontFamily: theme.typography.statusCompleted.fontFamily,
-    fontSize: 12,
-    color: theme.color.overlayText,
-    letterSpacing: 0.2,
+  image: { width: "100%", aspectRatio: 16 / 9 },
+  meta: {
+    fontFamily: FlooraFonts.regular,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: "#374151",
+    fontSize: 18,
   },
-  captionBlock: {
-    marginTop: theme.space.cardCaptionTop,
-    marginBottom: theme.space.cardCaptionBottom,
-  },
-  caption: {
-    ...theme.typography.cardCaption,
-  },
-  captionStrong: theme.typography.cardCaptionStrong,
-  captionMeta: {
-    ...theme.typography.cardCaption,
-    color: theme.color.caption,
-  },
-  statusLocked: {
-    ...theme.typography.statusLocked,
-    marginTop: 4,
-  },
+  metaStrong: { fontFamily: FlooraFonts.extraBold, color: "#1F2937" },
 });

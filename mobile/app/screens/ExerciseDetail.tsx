@@ -8,28 +8,29 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { useEventListener } from "expo";
 import { VideoView, useVideoPlayer } from "expo-video";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EXERCISES } from "../../constants/exercises";
+import { Exercise } from "../../types/exercise";
 import {
   fetchExerciseById,
   isExerciseApiConfigured,
   type ExerciseApiResponse,
 } from "../../lib/exerciseApi";
 import { getVideoUiState, type PlaybackState } from "../../lib/playbackState";
-import { theme } from "../../constants/theme";
-import { fonts } from "../../constants/fonts";
-import ScreenBackButton from "../../components/ScreenBackButton";
 import {
   getMaxCompletedExercisePosition,
   recordExerciseWatchedToEnd,
 } from "../../lib/sessionExerciseProgress";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
-import type { Exercise } from "../../types/exercise";
+import { FlooraFonts } from "../../constants/fonts";
+import { sessionCardStyles } from "../../constants/sessionCardChrome";
+import { CircularBackButton } from "../../components/CircularBackButton";
 
 type ExerciseVideoPlayerProps = {
   uri: string;
@@ -61,7 +62,7 @@ function ExerciseVideoPlayer({ uri, onPlayToEnd, onStatus }: ExerciseVideoPlayer
 
   return (
     <VideoView
-      style={styles.heroImage}
+      style={sessionCardStyles.detailHeroMedia}
       player={player}
       nativeControls
       contentFit="contain"
@@ -109,6 +110,7 @@ const ExerciseDetail = () => {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [videoRetryKey, setVideoRetryKey] = useState(0);
   const [maxCompletedPosition, setMaxCompletedPosition] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const exerciseId = id ?? "1";
   const tryBackend = isExerciseApiConfigured();
@@ -212,7 +214,6 @@ const ExerciseDetail = () => {
   }, [moduleIdStr]);
 
   const sessionCompletedFromPlan = sessionCompletedParamRaw === "1";
-
   const sets = useMemo(() => {
     const n = parseInt(String(setsParam ?? ""), 10);
     return Number.isFinite(n) && n > 0 ? n : null;
@@ -230,7 +231,7 @@ const ExerciseDetail = () => {
     sessionCompletionRequestedRef.current = false;
   }, [exerciseId, moduleIdStr, progressCurrent, progressTotal]);
 
-  useEffect(() => {
+  const reloadExerciseProgress = useCallback(async () => {
     if (sessionCompletedFromPlan) {
       setMaxCompletedPosition(progressTotal);
       return;
@@ -239,15 +240,13 @@ const ExerciseDetail = () => {
       setMaxCompletedPosition(0);
       return;
     }
-    let cancelled = false;
-    (async () => {
-      const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
-      if (!cancelled) setMaxCompletedPosition(max);
-    })();
-    return () => {
-      cancelled = true;
-    };
+    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    setMaxCompletedPosition(max);
   }, [sessionCompletedFromPlan, session?.user?.id, moduleIdNum, progressTotal]);
+
+  useEffect(() => {
+    void reloadExerciseProgress();
+  }, [reloadExerciseProgress]);
 
   useEffect(() => {
     if (sessionCompletedFromPlan || moduleIdNum == null || !session?.user?.id) {
@@ -286,7 +285,7 @@ const ExerciseDetail = () => {
       Alert.alert("Could not save progress", error.message);
       return;
     }
-    Alert.alert("Session complete", "The next session will unlock soon.");
+    Alert.alert("Session complete", "The next session will unlock in 7 days.");
   }, [moduleIdNum, session?.user?.id, progressCurrent, progressTotal]);
 
   const handleVideoPlayToEnd = useCallback(async () => {
@@ -318,6 +317,30 @@ const ExerciseDetail = () => {
     setVideoError(errorMessage);
   }, []);
 
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await reloadExerciseProgress();
+      setVideoError(null);
+      setPlaybackState("idle");
+      setVideoRetryKey((k) => k + 1);
+      if (tryBackend) {
+        setFetchLoading(true);
+        try {
+          const data = await fetchExerciseById(exerciseId);
+          setApiExercise(data ?? null);
+          if (data?.video_url) setPlaybackState("loading");
+        } catch {
+          // keep existing displayExercise
+        } finally {
+          setFetchLoading(false);
+        }
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  }, [reloadExerciseProgress, tryBackend, exerciseId]);
+
   const handleVideoRetry = useCallback(() => {
     setVideoError(null);
     setPlaybackState("idle");
@@ -345,7 +368,7 @@ const ExerciseDetail = () => {
   if (fetchLoading && !displayExercise) {
     return (
       <View style={[styles.center, styles.screen]}>
-        <ActivityIndicator size="large" color={theme.color.primary} />
+        <ActivityIndicator size="large" color={COLORS.teal} />
         <Text style={styles.loadingText}>Loading exercise…</Text>
       </View>
     );
@@ -366,7 +389,7 @@ const ExerciseDetail = () => {
   if (sequentialAccess === "checking") {
     return (
       <View style={[styles.center, styles.screen]}>
-        <ActivityIndicator size="large" color={theme.color.primary} />
+        <ActivityIndicator size="large" color={COLORS.teal} />
         <Text style={styles.loadingText}>Loading…</Text>
       </View>
     );
@@ -396,41 +419,42 @@ const ExerciseDetail = () => {
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.screen}>
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-          <View style={styles.topBarLeading}>
-            <ScreenBackButton onPress={handleBack} showLabel />
-          </View>
-          <Text style={styles.topTitle} numberOfLines={1}>
-            {sessionLabel}
-          </Text>
-          <View style={styles.topBarTrailing} />
+          <CircularBackButton onPress={handleBack} />
+          <View style={styles.topBarSpacer} />
         </View>
-        <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#0D2C2C" />
+          }
+        >
           <View style={styles.sessionRow}>
-            <View style={styles.sessionLeft}>
-              <Text style={styles.sessionLabel} numberOfLines={2}>
-                {sessionLabel}
-              </Text>
+            <View>
+              <Text style={styles.sessionLabel}>{sessionLabel}</Text>
               <Text style={styles.sessionSub}>Restore</Text>
             </View>
             <View style={styles.sessionRight}>
               <Text style={styles.progressText}>
-                {Math.min(maxCompletedPosition, progressTotal)}/{progressTotal}
+                {progressCurrent}/{progressTotal}
               </Text>
               <View style={styles.dotsRow}>
-                {Array.from({ length: progressTotal }, (_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.dot,
-                      i + 1 <= Math.min(maxCompletedPosition, progressTotal) ? styles.dotActive : null,
-                    ]}
-                  />
-                ))}
+                {Array.from({ length: progressTotal }, (_, i) => {
+                  const n = i + 1;
+                  const done = n <= maxCompletedPosition;
+                  const current = n === progressCurrent && !done;
+                  return (
+                    <View
+                      key={i}
+                      style={[styles.dot, done ? styles.dotActive : null, current ? styles.dotCurrent : null]}
+                    />
+                  );
+                })}
               </View>
             </View>
           </View>
 
-          <View style={styles.heroWrapper}>
+          <View style={sessionCardStyles.detailHero}>
             {videoUi.showVideo ? (
               <>
                 <ExerciseVideoPlayer
@@ -447,7 +471,7 @@ const ExerciseDetail = () => {
                 )}
               </>
             ) : (
-              <Image source={heroSource} style={styles.heroImage} />
+              <Image source={heroSource} style={sessionCardStyles.detailHeroMedia} />
             )}
             {videoUi.showErrorFallback && (
               <View style={styles.videoErrorOverlay}>
@@ -478,7 +502,6 @@ const ExerciseDetail = () => {
                 {reps != null ? `${reps} reps` : ""}
               </Text>
             ) : null}
-            <Text style={styles.categoryText}>Category</Text>
             <Text style={styles.description}>{displayExercise.description}</Text>
           </View>
         </ScrollView>
@@ -489,166 +512,67 @@ const ExerciseDetail = () => {
 
 export default ExerciseDetail;
 
+const COLORS = {
+  bg: "#FFFFFF",
+  textDark: "#111827",
+  textMuted: "#6B7280",
+  teal: "#135D66",
+  greyDot: "#E5E7EB",
+  border: "#F3F4F6",
+};
+
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: theme.color.surface },
+  screen: { flex: 1, backgroundColor: COLORS.bg },
   topBar: {
-    paddingTop: 16,
-    paddingBottom: 10,
-    paddingHorizontal: theme.space.screenHorizontal,
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.border,
-    backgroundColor: theme.color.surface,
+    paddingTop: 16, paddingBottom: 10, paddingHorizontal: 16,
+    flexDirection: "row", alignItems: "center",
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg,
   },
-  topBarLeading: {
-    width: theme.layout.topBarBalanceWidth,
-    alignItems: "flex-start",
-    justifyContent: "center",
+  topBarSpacer: { flex: 1 },
+  container: { paddingHorizontal: 16, paddingBottom: 32 },
+  sessionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingTop: 24, paddingBottom: 16 },
+  sessionLabel: { fontFamily: FlooraFonts.semiBold, fontSize: 28, color: COLORS.textDark },
+  sessionSub: { fontFamily: FlooraFonts.semiBold, marginTop: 4, fontSize: 20, color: COLORS.teal },
+  sessionRight: { alignItems: "flex-end" },
+  progressText: { fontFamily: FlooraFonts.semiBold, fontSize: 26, color: COLORS.textDark },
+  dotsRow: { flexDirection: "row", marginTop: 6 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.greyDot, marginLeft: 4 },
+  dotActive: { backgroundColor: COLORS.teal },
+  dotCurrent: {
+    borderWidth: 2,
+    borderColor: COLORS.teal,
+    backgroundColor: "#FFFFFF",
   },
-  topBarTrailing: {
-    width: theme.layout.topBarBalanceWidth,
-  },
-  topTitle: {
-    ...theme.typography.exerciseScreenTitle,
-    flex: 1,
-    minWidth: 0,
-    textAlign: "center",
-  },
-  container: {
-    paddingHorizontal: theme.space.screenHorizontal,
-    paddingBottom: 32,
-  },
-  sessionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-    paddingTop: theme.space.screenTop,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  sessionLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  sessionLabel: {
-    ...theme.typography.sessionScreenTitle,
-  },
-  sessionSub: {
-    marginTop: 4,
-    ...theme.typography.sectionSubtitle,
-    fontFamily: fonts.medium,
-  },
-  sessionRight: { alignItems: "flex-end", flexShrink: 0 },
-  progressText: {
-    ...theme.typography.progressFraction,
-  },
-  dotsRow: { flexDirection: "row", marginTop: 6, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: 160 },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: theme.radius.dot,
-    backgroundColor: theme.color.border,
-    marginLeft: 4,
-    marginBottom: 4,
-  },
-  dotActive: { backgroundColor: theme.color.primary },
-  heroWrapper: {
-    borderRadius: theme.radius.mediaCard,
-    overflow: "hidden",
-    marginBottom: 24,
-    position: "relative",
-  },
-  heroImage: { width: "100%", aspectRatio: 16 / 9 },
   videoOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
+    justifyContent: "center", alignItems: "center",
   },
-  videoOverlayText: {
-    ...theme.typography.bodySmall,
-    color: theme.color.overlayText,
-    marginTop: 8,
-  },
-  videoErrorOverlay: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(0,0,0,0.8)",
-    padding: 12,
-  },
-  videoErrorText: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    lineHeight: 18,
-    color: theme.color.overlayText,
-  },
-  videoErrorHint: {
-    ...theme.typography.descriptionCompact,
-    color: "rgba(255,255,255,0.85)",
-    marginTop: 4,
-  },
-  retryButton: {
-    ...theme.button.compact,
-    marginTop: 8,
-    alignSelf: "flex-start",
-  },
-  retryButtonText: {
-    ...theme.button.compactText,
-  },
+  videoOverlayText: { fontFamily: FlooraFonts.regular, color: "#FFFFFF", marginTop: 8, fontSize: 14 },
+  videoErrorOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, backgroundColor: "rgba(0,0,0,0.8)", padding: 12 },
+  videoErrorText: { fontFamily: FlooraFonts.semiBold, color: "#FFFFFF", fontSize: 14 },
+  videoErrorHint: { fontFamily: FlooraFonts.regular, color: "rgba(255,255,255,0.8)", fontSize: 12, marginTop: 4 },
+  retryButton: { marginTop: 8, alignSelf: "flex-start", paddingVertical: 6, paddingHorizontal: 12, backgroundColor: COLORS.teal, borderRadius: 8 },
+  retryButtonText: { fontFamily: FlooraFonts.semiBold, color: "#FFFFFF", fontSize: 14 },
   playButton: {
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    marginLeft: -32,
-    marginTop: -32,
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "rgba(255,255,255,0.92)",
-    justifyContent: "center",
-    alignItems: "center",
+    position: "absolute", top: "50%", left: "50%", marginLeft: -32, marginTop: -32,
+    width: 64, height: 64, borderRadius: 32, backgroundColor: "rgba(255,255,255,0.92)",
+    justifyContent: "center", alignItems: "center",
   },
   playTriangle: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 18,
-    borderLeftColor: theme.color.heading,
-    borderTopWidth: 12,
-    borderTopColor: "transparent",
-    borderBottomWidth: 12,
-    borderBottomColor: "transparent",
+    width: 0, height: 0,
+    borderLeftWidth: 18, borderLeftColor: "#111827",
+    borderTopWidth: 12, borderTopColor: "transparent",
+    borderBottomWidth: 12, borderBottomColor: "transparent",
     marginLeft: 4,
   },
   textBlock: { marginBottom: 24 },
-  exerciseTitle: {
-    ...theme.typography.exerciseTitleLarge,
-    marginBottom: 4,
-  },
-  categoryText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    color: theme.color.primary,
-    marginBottom: 16,
-  },
-  description: {
-    ...theme.typography.description,
-  },
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: theme.space.screenHorizontal,
-    backgroundColor: theme.color.surface,
-  },
-  loadingText: { marginTop: 12, ...theme.typography.bodySmall },
-  notFound: { ...theme.typography.bodySmall },
-  errorText: {
-    ...theme.typography.descriptionCompact,
-    marginTop: 8,
-    textAlign: "center",
-  },
-  link: { marginTop: 6, ...theme.typography.link },
+  exerciseTitle: { fontFamily: FlooraFonts.bold, fontSize: 28, color: COLORS.textDark, marginBottom: 4 },
+  prescriptionText: { fontFamily: FlooraFonts.semiBold, fontSize: 16, color: COLORS.textDark, marginBottom: 10 },
+  description: { fontFamily: FlooraFonts.regular, fontSize: 16, lineHeight: 24, color: COLORS.textMuted },
+  center: { flex: 1, justifyContent: "center", alignItems: "center", padding: 16, backgroundColor: COLORS.bg },
+  loadingText: { fontFamily: FlooraFonts.regular, marginTop: 12, fontSize: 14, color: COLORS.textMuted },
+  notFound: { fontFamily: FlooraFonts.regular, fontSize: 14, color: COLORS.textMuted },
+  errorText: { fontFamily: FlooraFonts.regular, marginTop: 8, fontSize: 12, color: COLORS.textMuted, textAlign: "center" },
+  link: { fontFamily: FlooraFonts.medium, marginTop: 6, color: COLORS.teal },
 });

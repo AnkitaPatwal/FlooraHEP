@@ -1,66 +1,74 @@
 import { StyleSheet } from "react-native";
-import { theme } from "../../constants/theme";
-import { fonts } from "../../constants/fonts";
+import { FlooraFonts } from "../../constants/fonts";
 
 export default StyleSheet.create({
   container: {
     flexGrow: 1,
-    backgroundColor: theme.color.authBackground,
-    paddingHorizontal: theme.space.authScreenHorizontal,
+    backgroundColor: "#437C7D",
+    paddingHorizontal: 32,
     paddingTop: 60,
-    paddingBottom: 80,
+    paddingBottom: 80, 
   },
-  backButtonContainer: {
+
+  backRow: {
+    alignSelf: "flex-start",
     marginBottom: 28,
   },
-  backButtonCircle: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
   header: {
     marginBottom: 8,
   },
+
   title: {
-    fontFamily: fonts.bold,
+    fontFamily: FlooraFonts.bold,
     fontSize: 26,
-    lineHeight: 32,
-    color: theme.color.surface,
+    color: "#FFFFFF",
     marginBottom: 10,
   },
+
   subtitle: {
-    fontFamily: fonts.regular,
+    fontFamily: FlooraFonts.regular,
     fontSize: 15,
-    lineHeight: 22,
-    color: theme.color.surface,
+    color: "#FFFFFF",
     marginBottom: 36,
   },
+
   field: {
     marginBottom: 20,
   },
+
   fieldLabel: {
-    color: theme.color.surface,
-    fontFamily: fonts.medium,
+    color: "#FFFFFF",
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 14,
     marginBottom: 6,
   },
+
   input: {
     width: "100%",
-    minHeight: 50,
-    backgroundColor: theme.color.authInputFill,
-    borderRadius: theme.radius.input,
+    height: 50,
+    backgroundColor: "#EAE4DA",
+    borderRadius: 6,
     paddingHorizontal: 12,
-    fontFamily: fonts.regular,
-    fontSize: 16,
-    color: theme.color.authInputText,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    color: "#2B2B2B",
   },
+
   createButton: {
     width: "70%",
     alignSelf: "center",
-    ...theme.button.inverse,
+    backgroundColor: "#0D2C2C",
+    borderRadius: 8,
+    paddingVertical: 14,
     marginTop: 30,
-    marginBottom: 40,
+    alignItems: "center",
+    marginBottom: 40, 
   },
+
   createButtonText: {
-    ...theme.button.inverseText,
+    color: "#FFFFFF",
+    fontFamily: FlooraFonts.semiBold,
+    fontSize: 16,
   },
 });

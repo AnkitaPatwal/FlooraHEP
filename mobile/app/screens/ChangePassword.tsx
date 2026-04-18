@@ -15,10 +15,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useRouter } from "expo-router";
 import { Feather } from "@expo/vector-icons";
-import ScreenBackButton from "../../components/ScreenBackButton";
-import { theme } from "../../constants/theme";
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
+import { FlooraFonts } from "../../constants/fonts";
+import { CircularBackButton } from "../../components/CircularBackButton";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -133,8 +133,7 @@ export default function ChangePassword() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <ScreenBackButton onPress={handleBack} />
-          <Text style={styles.headerTitle}>Change Password</Text>
+          <CircularBackButton onPress={handleBack} />
           <View style={styles.headerSpacer} />
         </View>
 
@@ -253,66 +252,87 @@ export default function ChangePassword() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: theme.color.surface,
+    backgroundColor: "#FFFFFF",
   },
   flex: {
     flex: 1,
   },
   header: {
-    minHeight: theme.space.headerRowHeight,
+    height: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.color.border,
+    borderBottomColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: theme.space.screenHorizontal,
-    backgroundColor: theme.color.surface,
+    paddingHorizontal: 12,
+    backgroundColor: "#FFFFFF",
   },
-  headerSpacer: {
-    width: theme.layout.minTouchTarget,
-  },
-  headerTitle: {
-    ...theme.typography.screenHeaderTitle,
-    flex: 1,
-    textAlign: "center",
-  },
+  headerSpacer: { flex: 1 },
   scrollView: {
     flex: 1,
   },
   body: {
-    paddingHorizontal: theme.space.formBodyHorizontal,
-    paddingTop: theme.space.formBodyTop,
-    paddingBottom: theme.space.formBodyBottom,
+    paddingHorizontal: 24,
+    paddingTop: 36,
+    paddingBottom: 40,
   },
   title: {
-    ...theme.typography.formPageTitle,
+    fontFamily: FlooraFonts.bold,
+    fontSize: 18,
+    textAlign: "center",
+    color: "#111827",
+    marginBottom: 28,
   },
   label: {
-    ...theme.typography.formLabel,
+    fontFamily: FlooraFonts.semiBold,
+    fontSize: 15,
+    color: "#333",
+    marginBottom: 8,
   },
   inputContainer: {
-    ...theme.form.fieldRow,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 8,
+    marginBottom: 20,
+    paddingHorizontal: 14,
   },
   input: {
-    ...theme.typography.formInput,
     flex: 1,
     paddingVertical: 12,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    color: "#333",
   },
   eyeButton: {
     padding: 4,
   },
   errorText: {
-    ...theme.typography.errorBanner,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 14,
+    color: "#B91C1C",
+    marginBottom: 12,
   },
   button: {
-    ...theme.button.primary,
-    alignSelf: "stretch",
-    marginTop: 12,
+    backgroundColor: "#5A8E93",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
+    width: 180,
+    alignSelf: "center",
+    marginTop: 8,
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonText: {
-    ...theme.button.primaryText,
+    fontFamily: FlooraFonts.semiBold,
+    color: "#fff",
+    fontSize: 16,
   },
   successBlock: {
     alignItems: "center",
@@ -322,11 +342,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   successTitle: {
-    ...theme.typography.successTitle,
-    textAlign: "center",
+    fontFamily: FlooraFonts.bold,
+    fontSize: 20,
+    color: "#059669",
+    marginBottom: 8,
   },
   successText: {
-    ...theme.typography.body,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    color: "#333",
     textAlign: "center",
     marginBottom: 24,
   },

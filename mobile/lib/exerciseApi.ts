@@ -17,27 +17,6 @@ const getBaseUrl = (): string | null => {
   return null;
 };
 
-const FETCH_TIMEOUT_MS = 12_000;
-
-async function fetchJsonWithTimeout(
-  url: string,
-  init: RequestInit = {}
-): Promise<Response | null> {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), FETCH_TIMEOUT_MS);
-  try {
-    return await fetch(url, {
-      ...init,
-      signal: ac.signal,
-      headers: { Accept: "application/json", ...init.headers },
-    });
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(t);
-  }
-}
-
 /**
  * Fetches the list of exercises from the backend (for use in grids/lists).
  */
@@ -45,10 +24,10 @@ export async function fetchExerciseList(): Promise<ExerciseListItem[]> {
   const baseUrl = getBaseUrl();
   if (!baseUrl) return [];
 
-  const res = await fetchJsonWithTimeout(`${baseUrl}/api/exercises?pageSize=50`, {
+  const res = await fetch(`${baseUrl}/api/exercises?pageSize=50`, {
     method: "GET",
+    headers: { Accept: "application/json" },
   });
-  if (!res) return [];
 
   if (!res.ok) return [];
   try {
@@ -97,10 +76,10 @@ export async function fetchExerciseById(
   const numId = typeof id === "string" ? parseInt(id, 10) : id;
   if (!Number.isInteger(numId) || numId <= 0) return null;
 
-  const res = await fetchJsonWithTimeout(`${baseUrl}/api/exercises/${numId}`, {
+  const res = await fetch(`${baseUrl}/api/exercises/${numId}`, {
     method: "GET",
+    headers: { Accept: "application/json" },
   });
-  if (!res) return null;
 
   if (res.status === 404) return null;
   if (!res.ok) {

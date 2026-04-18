@@ -1,9 +1,21 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import "../../components/AdminInlineMessage.css";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "../../components/main/Session.css";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import sessionImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  messageFromApiResponse,
+  messageFromUnknownError,
+  parseResponseJson,
+} from "../../lib/api-errors";
 import { supabase } from "../../lib/supabase-client";
 import { useAssignmentCountsRefresh } from "../../hooks/useAssignmentCountsRefresh";
 import {
@@ -14,7 +26,9 @@ import {
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 async function authHeaders(): Promise<HeadersInit> {
-  const { data: { session } } = await supabase.auth.getSession();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
   return {
     "Content-Type": "application/json",
     ...(session?.access_token
@@ -45,6 +59,10 @@ type Module = {
   assigned_user_count?: number;
 };
 
+type SessionsBanner =
+  | { variant: "error"; message: string }
+  | { variant: "success"; message: string };
+
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
 }
@@ -59,12 +77,32 @@ function Session() {
   );
   const [modules, setModules] = useState<Module[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
-  const [error, setError] = useState("");
+  const [banner, setBanner] = useState<SessionsBanner | null>(null);
   const [search, setSearch] = useState("");
+  const expectSuccessAfterLoadRef = useRef(false);
+  const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
-  const loadModules = async () => {
+  useEffect(() => {
+    return () => {
+      if (successDismissTimerRef.current) {
+        clearTimeout(successDismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  const dismissBanner = useCallback(() => {
+    if (successDismissTimerRef.current) {
+      clearTimeout(successDismissTimerRef.current);
+      successDismissTimerRef.current = null;
+    }
+    setBanner(null);
+  }, []);
+
+  const loadModules = useCallback(async () => {
     setLoadingModules(true);
-    setError("");
+    setBanner(null);
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/admin/modules`, {
@@ -72,20 +110,62 @@ function Session() {
         headers,
         cache: "no-store",
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load sessions");
-      setModules(Array.isArray(data) ? data : []);
+      const body = await parseResponseJson(res);
+
+      if (!res.ok) {
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: messageFromApiResponse(
+            res,
+            body,
+            "Could not load sessions.",
+          ),
+        });
+        return;
+      }
+
+      if (!Array.isArray(body)) {
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: "Received an unexpected response from the server.",
+        });
+        return;
+      }
+
+      setModules(body as Module[]);
+
+      if (expectSuccessAfterLoadRef.current) {
+        expectSuccessAfterLoadRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Sessions refreshed." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load sessions");
-      setModules([]);
+      expectSuccessAfterLoadRef.current = false;
+      setBanner({
+        variant: "error",
+        message: messageFromUnknownError(e, "Could not load sessions."),
+      });
     } finally {
       setLoadingModules(false);
     }
-  };
+  }, [countsVersion, refreshToken]);
+
+  const handleRetry = useCallback(() => {
+    expectSuccessAfterLoadRef.current = true;
+    void loadModules();
+  }, [loadModules]);
 
   useEffect(() => {
-    loadModules();
-  }, [location.key, refreshToken, countsVersion]);
+    void loadModules();
+  }, [location.key, loadModules]);
 
   function sessionCategoryLabel(m: Module): string {
     const c = m.description?.trim();
@@ -95,23 +175,31 @@ function Session() {
   const q = search.trim().toLowerCase();
   const filteredModules = modules.filter((m) => {
     if (!q) return true;
-    const title = m.title.toLowerCase();
+    const title = (m.title ?? "").toLowerCase();
     const cat = sessionCategoryLabel(m).toLowerCase();
     return title.includes(q) || cat.includes(q);
   });
 
-  const groupedByCategory = filteredModules.reduce((acc, m) => {
-    const key = sessionCategoryLabel(m);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(m);
-    return acc;
-  }, {} as Record<string, Module[]>);
+  const groupedByCategory = filteredModules.reduce(
+    (acc, m) => {
+      const key = sessionCategoryLabel(m);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(m);
+      return acc;
+    },
+    {} as Record<string, Module[]>,
+  );
 
   const sortedCategoryGroups = Object.entries(groupedByCategory)
-    .map(([label, items]) => [
-      label,
-      [...items].sort((a, b) => a.title.localeCompare(b.title)),
-    ] as const)
+    .map(
+      ([label, items]) =>
+        [
+          label,
+          [...items].sort((a, b) =>
+            (a.title ?? "").localeCompare(b.title ?? ""),
+          ),
+        ] as const,
+    )
     .sort(([a], [b]) => {
       if (a === "Uncategorized") return 1;
       if (b === "Uncategorized") return -1;
@@ -164,13 +252,44 @@ function Session() {
 
         <hr className="session-divider" />
 
-        {error && <div className="session-error">{error}</div>}
+        {banner && (
+          <div
+            className={`admin-inline-message admin-inline-message--${banner.variant}`}
+            role={banner.variant === "error" ? "alert" : "status"}
+            aria-live={banner.variant === "error" ? "assertive" : "polite"}
+          >
+            <p className="admin-inline-message__text">{banner.message}</p>
+            <div className="admin-inline-message__actions">
+              {banner.variant === "error" && (
+                <button
+                  type="button"
+                  className="admin-inline-message__btn"
+                  onClick={handleRetry}
+                  disabled={loadingModules}
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                type="button"
+                className="admin-inline-message__btn admin-inline-message__btn--ghost"
+                onClick={dismissBanner}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {loadingModules ? (
-          <p>Loading sessions…</p>
+          <p className="session-loading-hint">Loading sessions…</p>
         ) : filteredModules.length === 0 ? (
           <p className="session-empty">
-            No sessions yet. Click &quot;+ New Session&quot; to create one.
+            {search.trim()
+              ? "No sessions match your search."
+              : banner?.variant === "error"
+                ? "Sessions could not be loaded. Use Retry above, or sign in again if you see an authorization message."
+                : 'No sessions yet. Click "+ New Session" to create one.'}
           </p>
         ) : (
           sortedCategoryGroups.map(([category, items]) => (
@@ -183,7 +302,9 @@ function Session() {
                   <div
                     className="session-card"
                     key={module.module_id}
-                    onClick={() => navigate(`/sessions/${module.module_id}/edit`)}
+                    onClick={() =>
+                      navigate(`/sessions/${module.module_id}/edit`)
+                    }
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
@@ -204,7 +325,9 @@ function Session() {
                     />
                     <div className="session-info">
                       <h3>{module.title}</h3>
-                      <p className="session-card-category">{sessionCategoryLabel(module)}</p>
+                      <p className="session-card-category">
+                        {sessionCategoryLabel(module)}
+                      </p>
                       <span className="session-tag">
                         <AssignmentPulseIcon className="assignment-count-pulse-icon" />
                         {clientsAssignedLabel(module.assigned_user_count ?? 0)}
