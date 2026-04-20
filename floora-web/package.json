@@ -14,6 +14,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.101.1",
     "debug": "^4.4.3",
+    "lucide-react": "^0.469.0",
     "expo": "^54.0.33",
     "lucide-react": "^1.7.0",
     "react": "^19.1.1",

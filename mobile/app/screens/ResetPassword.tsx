@@ -38,18 +38,27 @@ export default function ResetPassword() {
 
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/reset-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password: newPassword }),
-        }
-      );
+      const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      if (!url || !anon) {
+        throw new Error("App configuration is incomplete.");
+      }
+      const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${anon}`,
+          apikey: anon,
+        },
+        body: JSON.stringify({ token, password: newPassword }),
+      });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Reset failed");
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        throw new Error(data.message || data.error || "Reset failed");
       }
 
       alert("Password updated. You can now log in.");

@@ -1,40 +1,57 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ResetPassword from "../ResetPassword";
 
-vi.mock("../../lib/supabase-client", () => ({
-  supabase: {
-    auth: {
-      updateUser: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      }),
-    },
-  },
-}));
-
-import { supabase } from "../../lib/supabase-client";
-
-const renderWithRouter = () =>
-  render(
-    <MemoryRouter initialEntries={["/reset-password"]}>
-      <Routes>
-        <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/admin-login" element={<div>Login Page</div>} />
-      </Routes>
-    </MemoryRouter>
-  );
-
 describe("ResetPassword", () => {
-  beforeEach(() => vi.clearAllMocks());
+  const originalEnv = import.meta.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ message: "Password has been reset successfully" }),
+      })
+    );
+    Object.defineProperty(import.meta, "env", {
+      value: {
+        ...originalEnv,
+        VITE_SUPABASE_URL: "https://test.supabase.co",
+        VITE_SUPABASE_ANON_KEY: "test-anon-key",
+      },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Object.defineProperty(import.meta, "env", { value: originalEnv, configurable: true });
+  });
+
+  const renderWithRouter = (search = "?token=testtokenhex") =>
+    render(
+      <MemoryRouter initialEntries={[`/reset-password${search}`]}>
+        <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/admin-login" element={<div>Login Page</div>} />
+        </Routes>
+      </MemoryRouter>
+    );
 
   it("renders the reset password form", () => {
     renderWithRouter();
     expect(screen.getByPlaceholderText("New password")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Confirm password")).toBeInTheDocument();
     expect(screen.getByText("Update Password")).toBeInTheDocument();
+  });
+
+  it("shows error when token is missing", () => {
+    renderWithRouter("");
+    expect(
+      screen.getByText(/This reset link is invalid or expired/i)
+    ).toBeInTheDocument();
   });
 
   it("shows error when password is too short", async () => {
@@ -49,10 +66,9 @@ describe("ResetPassword", () => {
     fireEvent.click(screen.getByText("Update Password"));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Password must be at least 8 characters.")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Password must be at least 8 characters.")).toBeInTheDocument();
     });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("shows error when passwords do not match", async () => {
@@ -71,9 +87,7 @@ describe("ResetPassword", () => {
     });
   });
 
-  it("calls updateUser with new password on valid submit", async () => {
-    (supabase.auth.updateUser as any).mockResolvedValueOnce({ error: null });
-
+  it("calls reset-password edge function on valid submit", async () => {
     renderWithRouter();
 
     fireEvent.change(screen.getByPlaceholderText("New password"), {
@@ -85,14 +99,42 @@ describe("ResetPassword", () => {
     fireEvent.click(screen.getByText("Update Password"));
 
     await waitFor(() => {
-      expect(supabase.auth.updateUser).toHaveBeenCalledWith({
-        password: "newpassword123",
-      });
+      expect(fetch).toHaveBeenCalledWith(
+        "https://test.supabase.co/functions/v1/reset-password",
+        expect.objectContaining({
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer test-anon-key",
+            apikey: "test-anon-key",
+          },
+          body: JSON.stringify({ token: "testtokenhex", password: "newpassword123" }),
+        })
+      );
     });
   });
 
   it("shows success message after password is updated", async () => {
-    (supabase.auth.updateUser as any).mockResolvedValueOnce({ error: null });
+    renderWithRouter();
+
+    fireEvent.change(screen.getByPlaceholderText("New password"), {
+      target: { value: "newpassword123" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("Confirm password"), {
+      target: { value: "newpassword123" },
+    });
+    fireEvent.click(screen.getByText("Update Password"));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Password updated! Redirecting to login/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error message when reset fails", async () => {
+    (fetch as unknown as vi.Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Invalid or expired token" }),
+    });
 
     renderWithRouter();
 
@@ -105,56 +147,8 @@ describe("ResetPassword", () => {
     fireEvent.click(screen.getByText("Update Password"));
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Password updated! Redirecting to login...")
-      ).toBeInTheDocument();
+      expect(screen.getByText("Invalid or expired token")).toBeInTheDocument();
     });
   });
 
-  it("shows error message when updateUser fails", async () => {
-    (supabase.auth.updateUser as any).mockResolvedValueOnce({
-      error: { message: "Update failed" },
-    });
-
-    renderWithRouter();
-
-    fireEvent.change(screen.getByPlaceholderText("New password"), {
-      target: { value: "newpassword123" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Confirm password"), {
-      target: { value: "newpassword123" },
-    });
-    fireEvent.click(screen.getByText("Update Password"));
-
-    await waitFor(() => {
-      expect(screen.getByText("Update failed")).toBeInTheDocument();
-    });
-  });
-
-  it("redirects to login after successful password reset", async () => {
-    (supabase.auth.updateUser as any).mockResolvedValueOnce({ error: null });
-  
-    renderWithRouter();
-  
-    fireEvent.change(screen.getByPlaceholderText("New password"), {
-      target: { value: "newpassword123" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("Confirm password"), {
-      target: { value: "newpassword123" },
-    });
-    fireEvent.click(screen.getByText("Update Password"));
-  
-    await waitFor(() => {
-      expect(
-        screen.getByText("Password updated! Redirecting to login...")
-      ).toBeInTheDocument();
-    });
-  
-    // Wait for the 1500ms redirect timeout
-    await new Promise((resolve) => setTimeout(resolve, 1600));
-  
-    await waitFor(() => {
-      expect(screen.getByText("Login Page")).toBeInTheDocument();
-    });
-  });
 });
