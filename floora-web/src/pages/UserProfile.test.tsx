@@ -134,7 +134,7 @@ describe("UserProfile", () => {
     const dialog = await screen.findByRole("dialog");
 
     expect(
-      within(dialog).getByText(/Are you sure you want to delete this client\?/i)
+      within(dialog).getByText(/Are you sure you want to delete this user\?/i)
     ).toBeInTheDocument();
 
     // Verify modal buttons (scoped within dialog to avoid "two Delete buttons" issue)

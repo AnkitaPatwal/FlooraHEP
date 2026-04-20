@@ -32,6 +32,32 @@
   color: #5c6068;
 }
 
+.confirm-dialog-extra {
+  margin: -12px 0 20px;
+  font-size: 14px;
+  color: #3f414b;
+}
+
+.confirm-dialog-extra .confirm-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.confirm-dialog-extra .confirm-dialog-field-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.confirm-dialog-extra .confirm-dialog-date-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  max-width: 100%;
+}
+
 .confirm-dialog-actions {
   display: flex;
   justify-content: flex-end;

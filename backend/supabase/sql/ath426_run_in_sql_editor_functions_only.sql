@@ -10,10 +10,52 @@ set search_path = public
 set row_security = off
 as $$
 declare
+  v_assignment_id public.user_packages.id%type;
+  v_current_seq integer;
+  v_next_module bigint;
   v_plan_id bigint;
   v_order integer;
-  v_next_module bigint;
 begin
+  select up.id
+    into v_assignment_id
+  from public.user_packages up
+  where up.user_id = new.user_id
+    and up.session_layout_published_at is not null
+  order by up.created_at desc
+  limit 1;
+
+  if v_assignment_id is not null then
+    select min(uas.unlock_sequence)::integer
+      into v_current_seq
+    from public.user_assignment_session uas
+    where uas.assignment_id = v_assignment_id
+      and uas.user_id = new.user_id
+      and uas.module_id = new.module_id
+      and coalesce(uas.is_removed, false) = false
+      and uas.unlock_sequence is not null;
+
+    if v_current_seq is not null then
+      select uas.module_id
+        into v_next_module
+      from public.user_assignment_session uas
+      where uas.assignment_id = v_assignment_id
+        and uas.user_id = new.user_id
+        and coalesce(uas.is_removed, false) = false
+        and uas.unlock_sequence is not null
+        and uas.unlock_sequence > v_current_seq
+      order by uas.unlock_sequence asc, uas.module_id asc
+      limit 1;
+
+      if v_next_module is not null then
+        insert into public.user_session_unlock (user_id, module_id, unlock_date)
+        values (new.user_id, v_next_module, new.completed_at + interval '7 days')
+        on conflict (user_id, module_id) do update
+          set unlock_date = excluded.unlock_date;
+        return new;
+      end if;
+    end if;
+  end if;
+
   select up.package_id, pm.order_index
     into v_plan_id, v_order
   from public.user_packages up

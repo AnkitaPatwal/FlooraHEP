@@ -30,8 +30,9 @@ jest.mock("../../providers/AuthProvider", () => ({
 function makeUserPackagesChain(data: unknown) {
   const maybeSingle = jest.fn().mockResolvedValue({ data, error: null });
   const limit = jest.fn(() => ({ maybeSingle }));
-  const order = jest.fn(() => ({ limit }));
-  const eq = jest.fn(() => ({ order }));
+  const order = jest.fn(() => ({ order, limit }));
+  const not = jest.fn(() => ({ order, limit }));
+  const eq = jest.fn(() => ({ not, order, limit }));
   const select = jest.fn(() => ({ eq }));
   return { select };
 }
@@ -61,12 +62,19 @@ function makeEqResolveChain(data: unknown[]) {
   return { select };
 }
 
+function makeEqInResolveChain(data: unknown[]) {
+  const inFn = jest.fn().mockResolvedValue({ data, error: null });
+  const eq = jest.fn(() => ({ in: inFn }));
+  const select = jest.fn(() => ({ eq }));
+  return { select };
+}
+
 type MockChain =
   | ReturnType<typeof makeUserPackagesChain>
   | ReturnType<typeof makePlanModuleChain>
   | ReturnType<typeof makeModuleChain>
-  | ReturnType<typeof makeExerciseChain>
-  | ReturnType<typeof makeEqResolveChain>;
+  | ReturnType<typeof makeEqResolveChain>
+  | ReturnType<typeof makeEqInResolveChain>;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -87,6 +95,7 @@ function defaultMockFrom(overrides: Partial<Record<string, MockChain>> = {}) {
         makeUserPackagesChain({
           package_id: 8,
           start_date: PAST_DATE,
+          session_layout_published_at: PAST_DATE,
         })
       );
     }
@@ -111,29 +120,18 @@ function defaultMockFrom(overrides: Partial<Record<string, MockChain>> = {}) {
       );
     }
 
-    if (table === "exercise") {
+    if (table === "user_assignment_session_unlock") {
       return (
-        overrides.exercise ??
-        makeExerciseChain([
-          { module_id: 1 },
-          { module_id: 1 },
-          { module_id: 2 },
+        overrides.user_assignment_session_unlock ??
+        makeEqInResolveChain([
+          { user_assignment_session_id: "uas-1", unlock_date: PAST_DATE },
+          { user_assignment_session_id: "uas-2", unlock_date: FUTURE_DATE },
         ])
       );
     }
 
-    if (table === "user_session_unlock") {
-      return (
-        overrides.user_session_unlock ??
-        makeEqResolveChain([
-          { module_id: 1, unlock_date: PAST_DATE },
-          { module_id: 2, unlock_date: FUTURE_DATE },
-        ])
-      );
-    }
-
-    if (table === "user_session_completion") {
-      return overrides.user_session_completion ?? makeEqResolveChain([]);
+    if (table === "user_assignment_session_completion") {
+      return overrides.user_assignment_session_completion ?? makeEqInResolveChain([]);
     }
 
     return { select: jest.fn() };
@@ -148,6 +146,15 @@ describe("useRoadmap", () => {
     mockRpc.mockImplementation((fnName?: string) => {
       if (fnName === "get_my_assigned_plan_title") {
         return Promise.resolve({ data: "Sadaf's Plan", error: null });
+      }
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "Session 1" },
+            { user_assignment_session_id: "uas-2", module_id: 2, order_index: 2, title: "Session 2" },
+          ],
+          error: null,
+        });
       }
       return Promise.resolve({ data: null, error: null });
     });
@@ -245,7 +252,9 @@ describe("useRoadmap", () => {
 
   it("marks session as completed when completion record exists", async () => {
     defaultMockFrom({
-      user_session_completion: makeEqResolveChain([{ module_id: 1 }]),
+      user_assignment_session_completion: makeEqInResolveChain([
+        { user_assignment_session_id: "uas-1" },
+      ]),
     });
 
     const { result } = renderHook(() => useRoadmap());
@@ -260,6 +269,16 @@ describe("useRoadmap", () => {
   it("returns error state when module fetch fails", async () => {
     defaultMockFrom({
       module: makeModuleChain([], { message: "DB error" }),
+    });
+    mockRpc.mockImplementation((fnName?: string) => {
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Sadaf's Plan", error: null });
+      }
+      // Force template fallback so the failing `module` query is used.
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({ data: null, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
     });
 
     const { result } = renderHook(() => useRoadmap());
@@ -298,6 +317,15 @@ describe("useRoadmap", () => {
     mockRpc.mockImplementation((fn, params) => {
       if (fn === "get_my_assigned_plan_title") {
         return Promise.resolve({ data: "Sadaf's Plan", error: null });
+      }
+      if (fn === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "Session 1" },
+            { user_assignment_session_id: "uas-2", module_id: 2, order_index: 2, title: "Session 2" },
+          ],
+          error: null,
+        });
       }
       if (fn === "ensure_first_session_unlock") {
         return Promise.resolve({ data: null, error: null });

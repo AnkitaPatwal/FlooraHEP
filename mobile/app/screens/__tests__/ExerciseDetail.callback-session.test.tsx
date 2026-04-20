@@ -1,6 +1,6 @@
 /**
  * Integration-style tests for ATH-429: exercise video playToEnd callback,
- * sequential unlock (client progress), complete_user_session on last exercise,
+ * sequential unlock (client progress), complete_user_assignment_session on last exercise,
  * and route-param fallback when the exercise API is unavailable.
  */
 import React from "react";
@@ -147,14 +147,15 @@ describe("ExerciseDetail — callback, sequential unlock, session completion", (
     });
 
     await waitFor(() => {
-      expect(recordExerciseWatchedToEnd).toHaveBeenCalledWith("user-1", 1, 1);
+      expect(recordExerciseWatchedToEnd).toHaveBeenCalledWith("user-1", "legacy", 1, 1);
     });
     expect(mockRpc).not.toHaveBeenCalled();
   });
 
-  it("on playToEnd for the last exercise, records progress and calls complete_user_session", async () => {
+  it("on playToEnd for the last exercise, records progress and calls complete_user_assignment_session", async () => {
     jest.mocked(getMaxCompletedExercisePosition).mockResolvedValue(1);
     routeParams.exercisePosition = "2";
+    routeParams.userAssignmentSessionId = "uas-1";
 
     const alertSpy = jest.spyOn(Alert, "alert").mockImplementation(() => {});
 
@@ -169,8 +170,10 @@ describe("ExerciseDetail — callback, sequential unlock, session completion", (
     });
 
     await waitFor(() => {
-      expect(recordExerciseWatchedToEnd).toHaveBeenCalledWith("user-1", 1, 2);
-      expect(mockRpc).toHaveBeenCalledWith("complete_user_session", { p_module_id: 1 });
+      expect(recordExerciseWatchedToEnd).toHaveBeenCalledWith("user-1", "legacy", 1, 2);
+      expect(mockRpc).toHaveBeenCalledWith("complete_user_assignment_session", {
+        p_user_assignment_session_id: "uas-1",
+      });
     });
     expect(alertSpy).toHaveBeenCalledWith(
       "Session complete",
@@ -214,9 +217,10 @@ describe("ExerciseDetail — callback, sequential unlock, session completion", (
     alertSpy.mockRestore();
   });
 
-  it("without module id, does not call complete_user_session even on last exercise", async () => {
+  it("without uas id, does not call complete_user_assignment_session even on last exercise", async () => {
     routeParams.moduleId = undefined;
     routeParams.sessionId = undefined;
+    routeParams.userAssignmentSessionId = undefined;
     routeParams.sessionExerciseTotal = "1";
     routeParams.exercisePosition = "1";
 

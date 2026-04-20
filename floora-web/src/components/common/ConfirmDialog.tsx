@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import "./ConfirmDialog.css";
 
 type ConfirmDialogProps = {
@@ -11,6 +11,7 @@ type ConfirmDialogProps = {
   busy?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  children?: ReactNode;
 };
 
 export function ConfirmDialog({
@@ -23,6 +24,7 @@ export function ConfirmDialog({
   busy,
   onConfirm,
   onCancel,
+  children,
 }: ConfirmDialogProps) {
   useEffect(() => {
     if (!open) return;
@@ -53,6 +55,7 @@ export function ConfirmDialog({
           {title}
         </h2>
         <p className="confirm-dialog-text">{message}</p>
+        {children ? <div className="confirm-dialog-extra">{children}</div> : null}
         <div className="confirm-dialog-actions">
           <button
             type="button"

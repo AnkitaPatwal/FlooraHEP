@@ -85,6 +85,11 @@ function formatPlanEdited(iso: string): string {
   });
 }
 
+/** Matches assign-package activity rows: hide internal `[client:…]` filter prefix. */
+function stripClientActivityPrefix(label: string): string {
+  return label.replace(/^\[client:[^\]]+\]\s*/, "");
+}
+
 export default function Dashboard() {
   const location = useLocation();
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
@@ -358,7 +363,9 @@ export default function Dashboard() {
                         >
                           <span className="dashboard-activity-dot" />
                         </span>
-                        <p className="dashboard-activity-text">{row.label}</p>
+                        <p className="dashboard-activity-text">
+                          {stripClientActivityPrefix(row.label)}
+                        </p>
                       </li>
                     ))}
                   </ul>

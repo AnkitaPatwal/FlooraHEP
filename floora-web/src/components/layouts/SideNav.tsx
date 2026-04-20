@@ -17,7 +17,7 @@ import {
 
 type MenuIconProps = {
   active: boolean;
-  type: "dashboard" | "users" | "plans" | "sessions" | "exercises" | "assign";
+  type: "dashboard" | "users" | "plans" | "sessions" | "exercises";
 };
 
 const MenuIcon = ({ active, type }: MenuIconProps) => {
@@ -39,8 +39,6 @@ const MenuIcon = ({ active, type }: MenuIconProps) => {
       return <Activity {...props} />;
     case "exercises":
       return <Dumbbell {...props} />;
-    case "assign":
-      return <ClipboardList {...props} />;
     default:
       return <LayoutDashboard {...props} />;
   }
@@ -147,22 +145,6 @@ const SideNav = () => {
                 <>
                   <MenuIcon type="exercises" active={isActive} />
                   <span>Exercises</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-
-          {/* Assign Plans */}
-          <li>
-            <NavLink
-              to="/assign-package"
-              end
-              className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
-            >
-              {({ isActive }) => (
-                <>
-                  <MenuIcon type="assign" active={isActive} />
-                  <span>Assign Plans</span>
                 </>
               )}
             </NavLink>
