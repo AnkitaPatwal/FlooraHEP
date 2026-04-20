@@ -105,7 +105,44 @@ function createFetchMock(overrides: {
 
   return jest.fn().mockImplementation((url: string) => {
     if (url.includes("upload-avatar")) {
-      return Promise.resolve(uploadRes);
+      return Promise.resolve({
+        ok: uploadRes.ok,
+        json: async () => {
+          const body = await uploadRes.json();
+          if (
+            uploadRes.ok &&
+            body &&
+            typeof body === "object" &&
+            "success" in body &&
+            (body as { success?: boolean }).success
+          ) {
+            const u =
+              (body as { avatar_url?: string; publicUrl?: string }).avatar_url ??
+              (body as { publicUrl?: string }).publicUrl;
+            if (typeof u === "string" && u.trim()) {
+              mockCurrentProfile = { ...mockCurrentProfile, avatar_url: u.trim() };
+            }
+          }
+          return body;
+        },
+      });
+    }
+    if (url.includes("update-profile")) {
+      const p = mockCurrentProfile;
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          success: true,
+          profile: {
+            user_id: 1,
+            email: p.email,
+            fname: null,
+            lname: null,
+            name: p.display_name ?? null,
+            avatar_url: p.avatar_url ?? null,
+          },
+        }),
+      });
     }
     return Promise.resolve({ ok: true, json: async () => ({}) });
   });

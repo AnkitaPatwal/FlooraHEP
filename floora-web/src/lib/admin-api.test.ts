@@ -5,6 +5,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fetchPendingClients,
   fetchActiveClients,
+  fetchDeniedClients,
+  fetchClientProfileAvatar,
+  fetchClientProfileAvatars,
   approveClient,
   denyClient,
   deleteClient,
@@ -127,6 +130,110 @@ describe("admin-api", () => {
       const result = await fetchActiveClients();
 
       expect(result).toEqual([]);
+    });
+  });
+
+  describe("fetchClientProfileAvatar", () => {
+    it("returns avatar_url from API object", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify({ user_id: 9, avatar_url: "https://cdn/x.png" })
+          ),
+      } as Response);
+
+      const url = await fetchClientProfileAvatar(9);
+      expect(url).toBe("https://cdn/x.png");
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ list: "avatar", user_id: 9 }),
+        })
+      );
+    });
+
+    it("returns null for invalid user id without calling API", async () => {
+      const url = await fetchClientProfileAvatar(NaN);
+      expect(url).toBeNull();
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("fetchClientProfileAvatars", () => {
+    it("returns a map of user_id to avatar_url", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            JSON.stringify([
+              { user_id: 1, avatar_url: "https://a/1.jpg" },
+              { user_id: 2, avatar_url: null },
+            ])
+          ),
+      } as Response);
+
+      const map = await fetchClientProfileAvatars([1, 2]);
+      expect(map.get(1)).toBe("https://a/1.jpg");
+      expect(map.get(2)).toBeNull();
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ list: "avatars", user_ids: [1, 2] }),
+        })
+      );
+    });
+
+    it("dedupes user ids in request body", async () => {
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve("[]"),
+      } as Response);
+
+      await fetchClientProfileAvatars([1, 1, 1]);
+      const body = JSON.parse(
+        (vi.mocked(fetch).mock.calls[0][1] as { body: string }).body
+      );
+      expect(body.user_ids).toEqual([1]);
+    });
+
+    it("returns empty map when ids empty", async () => {
+      const map = await fetchClientProfileAvatars([]);
+      expect(map.size).toBe(0);
+      expect(fetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("fetchDeniedClients", () => {
+    it("returns denied clients when API returns 200 with array", async () => {
+      const denied = [
+        {
+          user_id: 3,
+          email: "denied@example.com",
+          fname: "No",
+          lname: "Access",
+          status: false,
+          avatar_url: null,
+          plans: [],
+        },
+      ];
+      vi.mocked(fetch).mockResolvedValueOnce({
+        ok: true,
+        text: () => Promise.resolve(JSON.stringify(denied)),
+      } as Response);
+
+      const result = await fetchDeniedClients();
+
+      expect(result).toEqual(denied);
+      expect(fetch).toHaveBeenCalledWith(
+        expect.stringContaining("/functions/v1/admin-approval"),
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ list: "denied" }),
+        })
+      );
     });
   });
   // Sends action approve and resolves on 200

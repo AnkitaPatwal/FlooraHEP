@@ -42,6 +42,7 @@ export default function LoginScreen() {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${anonKey}`,
+        apikey: anonKey,
       },
       body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
@@ -89,16 +90,29 @@ export default function LoginScreen() {
         return;
       }
 
-      if (approved === false) {
+      const approvedOk = approved === true || approved === "true";
+      if (!approvedOk) {
         Alert.alert("Account Pending", "Your account is pending admin approval.");
         return;
       }
 
-      // Only approved users reach Supabase Auth login
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Only approved users reach Supabase Auth login (check-email-exists may sync Auth from public.user)
+      let { data, error } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
       });
+
+      const errCode = (error as { code?: string } | null)?.code;
+      if (
+        error &&
+        errCode === "invalid_credentials" &&
+        password.trim() !== password
+      ) {
+        ({ data, error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password: password.trim(),
+        }));
+      }
 
       if (data?.session && !error) {
         Keyboard.dismiss();
@@ -108,7 +122,12 @@ export default function LoginScreen() {
         return;
       }
 
-      Alert.alert("Sign In Failed", "Invalid email or password.");
+      const finalCode = (error as { code?: string } | null)?.code;
+      const hint =
+        finalCode === "invalid_credentials"
+          ? "Invalid email or password. If you were approved recently, use the password from sign-up, try Forgot Password, or ask your clinic to confirm your account email matches this app."
+          : error?.message || "Invalid email or password.";
+      Alert.alert("Sign In Failed", hint);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
       Alert.alert("Error", message);

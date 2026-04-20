@@ -49,6 +49,12 @@ function makeModuleChain(data: unknown[], error: unknown = null) {
   return { select };
 }
 
+function makeExerciseChain(data: unknown[], error: unknown = null) {
+  const inFn = jest.fn().mockResolvedValue({ data, error });
+  const select = jest.fn(() => ({ in: inFn }));
+  return { select };
+}
+
 function makeEqResolveChain(data: unknown[]) {
   const eq = jest.fn().mockResolvedValue({ data, error: null });
   const select = jest.fn(() => ({ eq }));
@@ -59,6 +65,7 @@ type MockChain =
   | ReturnType<typeof makeUserPackagesChain>
   | ReturnType<typeof makePlanModuleChain>
   | ReturnType<typeof makeModuleChain>
+  | ReturnType<typeof makeExerciseChain>
   | ReturnType<typeof makeEqResolveChain>;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -100,6 +107,17 @@ function defaultMockFrom(overrides: Partial<Record<string, MockChain>> = {}) {
         makeModuleChain([
           { module_id: 1, title: "Session 1" },
           { module_id: 2, title: "Session 2" },
+        ])
+      );
+    }
+
+    if (table === "exercise") {
+      return (
+        overrides.exercise ??
+        makeExerciseChain([
+          { module_id: 1 },
+          { module_id: 1 },
+          { module_id: 2 },
         ])
       );
     }

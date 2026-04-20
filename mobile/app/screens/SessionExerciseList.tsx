@@ -17,6 +17,7 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CircularBackButton, CIRCULAR_BACK_BUTTON_SIZE } from "../../components/CircularBackButton";
@@ -403,7 +404,9 @@ export default function SessionExerciseList() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
           refreshControl={
-            <RefreshControl refreshing={listRefreshing} onRefresh={onRefresh} tintColor="#0D2C2C" />
+            Platform.OS === "web" ? undefined : (
+              <RefreshControl refreshing={listRefreshing} onRefresh={onRefresh} tintColor="#0D2C2C" />
+            )
           }
         >
         <View style={styles.headerBlock}>

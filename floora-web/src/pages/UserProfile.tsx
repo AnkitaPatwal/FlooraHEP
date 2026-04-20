@@ -1,10 +1,50 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
-import { deleteClient, type ActiveClient } from "../lib/admin-api";
+import {
+  deleteClient,
+  fetchClientProfileAvatar,
+  type ActiveClient,
+} from "../lib/admin-api";
 import "../components/UserProfile.css";
 
 const DEFAULT_ADMIN_ID = 1;
+
+function ProfileAvatar({ name, url }: { name: string; url?: string | null }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  useEffect(() => {
+    setImgFailed(false);
+  }, [url]);
+
+  const initials = useMemo(
+    () =>
+      name
+        .split(" ")
+        .map((s) => s[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase(),
+    [name]
+  );
+
+  const trimmedUrl = url?.trim() ?? "";
+  const showImg = Boolean(trimmedUrl) && !imgFailed;
+
+  return (
+    <div className="ua-avatar-wrap">
+      {showImg ? (
+        <img
+          className="ua-avatar"
+          src={trimmedUrl}
+          alt=""
+          onError={() => setImgFailed(true)}
+        />
+      ) : (
+        <div className="ua-avatar ua-avatar-fallback">{initials}</div>
+      )}
+    </div>
+  );
+}
 
 type SessionCardItem = {
   id: number;
@@ -195,22 +235,33 @@ export default function UserProfile() {
   const [error, setError] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState("Select a Plan");
+  const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null | undefined>(
+    undefined
+  );
 
   const name = useMemo(() => {
     if (!user) return "—";
     return [user.fname, user.lname].filter(Boolean).join(" ") || "—";
   }, [user]);
 
-  const initials = useMemo(
-    () =>
-      name
-        .split(" ")
-        .map((s) => s[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [name]
-  );
+  useEffect(() => {
+    if (!user?.user_id) return;
+    setResolvedAvatarUrl(undefined);
+    let cancelled = false;
+    fetchClientProfileAvatar(user.user_id)
+      .then((url) => {
+        if (!cancelled) setResolvedAvatarUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setResolvedAvatarUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.user_id]);
+
+  const avatarUrlForDisplay =
+    resolvedAvatarUrl !== undefined ? resolvedAvatarUrl : user?.avatar_url;
 
   const displayedPlanTitle =
     selectedPlan === "Select a Plan" ? "Plan Title" : selectedPlan;
@@ -303,9 +354,7 @@ export default function UserProfile() {
 
           <section className="up-profile-row">
             <div className="up-avatar-column">
-              <div className="up-avatar-circle" aria-hidden>
-                {initials}
-              </div>
+              <ProfileAvatar name={name} url={avatarUrlForDisplay} />
             </div>
 
             <form className="up-form-grid" onSubmit={(e) => e.preventDefault()}>
@@ -349,42 +398,47 @@ export default function UserProfile() {
             <SessionRow title="Retrain" weeks="Weeks 5 - 8" />
             <SessionRow title="Reclaim" weeks="Weeks 9 - 12" />
           </section>
+
+          {showConfirm ? (
+            <div
+              className="up-modal-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="up-modal-title"
+            >
+              <div className="up-modal">
+                <h2 id="up-modal-title" className="up-modal-title">
+                  Are you sure you want to delete this client?
+                </h2>
+
+                <p className="up-modal-text">
+                  This will remove the user from the system and they will no longer be able to sign in.
+                </p>
+
+                <div className="up-modal-actions">
+                  <button
+                    type="button"
+                    className="up-btn up-btn-back"
+                    onClick={handleConfirmCancel}
+                    disabled={busy}
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="up-btn up-btn-delete-solid"
+                    onClick={handleConfirmDelete}
+                    disabled={busy}
+                  >
+                    {busy ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
-
-      {showConfirm ? (
-        <div className="up-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="up-modal-title">
-          <div className="up-modal">
-            <h2 id="up-modal-title" className="up-modal-title">
-              Are you sure you want to delete this client?
-            </h2>
-
-            <p className="up-modal-text">
-              This will remove the user from the system and they will no longer be able to sign in.
-            </p>
-
-            <div className="up-modal-actions">
-              <button
-                type="button"
-                className="up-btn up-btn-back"
-                onClick={handleConfirmCancel}
-                disabled={busy}
-              >
-                Cancel
-              </button>
-
-              <button
-                type="button"
-                className="up-btn up-btn-delete-solid"
-                onClick={handleConfirmDelete}
-                disabled={busy}
-              >
-                {busy ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </AppLayout>
   );
 }

@@ -18,10 +18,24 @@ export default function AdminLogin() {
     setLoginError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password,
+      const normalizedEmail = email.trim().toLowerCase();
+      let pwd = password;
+      let { error } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: pwd,
       });
+
+      if (
+        error &&
+        (error as { code?: string }).code === "invalid_credentials" &&
+        pwd.trim() !== pwd
+      ) {
+        pwd = pwd.trim();
+        ({ error } = await supabase.auth.signInWithPassword({
+          email: normalizedEmail,
+          password: pwd,
+        }));
+      }
 
       if (error) {
         if (
