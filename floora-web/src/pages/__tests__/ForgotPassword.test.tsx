@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ForgotPassword from "../ForgotPassword";
 
@@ -72,7 +73,7 @@ describe("ForgotPassword", () => {
         })
       );
     });
-    const call = (fetch as unknown as vi.Mock).mock.calls[0];
+    const call = (fetch as unknown as Mock).mock.calls[0];
     const body = JSON.parse(call[1].body) as Record<string, string>;
     expect(body.email).toBe("admin@floora.com");
     expect(body.client).toBe("web");
@@ -95,7 +96,7 @@ describe("ForgotPassword", () => {
   });
 
   it("shows error message when fetch fails", async () => {
-    (fetch as unknown as vi.Mock).mockResolvedValueOnce({
+    (fetch as unknown as Mock).mockResolvedValueOnce({
       ok: false,
       json: async () => ({ message: "Could not process request" }),
     });

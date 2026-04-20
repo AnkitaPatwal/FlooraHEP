@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../providers/AuthProvider";
 
 export type RoadmapSession = {
+  user_assignment_session_id?: string;
   module_id: number;
   title: string;
   order_index: number;
@@ -79,8 +80,12 @@ export function useRoadmap(): UseRoadmapResult {
         // ── 2. Fetch the user's most recent package ───────────────────────────
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
-          .select("package_id, start_date")
+          .select("package_id, start_date, session_layout_published_at, created_at")
           .eq("user_id", userId)
+          // Roadmap must reflect what's actually live for the patient.
+          // Draft assignments can exist and may have different start_date; exclude them.
+          .not("session_layout_published_at", "is", null)
+          .order("session_layout_published_at", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -98,7 +103,12 @@ export function useRoadmap(): UseRoadmapResult {
         const planName = planTitleRpc !== "" ? planTitleRpc : "Your Plan";
 
         // ── 4. Fetch sessions list (prefer per-assignment overrides) ──────────
-        type AssignedSessionRow = { module_id: number; order_index: number; title: string };
+        type AssignedSessionRow = {
+          user_assignment_session_id: string;
+          module_id: number;
+          order_index: number;
+          title: string;
+        };
         let sessionsSource:
           | { type: "assigned"; rows: AssignedSessionRow[] }
           | { type: "template"; rows: { module_id: number; order_index: number }[] }
@@ -110,6 +120,7 @@ export function useRoadmap(): UseRoadmapResult {
             sessionsSource = {
               type: "assigned",
               rows: (assignedRows as any[]).map((r) => ({
+                user_assignment_session_id: String((r as any).user_assignment_session_id ?? ""),
                 module_id: Number((r as any).module_id),
                 order_index: Number((r as any).order_index),
                 title: String((r as any).title ?? ""),
@@ -169,30 +180,43 @@ export function useRoadmap(): UseRoadmapResult {
           moduleMap = new Map((modules ?? []).map((m: any) => [m.module_id, m.title]));
         }
 
-        // ── 6. Fetch unlock state for this user ───────────────────────────────
-        const { data: unlockRows } = await supabase
-          .from("user_session_unlock")
-          .select("module_id, unlock_date")
-          .eq("user_id", userId);
+        const uasIds =
+          sessionsSource.type === "assigned"
+            ? sessionsSource.rows.map((r) => r.user_assignment_session_id).filter(Boolean)
+            : [];
 
-        const unlockDateByModuleId = new Map<number, string>(
-          (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
+        const { data: unlockRows } =
+          uasIds.length > 0
+            ? await supabase
+                .from("user_assignment_session_unlock")
+                .select("user_assignment_session_id, unlock_date")
+                .eq("user_id", userId)
+                .in("user_assignment_session_id", uasIds)
+            : { data: [] as any[] };
+
+        const unlockDateByUasId = new Map<string, string>(
+          (unlockRows ?? []).map((r: any) => [
+            String((r as any).user_assignment_session_id),
+            String((r as any).unlock_date),
+          ])
         );
-        // A session is unlocked once the local date reaches/until its unlock_date (ignore time-of-day).
         const unlockedSet = new Set(
           (unlockRows ?? [])
-            .filter((r: any) => isUnlockedByLocalDate(String(r.unlock_date)))
-            .map((r: any) => r.module_id)
+            .filter((r: any) => isUnlockedByLocalDate(String((r as any).unlock_date)))
+            .map((r: any) => String((r as any).user_assignment_session_id))
         );
 
-        // ── 7. Fetch completion state for this user ───────────────────────────
-        const { data: completionRows } = await supabase
-          .from("user_session_completion")
-          .select("module_id")
-          .eq("user_id", userId);
+        const { data: completionRows } =
+          uasIds.length > 0
+            ? await supabase
+                .from("user_assignment_session_completion")
+                .select("user_assignment_session_id")
+                .eq("user_id", userId)
+                .in("user_assignment_session_id", uasIds)
+            : { data: [] as any[] };
 
         const completedSet = new Set(
-          (completionRows ?? []).map((r: any) => r.module_id)
+          (completionRows ?? []).map((r: any) => String((r as any).user_assignment_session_id))
         );
 
         // ── 8. Assemble sessions in plan order ────────────────────────────────
@@ -201,14 +225,37 @@ export function useRoadmap(): UseRoadmapResult {
             ? sessionsSource.rows
             : sessionsSource.rows;
 
-        const sessions: RoadmapSession[] = rows.map((pm: any) => ({
-          module_id: pm.module_id,
-          title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
-          order_index: pm.order_index,
-          isUnlocked: unlockedSet.has(pm.module_id),
-          isCompleted: completedSet.has(pm.module_id),
-          unlockDate: unlockDateByModuleId.get(pm.module_id) ?? null,
-        }));
+        const rowsSorted = [...rows].sort(
+          (a: any, b: any) =>
+            Number(a.order_index) - Number(b.order_index) ||
+            String((a as any).user_assignment_session_id ?? "").localeCompare(
+              String((b as any).user_assignment_session_id ?? "")
+            )
+        );
+
+        const sessions: RoadmapSession[] = rowsSorted.map((pm: any, idx: number) => {
+          const uasId =
+            sessionsSource.type === "assigned"
+              ? String((pm as any).user_assignment_session_id ?? "")
+              : "";
+          const unlockIso = uasId ? unlockDateByUasId.get(uasId) : undefined;
+          const scheduledReached = uasId ? unlockedSet.has(uasId) : false;
+          const prevUasId =
+            sessionsSource.type === "assigned" && idx > 0
+              ? String((rowsSorted[idx - 1] as any).user_assignment_session_id ?? "")
+              : "";
+          const prevOk =
+            sessionsSource.type === "assigned" ? (idx === 0 ? true : completedSet.has(prevUasId)) : true;
+          return {
+            user_assignment_session_id: uasId || undefined,
+            module_id: pm.module_id,
+            title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
+            order_index: pm.order_index,
+            isUnlocked: scheduledReached && prevOk,
+            isCompleted: uasId ? completedSet.has(uasId) : false,
+            unlockDate: unlockIso ?? null,
+          };
+        });
 
         sessions.sort((a, b) => a.order_index - b.order_index);
         const lockedSessions = sessions.filter((s) => !s.isUnlocked);

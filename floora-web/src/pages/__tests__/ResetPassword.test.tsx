@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import ResetPassword from "../ResetPassword";
 
@@ -131,7 +132,7 @@ describe("ResetPassword", () => {
   });
 
   it("shows error message when reset fails", async () => {
-    (fetch as unknown as vi.Mock).mockResolvedValueOnce({
+    (fetch as unknown as Mock).mockResolvedValueOnce({
       ok: false,
       json: async () => ({ message: "Invalid or expired token" }),
     });

@@ -28,16 +28,41 @@ import session1Img from "../../assets/images/prev-1.jpg";
 
 function formatStartDate(raw: string | null): string {
   if (!raw) return "";
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return raw;
-  return `Started ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  // Treat as date-only to avoid timezone shifting (e.g. UTC midnight showing as previous day locally).
+  const ymd = raw.length >= 10 ? raw.slice(0, 10) : raw;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return `Started ${ymd}`;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  return `Started ${mo}/${d}/${y}`;
 }
 
 function formatUnlockDate(raw: string | null): string {
   if (!raw) return "";
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return "";
-  return `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const ymd = raw.length >= 10 ? raw.slice(0, 10) : raw;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return "";
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  return `${mo}/${d}/${y}`;
+}
+
+function daysUntilDate(raw: string | null): number | null {
+  if (!raw) return null;
+  const ymd = raw.length >= 10 ? raw.slice(0, 10) : raw;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd);
+  if (!m) return null;
+  const targetUtcMs = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const today = new Date();
+  const todayUtcMs = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  const diffDays = Math.ceil((targetUtcMs - todayUtcMs) / (24 * 60 * 60 * 1000));
+  return Math.max(0, diffDays);
+}
+
+function pluralDays(n: number): string {
+  return n === 1 ? "day" : "days";
 }
 
 // ── Session Card ──────────────────────────────────────────────────────────────
@@ -109,9 +134,28 @@ export default function RoadMap() {
       .sort((a, b) => a.order_index - b.order_index);
   }, [data?.sessions]);
 
-  const showLockedUnlockAlert = React.useCallback((title: string) => {
-    Alert.alert("Session Locked", "It will unlock when the previous session is completed.");
-  }, []);
+  const showLockedUnlockAlert = React.useCallback(
+    (session: RoadmapSession) => {
+      const daysLeft = daysUntilDate(session.unlockDate);
+      const unlockLabel = session.unlockDate ? formatUnlockDate(session.unlockDate) : null;
+
+      let msg = "";
+      if (daysLeft == null) {
+        msg =
+          "This session is locked right now. Complete the previous session to unlock it, then pull to refresh.";
+      } else if (daysLeft > 0) {
+        msg = `It will unlock on ${unlockLabel ?? "its scheduled date"} (based on your plan start date). You still need to complete the previous session to access it.`;
+      } else {
+        // Scheduled date reached, but it may still be gated by previous completion.
+        msg = unlockLabel
+          ? `It is scheduled to unlock on ${unlockLabel}, but you still need to complete the previous session first.`
+          : "This session is scheduled to unlock now, but you still need to complete the previous session first.";
+      }
+
+      Alert.alert("Session Locked", msg);
+    },
+    [data?.sessions]
+  );
 
   React.useEffect(() => {
     const loadThumbs = async () => {
@@ -218,12 +262,12 @@ export default function RoadMap() {
           ) : (
             lockedSessions.map((session, index) => (
               <SessionCard
-                key={session.module_id}
+                key={session.user_assignment_session_id ?? session.module_id}
                 session={session}
                 index={index}
                 thumbnailUrl={sessionThumbs[String(session.module_id)]}
                 onLockedPress={() =>
-                  showLockedUnlockAlert(session.title || `Session ${index + 1}`)
+                  showLockedUnlockAlert(session)
                 }
                 onPress={() =>
                   router.push({
@@ -231,6 +275,9 @@ export default function RoadMap() {
                     params: {
                       sessionId: String(session.module_id),
                       sessionName: session.title || `Session ${index + 1}`,
+                      ...(session.user_assignment_session_id
+                        ? { userAssignmentSessionId: session.user_assignment_session_id }
+                        : {}),
                     },
                   })
                 }

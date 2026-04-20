@@ -27,8 +27,8 @@ jest.mock("../../services/relationshipService", () => ({
     { plan_id: 1, title: "Starter Plan" },
   ]),
   assignPackageToUser: jest.fn(async () => ({
-    ok: true,
-    message: "assigned",
+    success: true,
+    assignment_id: "assign-new-1",
   })),
   parseAssignStartDate: jest.fn((value) => value || "2026-03-24"),
 }));
@@ -78,7 +78,7 @@ describe("assignPackage auth regression", () => {
     ]);
   });
 
-  it("assigns package with bearer auth", async () => {
+  it("assigns package with bearer auth (defer layout: no DB materialize in this mock env)", async () => {
     const res = await request(app)
       .post("/api/assign-package/assign-package")
       .set("Authorization", "Bearer fake-token")
@@ -86,12 +86,13 @@ describe("assignPackage auth regression", () => {
         user_id: "user-1",
         package_id: 1,
         start_date: "2026-03-24",
+        defer_session_layout: true,
       });
 
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
-      ok: true,
-      message: "assigned",
+      success: true,
+      assignment_id: "assign-new-1",
     });
   });
 
@@ -108,6 +109,7 @@ describe("assignPackage auth regression", () => {
             package_id: 1,
             start_date: "2026-03-24",
             created_at: "2026-03-24T00:00:00Z",
+            session_layout_published_at: "2026-03-24T00:00:00Z",
           },
         ],
         error: null,
@@ -140,6 +142,7 @@ describe("assignPackage auth regression", () => {
         title: "Starter Plan",
         start_date: "2026-03-24",
         created_at: "2026-03-24T00:00:00Z",
+        session_layout_published_at: "2026-03-24T00:00:00Z",
       },
     ]);
   });
