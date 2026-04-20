@@ -51,7 +51,11 @@ export default function AdminLogin() {
         <p className="admin-subtitle">Admin Portal</p>
 
         {loginError && (
-          <div className="error-banner" role="alert" aria-live="assertive">
+          <div
+            className="error-banner error-banner--invalid"
+            role="alert"
+            aria-live="assertive"
+          >
             {loginError}
           </div>
         )}
@@ -61,14 +65,20 @@ export default function AdminLogin() {
           placeholder="Admin Email"
           className="input"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (loginError) setLoginError(null);
+          }}
         />
         <input
           type="password"
           placeholder="Admin Password"
           className="input"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (loginError) setLoginError(null);
+          }}
         />
 
         <Link to="/forgot-password" className="forgot">

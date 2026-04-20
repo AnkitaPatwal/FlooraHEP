@@ -15,7 +15,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { FontAwesome } from "@expo/vector-icons";
 import colors from "../../constants/colors";
+import { FlooraFonts } from "../../constants/fonts";
+import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import { useRoadmap, RoadmapSession } from "../../hooks/useRoadmap";
+import { CircularBackButton, CIRCULAR_BACK_BUTTON_SIZE } from "../../components/CircularBackButton";
 import { supabase } from "../../lib/supabaseClient";
 
 import session1Img from "../../assets/images/prev-1.jpg";
@@ -41,7 +44,6 @@ function formatUnlockDate(raw: string | null): string {
 type SessionCardProps = {
   session: RoadmapSession;
   index: number;
-  planName: string;
   onPress: () => void;
   onLockedPress?: () => void;
   thumbnailUrl?: string;
@@ -50,6 +52,7 @@ type SessionCardProps = {
 function SessionCard({ session, index, onPress, onLockedPress, thumbnailUrl }: SessionCardProps) {
   const label = session.title || `Session ${index + 1}`;
   const locked = !session.isUnlocked;
+  const thumb = thumbnailUrl ?? session.thumbnailUrl;
 
   return (
     <Pressable
@@ -59,30 +62,33 @@ function SessionCard({ session, index, onPress, onLockedPress, thumbnailUrl }: S
       accessibilityLabel={locked ? `${label}, locked` : label}
       accessibilityHint={locked ? "Shows when this session unlocks." : undefined}
     >
-      <View style={styles.card}>
-        <Image
-          source={thumbnailUrl && thumbnailUrl.startsWith("http") ? { uri: thumbnailUrl } : session1Img}
-          style={[styles.cardImage, locked && styles.cardImageLocked]}
-          resizeMode="cover"
-        />
-        {locked && (
-          <View style={styles.lockOverlay}>
-            <FontAwesome name="lock" size={36} color="#FFFFFF" />
-          </View>
-        )}
-        {session.isCompleted && !locked && (
-          <View style={styles.completedBadge}>
-            <Text style={styles.completedBadgeText}>✓ Done</Text>
-          </View>
-        )}
-      </View>
-
-      <Text style={[styles.caption, locked && styles.captionLocked]}>
-        <Text style={[styles.captionStrong, locked && styles.captionLocked]}>
-          {label}
+      <View style={sessionCardStyles.tile}>
+        <View style={sessionCardStyles.mediaShell}>
+          <Image
+            source={thumb && thumb.startsWith("http") ? { uri: thumb } : session1Img}
+            style={[sessionCardStyles.mediaImage, locked && styles.cardImageLocked]}
+            resizeMode="cover"
+          />
+          {locked && (
+            <View style={styles.lockOverlay}>
+              <FontAwesome name="lock" size={36} color="#FFFFFF" />
+            </View>
+          )}
+          {session.isCompleted && !locked && (
+            <View style={styles.completedBadge}>
+              <Text style={styles.completedBadgeText}>Completed</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[sessionCardStyles.caption, locked && styles.captionLocked]}>
+          <Text style={[sessionCardStyles.captionStrong, locked && styles.captionLocked]}>
+            {label}
+          </Text>
+          {locked ? (
+            <Text style={[sessionCardStyles.captionMeta, styles.captionLocked]}> | Locked</Text>
+          ) : null}
         </Text>
-        {locked ? <Text> | Locked</Text> : null}
-      </Text>
+      </View>
     </Pressable>
   );
 }
@@ -94,13 +100,16 @@ export default function RoadMap() {
   const { data, loading, error, reload } = useRoadmap();
   const [refreshing, setRefreshing] = React.useState(false);
   const [sessionThumbs, setSessionThumbs] = React.useState<Record<string, string>>({});
-  const lockedSessions = (data?.sessions ?? []).filter((s) => !s.isUnlocked);
-  const showLockedUnlockAlert = React.useCallback((title: string, unlockDate: string | null) => {
-    const unlockOn = formatUnlockDate(unlockDate);
-    Alert.alert(
-      "Session Locked",
-      `${title} is locked. The session will unlock soon.`
-    );
+
+  const lockedSessions = React.useMemo(() => {
+    const list = data?.sessions ?? [];
+    return [...list]
+      .filter((s) => !s.isUnlocked)
+      .sort((a, b) => a.order_index - b.order_index);
+  }, [data?.sessions]);
+
+  const showLockedUnlockAlert = React.useCallback((title: string) => {
+    Alert.alert("Session Locked", "It will unlock when the previous session is completed.");
   }, []);
 
   React.useEffect(() => {
@@ -109,9 +118,12 @@ export default function RoadMap() {
       try {
         const entries = await Promise.all(
           lockedSessions.map(async (s) => {
+            const moduleId = Number(s.module_id);
+            if (!Number.isFinite(moduleId)) return [String(s.module_id), ""] as const;
+
             const { data: rows, error: rpcErr } = await supabase.rpc(
               "get_current_assigned_session_exercises",
-              { p_module_id: Number(s.module_id) }
+              { p_module_id: moduleId }
             );
             if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
               return [String(s.module_id), ""] as const;
@@ -120,6 +132,7 @@ export default function RoadMap() {
             return [String(s.module_id), thumb] as const;
           })
         );
+
         setSessionThumbs((prev) => {
           const next = { ...prev };
           for (const [mid, url] of entries) {
@@ -145,16 +158,23 @@ export default function RoadMap() {
     <SafeAreaView style={{ flex: 1, backgroundColor: "#FFFFFF" }}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable
-          hitSlop={10}
-          onPress={() => router.back()}
-          style={{ minHeight: 44, justifyContent: "center" }}
-        >
-          <Text style={styles.backChevron}>‹</Text>
-        </Pressable>
-        <Text style={styles.headerTitle}>Roadmap</Text>
-        {/* spacer to keep title centered */}
-        <View style={{ width: 18 }} />
+        <CircularBackButton onPress={() => router.push("/(tabs)")} />
+        <View style={styles.headerTitleBlock}>
+          {!loading && data?.planName ? (
+            <Text style={styles.headerPlanNameHero} numberOfLines={2}>
+              {data.planName}
+            </Text>
+          ) : null}
+          <Text
+            style={[
+              styles.headerScreenLabel,
+              !loading && data?.planName ? styles.headerScreenLabelUnderPlan : null,
+            ]}
+          >
+            Roadmap
+          </Text>
+        </View>
+        <View style={{ width: CIRCULAR_BACK_BUTTON_SIZE }} />
       </View>
 
       {/* Loading */}
@@ -182,31 +202,25 @@ export default function RoadMap() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
           }
         >
-          {/* Plan heading */}
-          <Text style={styles.planTitle}>{data.planName}</Text>
-          {data.startDate && (
-            <Text style={styles.planSub}>{formatStartDate(data.startDate)}</Text>
-          )}
+          {data.startDate ? (
+            <Text style={[styles.planSub, styles.planSubInScroll]}>{formatStartDate(data.startDate)}</Text>
+          ) : null}
 
           {/* Accent line */}
-          <View style={styles.accentLine} />
+          <View style={[styles.accentLine, !data.startDate && styles.accentLineFirst]} />
 
-          {/* Sessions */}
+          {/* Locked sessions only (unlocked sessions live on Home) */}
           {lockedSessions.length === 0 ? (
-            <Text style={styles.emptyText}>No sessions assigned yet.</Text>
+            <Text style={styles.emptyText}>No locked sessions right now.</Text>
           ) : (
             lockedSessions.map((session, index) => (
               <SessionCard
                 key={session.module_id}
                 session={session}
                 index={index}
-                planName={data.planName}
                 thumbnailUrl={sessionThumbs[String(session.module_id)]}
                 onLockedPress={() =>
-                  showLockedUnlockAlert(
-                    session.title || `Session ${index + 1}`,
-                    session.unlockDate
-                  )
+                  showLockedUnlockAlert(session.title || `Session ${index + 1}`)
                 }
                 onPress={() =>
                   router.push({
@@ -214,8 +228,6 @@ export default function RoadMap() {
                     params: {
                       sessionId: String(session.module_id),
                       sessionName: session.title || `Session ${index + 1}`,
-                      planName: data.planName,
-                      subtitle: "Restore",
                     },
                   })
                 }
@@ -244,12 +256,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   stateText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#374151",
     textAlign: "center",
     marginTop: 12,
   },
   emptyText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#6B7280",
     marginTop: 8,
@@ -257,40 +271,47 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    height: 56,
+    minHeight: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "#E5E7EB",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: "#FFFFFF",
   },
-  backChevron: {
-    fontSize: 28,
-    lineHeight: 28,
-    color: "#475569",
-    width: 18,
-  },
-  headerTitle: {
+  headerTitleBlock: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  headerScreenLabel: {
+    fontFamily: FlooraFonts.semiBold,
     textAlign: "center",
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#111827",
+    fontSize: 14,
+    color: "#64748B",
+    letterSpacing: 0.2,
+  },
+  headerScreenLabelUnderPlan: {
+    marginTop: 6,
+  },
+  headerPlanNameHero: {
+    fontFamily: FlooraFonts.extraBold,
+    fontSize: 30,
+    color: colors.brand,
+    textAlign: "center",
+    lineHeight: 36,
   },
 
-  // Titles
-  planTitle: {
-    fontSize: 28,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginTop: 16,
-    marginBottom: 4,
-  },
   planSub: {
+    fontFamily: FlooraFonts.medium,
     fontSize: 16,
     color: colors.brand,
     marginBottom: 12,
+  },
+  planSubInScroll: {
+    marginTop: 16,
   },
   accentLine: {
     width: 150,
@@ -300,62 +321,34 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 22,
   },
+  accentLineFirst: {
+    marginTop: 16,
+  },
 
-  // Card
-  card: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-    position: "relative",
-  },
-  cardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
   cardImageLocked: {
     opacity: 0.35,
   },
   lockOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(15, 23, 42, 0.45)",
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 14,
   },
   completedBadge: {
     position: "absolute",
     top: 10,
     right: 10,
-    backgroundColor: colors.brand,
-    borderRadius: 20,
+    backgroundColor: "#6B7280",
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 6,
+    borderRadius: 999,
+    zIndex: 2,
   },
   completedBadgeText: {
+    fontFamily: FlooraFonts.extraBold,
     color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  // Caption
-  caption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  captionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
+    fontSize: 12,
+    letterSpacing: 0.2,
   },
   captionLocked: {
     color: "#9CA3AF",
