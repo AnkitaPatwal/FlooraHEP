@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
 import {
   deleteClient,
+  fetchActiveClients,
   fetchClientProfileAvatar,
   type ActiveClient,
 } from "../lib/admin-api";
@@ -525,6 +526,7 @@ export default function UserProfile() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [resolvedAvatarUrl, setResolvedAvatarUrl] = useState<string | null | undefined>(undefined);
+  const [resolvedEmail, setResolvedEmail] = useState<string | null>(null);
   /** Selected plan in the dropdown (`null` = placeholder). */
   const [selectedPlanId, setSelectedPlanId] = useState<number | null>(null);
 
@@ -580,8 +582,29 @@ export default function UserProfile() {
     };
   }, [user?.user_id]);
 
+  // Refresh the email from the source of truth (public.user via admin-approval edge),
+  // so if the user changes their email in the mobile app, admin UI reflects it after load.
+  useEffect(() => {
+    if (!user?.user_id) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await fetchActiveClients();
+        const match = list.find((c) => Number(c.user_id) === Number(user.user_id));
+        const email = (match?.email ?? "").trim();
+        if (!cancelled) setResolvedEmail(email || null);
+      } catch {
+        if (!cancelled) setResolvedEmail(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.user_id]);
+
   const avatarUrlForDisplay =
     resolvedAvatarUrl !== undefined ? resolvedAvatarUrl : user?.avatar_url;
+  const emailForDisplay = resolvedEmail ?? user?.email ?? "";
 
   const displayedPlanTitle = useMemo(() => {
     if (assignment?.title) return assignment.title;
@@ -1300,7 +1323,7 @@ export default function UserProfile() {
 
               <label className="up-field">
                 <span className="up-label">Email</span>
-                <input className="up-input" value={user.email ?? ""} readOnly />
+                <input className="up-input" value={emailForDisplay} readOnly />
               </label>
             </form>
           </section>

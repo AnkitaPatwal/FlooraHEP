@@ -237,4 +237,10 @@
     cursor: default;
     opacity: 1;
   }
-  
+
+  .ua-denied-note {
+    margin: 8px 0 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #6b7280;
+  }
