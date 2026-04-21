@@ -70,20 +70,56 @@ Deno.serve(async (req) => {
     }
     // Get the email from the reset row
     const email = resetRow.email;
-    // Hash the password
+    const emailLower = email.toLowerCase();
+
+    // Login (web + mobile) uses Supabase Auth — must update auth.users, not only public.user.
+    const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+    if (listErr) {
+      console.error("auth.admin.listUsers error:", listErr);
+      return new Response(
+        JSON.stringify({ message: "Could not process request" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const authUser = listData?.users?.find(
+      (u) => (u.email ?? "").toLowerCase() === emailLower
+    );
+    if (!authUser?.id) {
+      console.error("reset-password: no auth.users row for", emailLower);
+      return new Response(
+        JSON.stringify({
+          message:
+            "No login account found for this email. Ask an admin to verify your account exists.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { error: authUpdateErr } = await supabase.auth.admin.updateUserById(authUser.id, {
+      password,
+    });
+    if (authUpdateErr) {
+      console.error("auth.admin.updateUserById error:", authUpdateErr);
+      return new Response(
+        JSON.stringify({
+          message: authUpdateErr.message || "Could not update login password.",
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Keep public.user in sync for legacy / server paths that read bcrypt
     const hashedPassword = await bcrypt.hash(password, 10);
-    // Update the password in the user table
     const { error: updateErr } = await supabase
       .from("user")
       .update({ password: hashedPassword })
-      .eq("email", email);
+      .eq("email", emailLower);
 
     if (updateErr) {
-      console.error("user update error:", updateErr);
-      return new Response(
-        JSON.stringify({ message: "Could not update password" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      console.error("user table password update error (login still updated):", updateErr);
     }
     // Delete the reset row from the password_resets table
     const { error: deleteErr } = await supabase

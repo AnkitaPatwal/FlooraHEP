@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FlooraFonts } from "../../constants/fonts";
 
 export default StyleSheet.create({
   container: {
@@ -25,9 +26,8 @@ export default StyleSheet.create({
 
   subtitle: {
     color: "#F2E2D2",
-    fontFamily: "Poppins-Regular",
+    fontFamily: FlooraFonts.regular,
     fontSize: 17,
-    fontWeight: "400",
     marginTop: 0,
     marginBottom: 22,
     textAlign: "center",
@@ -41,20 +41,21 @@ export default StyleSheet.create({
   fieldLabel: {
     alignSelf: "flex-start",
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 14,
     marginBottom: 6,
   },
 
   input: {
-  width: "100%",
-  padding: 14, // 
-  borderRadius: 6,
-  backgroundColor: "#EAE4DA",
-  color: "#2B2B2B",
-  fontSize: 15,
-  minHeight: 44, // 
-},
+    width: "100%",
+    padding: 14,
+    borderRadius: 6,
+    backgroundColor: "#EAE4DA",
+    color: "#2B2B2B",
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    minHeight: 44,
+  },
 
   forgotPasswordWrapper: {
     width: "100%",
@@ -65,6 +66,7 @@ export default StyleSheet.create({
   forgotPassword: {
     alignSelf: "flex-start",
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.regular,
     textDecorationLine: "underline",
     fontSize: 14,
     marginTop: -4,
@@ -84,8 +86,8 @@ export default StyleSheet.create({
 
   signInButtonText: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 16,
-    fontWeight: "600",
   },
 
   footerContainer: {
@@ -96,6 +98,7 @@ export default StyleSheet.create({
 
   footerText: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     textAlign: "center",
     marginBottom: 4,
@@ -103,8 +106,8 @@ export default StyleSheet.create({
 
   footerLink: {
     color: "#FFFFFF",
+    fontFamily: FlooraFonts.semiBold,
     textDecorationLine: "underline",
-    fontWeight: "600",
     fontSize: 14,
     textAlign: "center",
   },

@@ -1,31 +1,42 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { vi, describe, it, expect, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+import type { Mock } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import ForgotPassword from "../ForgotPassword";
 
-vi.mock("../../lib/supabase-client", () => ({
-  supabase: {
-    auth: {
-      resetPasswordForEmail: vi.fn(),
-      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
-      onAuthStateChange: vi.fn().mockReturnValue({
-        data: { subscription: { unsubscribe: vi.fn() } },
-      }),
-    },
-  },
-}));
-
-import { supabase } from "../../lib/supabase-client";
-
-const renderWithRouter = () =>
-  render(
-    <MemoryRouter>
-      <ForgotPassword />
-    </MemoryRouter>
-  );
-
 describe("ForgotPassword", () => {
-  beforeEach(() => vi.clearAllMocks());
+  const originalEnv = import.meta.env;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ message: "If an account with this email exists, a reset link has been sent." }),
+      })
+    );
+    Object.defineProperty(import.meta, "env", {
+      value: {
+        ...originalEnv,
+        VITE_SUPABASE_URL: "https://test.supabase.co",
+        VITE_SUPABASE_ANON_KEY: "test-anon-key",
+      },
+      configurable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    Object.defineProperty(import.meta, "env", { value: originalEnv, configurable: true });
+  });
+
+  const renderWithRouter = () =>
+    render(
+      <MemoryRouter>
+        <ForgotPassword />
+      </MemoryRouter>
+    );
 
   it("renders the forgot password form", () => {
     renderWithRouter();
@@ -33,27 +44,16 @@ describe("ForgotPassword", () => {
     expect(screen.getByText("Reset Password")).toBeInTheDocument();
   });
 
-  it("does not call resetPasswordForEmail when email is empty", async () => {
-    renderWithRouter();
-    fireEvent.click(screen.getByText("Reset Password"));
-    await waitFor(() => {
-      expect(supabase.auth.resetPasswordForEmail).not.toHaveBeenCalled();
-    });
-  });
-
-  it("shows error when email is empty", async () => {
+  it("does not call fetch when email is empty", async () => {
     renderWithRouter();
     fireEvent.click(screen.getByText("Reset Password"));
     await waitFor(() => {
       expect(screen.getByText("Please enter a valid email")).toBeInTheDocument();
     });
+    expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("calls resetPasswordForEmail with correct email", async () => {
-    (supabase.auth.resetPasswordForEmail as any).mockResolvedValueOnce({
-      error: null,
-    });
-
+  it("calls forgot-password edge function with web client", async () => {
     renderWithRouter();
 
     fireEvent.change(screen.getByPlaceholderText("Enter your email"), {
@@ -62,18 +62,25 @@ describe("ForgotPassword", () => {
     fireEvent.click(screen.getByText("Reset Password"));
 
     await waitFor(() => {
-      expect(supabase.auth.resetPasswordForEmail).toHaveBeenCalledWith(
-        "admin@floora.com",
-        { redirectTo: "http://localhost:5173/reset-password" }
+      expect(fetch).toHaveBeenCalledWith(
+        "https://test.supabase.co/functions/v1/forgot-password",
+        expect.objectContaining({
+          method: "POST",
+          headers: expect.objectContaining({
+            Authorization: "Bearer test-anon-key",
+            "Content-Type": "application/json",
+          }),
+        })
       );
     });
+    const call = (fetch as unknown as Mock).mock.calls[0];
+    const body = JSON.parse(call[1].body) as Record<string, string>;
+    expect(body.email).toBe("admin@floora.com");
+    expect(body.client).toBe("web");
+    expect(body.reset_web_base).toMatch(/\/reset-password$/);
   });
 
   it("shows success message after email is sent", async () => {
-    (supabase.auth.resetPasswordForEmail as any).mockResolvedValueOnce({
-      error: null,
-    });
-
     renderWithRouter();
 
     fireEvent.change(screen.getByPlaceholderText("Enter your email"), {
@@ -83,14 +90,15 @@ describe("ForgotPassword", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("A reset email has been sent to your email")
+        screen.getByText(/If an account exists for this email, we sent a reset link/)
       ).toBeInTheDocument();
     });
   });
 
-  it("shows error message when resetPasswordForEmail fails", async () => {
-    (supabase.auth.resetPasswordForEmail as any).mockResolvedValueOnce({
-      error: { message: "Email not found" },
+  it("shows error message when fetch fails", async () => {
+    (fetch as unknown as Mock).mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ message: "Could not process request" }),
     });
 
     renderWithRouter();
@@ -101,15 +109,11 @@ describe("ForgotPassword", () => {
     fireEvent.click(screen.getByText("Reset Password"));
 
     await waitFor(() => {
-      expect(screen.getByText("Email not found")).toBeInTheDocument();
+      expect(screen.getByText("Could not process request")).toBeInTheDocument();
     });
   });
 
-  it("shows resend button after success", async () => {
-    (supabase.auth.resetPasswordForEmail as any).mockResolvedValueOnce({
-      error: null,
-    });
-
+  it("shows resend control after success", async () => {
     renderWithRouter();
 
     fireEvent.change(screen.getByPlaceholderText("Enter your email"), {

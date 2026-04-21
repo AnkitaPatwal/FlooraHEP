@@ -50,12 +50,12 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Check if email exists
+    // Check if email exists (ignore "no rows" errors)
     const { data: existing } = await supabase
       .from("user")
       .select("user_id")
       .eq("email", email.toLowerCase())
-      .single();
+      .maybeSingle();
 
     if (existing) {
       return new Response(

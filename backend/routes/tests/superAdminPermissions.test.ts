@@ -104,10 +104,28 @@ describe("PATCH /api/exercises/:id - super_admin only", () => {
 
 describe("DELETE /api/exercises/:id - super_admin only", () => {
   beforeEach(() => {
-    (supabaseServer.from as jest.Mock).mockImplementation(() => ({
-      delete: jest.fn().mockReturnThis(),
-      eq: jest.fn().mockResolvedValue({ error: null }),
-    }));
+    // Handler loads exercise title (select…maybeSingle), then deletes dependent rows, then exercise.
+    (supabaseServer.from as jest.Mock).mockImplementation(() => {
+      const chain: Record<string, unknown> & { _op?: "select" | "delete" } = {};
+      chain.select = jest.fn(() => {
+        chain._op = "select";
+        return chain;
+      });
+      chain.delete = jest.fn(() => {
+        chain._op = "delete";
+        return chain;
+      });
+      chain.eq = jest.fn(() => {
+        if (chain._op === "select") return chain;
+        return Promise.resolve({ error: null });
+      });
+      chain.maybeSingle = jest.fn().mockResolvedValue({
+        data: { title: "Test exercise" },
+        error: null,
+      });
+      chain.insert = jest.fn().mockResolvedValue({ error: null });
+      return chain;
+    });
   });
 
   it("super_admin returns 204", async () => {

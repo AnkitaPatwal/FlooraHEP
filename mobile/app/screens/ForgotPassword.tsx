@@ -14,6 +14,7 @@ import {
 import { useRouter } from "expo-router";
 import styles from "./ForgotPassword.styles";
 import { Ionicons } from "@expo/vector-icons";
+import { CircularBackButton } from "../../components/CircularBackButton";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -32,7 +33,7 @@ export default function ForgotPassword() {
         "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
+      body: JSON.stringify({ email: email.trim().toLowerCase(), client: "app" }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -76,12 +77,9 @@ export default function ForgotPassword() {
   // Return the JSX
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={styles.backButtonContainer}
-      >
-        <Ionicons name="chevron-back" size={24} color="#1A3D3C" />
-      </TouchableOpacity>
+      <View style={styles.backRow}>
+        <CircularBackButton onPress={() => router.back()} />
+      </View>
 
       {/* header */}
       <View style={styles.headerContainer}>

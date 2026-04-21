@@ -15,9 +15,14 @@ import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabaseClient";
 import { useAuth } from "../../providers/AuthProvider";
 import colors from "../../constants/colors";
+import { FlooraFonts } from "../../constants/fonts";
+import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
+import { fetchAssignedPlanTitleForCurrentUser } from "../../lib/assignedPlanTitle";
+import { phaseTitleForOrderIndex } from "../../lib/phaseTitles";
 
 type SessionItem = {
+  user_assignment_session_id?: string;
   module_id: number | string;
   title?: string;
   exerciseCount?: number;
@@ -60,19 +65,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   stateText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#374151",
     textAlign: "center",
   },
   emptyText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 16,
     color: "#6B7280",
     marginTop: 4,
   },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
+  sectionHeadingBlock: {
+    marginBottom: 0,
+  },
+  planNameHero: {
+    fontFamily: FlooraFonts.extraBold,
+    fontSize: 30,
+    lineHeight: 36,
+    color: colors.brand,
+    marginBottom: 4,
+  },
+  planPhaseSub: {
+    fontFamily: FlooraFonts.semiBold,
+    fontSize: 18,
+    color: colors.brand,
+    marginBottom: 4,
+  },
+  sessionsLabel: {
+    fontFamily: FlooraFonts.regular,
+    fontSize: 18,
+    color: "#374151",
     marginBottom: 4,
   },
   accentLine: {
@@ -83,50 +106,9 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 22,
   },
-  card: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  cardImage: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-  },
-  cardCaption: {
-    fontSize: 20,
-    color: "#374151",
-    marginTop: 10,
-    marginBottom: 22,
-  },
-  cardCaptionStrong: {
-    fontWeight: "800",
-    color: "#1F2937",
-  },
-  cardCaptionMeta: {
-    color: "#374151",
-  },
-  sessionTile: {
-    borderRadius: 14,
-    overflow: "hidden",
-    backgroundColor: "#FFF",
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+  /** Current session: no card shadow — elevation only on the thumbnail (see profile Sign out). */
+  currentSessionCard: {
     marginBottom: 12,
-  },
-  sessionTileCurrent: {
-    shadowOpacity: 0.16,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 5,
-    transform: [{ scale: 1.01 }],
   },
   currentBadge: {
     position: "absolute",
@@ -139,9 +121,9 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   currentBadgeText: {
+    fontFamily: FlooraFonts.extraBold,
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 0.2,
   },
   completedBadge: {
@@ -155,22 +137,16 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   completedBadgeText: {
+    fontFamily: FlooraFonts.extraBold,
     color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 0.2,
   },
   sessionCompletedLabel: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     color: "#6B7280",
     marginTop: 4,
-  },
-  sectionHeader: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#111827",
-    marginTop: 14,
-    marginBottom: 10,
   },
   header: {
     paddingHorizontal: 16,
@@ -187,14 +163,15 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   greeting: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 28,
-    fontWeight: "700",
     color: "#0F172A",
   },
-  brandText: {
-    fontSize: 22,
-    fontWeight: "700",
-    color: "#2B8C8E",
+  logoImage: {
+    width: 120,
+    height: 44,
+    resizeMode: "contain",
+    tintColor: colors.brand,
   },
   scrollView: {
     flex: 1,
@@ -211,9 +188,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   retryButtonText: {
+    fontFamily: FlooraFonts.semiBold,
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
   },
 });
 
@@ -228,6 +205,9 @@ const HomeScreen = () => {
   const [sessions, setSessions] = useState<SessionItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [sessionThumbs, setSessionThumbs] = useState<Record<string, string>>({});
+  const [planTitle, setPlanTitle] = useState("");
+  const [currentAssignmentId, setCurrentAssignmentId] = useState("");
+  const [planPhaseTitle, setPlanPhaseTitle] = useState("");
 
   const fetchAssignedSessions = useCallback(async () => {
       try {
@@ -241,6 +221,9 @@ const HomeScreen = () => {
         if (!session?.user?.id) {
           setError("Unable to load user.");
           setSessions([]);
+          setSessionThumbs({});
+          setPlanTitle("");
+          setPlanPhaseTitle("");
           setLoading(false);
           return;
         }
@@ -265,7 +248,7 @@ const HomeScreen = () => {
 
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
-          .select("package_id")
+          .select("id, package_id")
           .eq("user_id", authUserId)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -274,17 +257,28 @@ const HomeScreen = () => {
         if (packageError || !packageRow) {
           setHasAssignedPlan(false);
           setSessions([]);
+          setSessionThumbs({});
+          setPlanTitle("");
+          setPlanPhaseTitle("");
+          setCurrentAssignmentId("");
           return;
         }
 
         setHasAssignedPlan(true);
+        setCurrentAssignmentId(String((packageRow as any).id ?? ""));
+        setPlanTitle(await fetchAssignedPlanTitleForCurrentUser());
 
         const { error: rpcUnlockBootstrapError } = await supabase.rpc("ensure_first_session_unlock");
         if (__DEV__ && rpcUnlockBootstrapError) {
           console.warn("[HomeScreen] ensure_first_session_unlock failed:", rpcUnlockBootstrapError.message);
         }
 
-        type AssignedSessionRow = { module_id: number; order_index: number; title: string };
+        type AssignedSessionRow = {
+          user_assignment_session_id: string;
+          module_id: number;
+          order_index: number;
+          title: string;
+        };
         let planModules:
           | { type: "assigned"; rows: AssignedSessionRow[] }
           | { type: "template"; rows: { module_id: number; order_index: number }[] }
@@ -296,6 +290,7 @@ const HomeScreen = () => {
             planModules = {
               type: "assigned",
               rows: (assignedRows as any[]).map((r) => ({
+                user_assignment_session_id: String((r as any).user_assignment_session_id ?? ""),
                 module_id: Number((r as any).module_id),
                 order_index: Number((r as any).order_index),
                 title: String((r as any).title ?? ""),
@@ -315,6 +310,7 @@ const HomeScreen = () => {
 
           if (planModulesError || !templateRows || templateRows.length === 0) {
             setSessions([]);
+            setSessionThumbs({});
             return;
           }
 
@@ -338,7 +334,7 @@ const HomeScreen = () => {
             : null;
 
         let modulesData: { module_id: number; title: string }[] = [];
-        if (titleByModuleId) {
+        if (titleByModuleId && planModules.type === "assigned") {
           modulesData = planModules.rows.map((r) => ({ module_id: r.module_id, title: r.title }));
         } else {
           const { data, error: modulesError } = await supabase
@@ -356,6 +352,8 @@ const HomeScreen = () => {
         }
 
         let countsByModule: Record<string, number> = {};
+        /** When RPC succeeds for a module, we already have first-exercise thumbnail (no second fetch). */
+        const exerciseRpcByModule: Record<string, { ok: true; thumb: string }> = {};
 
         // Prefer per-assignment merged exercise list for accurate counts (respects add/remove overrides).
         try {
@@ -366,7 +364,14 @@ const HomeScreen = () => {
                 { p_module_id: Number(moduleId) }
               );
               if (!rpcErr && Array.isArray(rows)) {
-                return [String(moduleId), rows.length] as const;
+                const idStr = String(moduleId);
+                let thumb = "";
+                if (rows.length > 0) {
+                  const u = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
+                  if (u.startsWith("http")) thumb = u;
+                }
+                exerciseRpcByModule[idStr] = { ok: true, thumb };
+                return [idStr, rows.length] as const;
               }
               throw new Error("rpc-unavailable");
             })
@@ -401,40 +406,49 @@ const HomeScreen = () => {
           }, {});
         }
 
+        const uasIds =
+          planModules.type === "assigned"
+            ? planModules.rows.map((r) => r.user_assignment_session_id).filter(Boolean)
+            : [];
+
         const [
           { data: unlockRows, error: unlockQueryError },
           { data: completionRows, error: completionQueryError },
         ] = await Promise.all([
-          supabase
-            .from("user_session_unlock")
-            .select("module_id, unlock_date")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
-          supabase
-            .from("user_session_completion")
-            .select("module_id, completed_at")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
+          uasIds.length > 0
+            ? supabase
+                .from("user_assignment_session_unlock")
+                .select("user_assignment_session_id, unlock_date")
+                .eq("user_id", authUserId)
+                .in("user_assignment_session_id", uasIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          uasIds.length > 0
+            ? supabase
+                .from("user_assignment_session_completion")
+                .select("user_assignment_session_id, completed_at")
+                .eq("user_id", authUserId)
+                .in("user_assignment_session_id", uasIds)
+            : Promise.resolve({ data: [], error: null } as any),
         ]);
 
         const unlockTrackingUnavailable =
           !!rpcUnlockBootstrapError || !!unlockQueryError || !!completionQueryError;
 
-        const unlockByModule = new Map<number, string>(
-          (unlockRows || []).map((r: { module_id: number; unlock_date: string }) => [
-            r.module_id,
-            r.unlock_date,
+        const unlockByUasId = new Map<string, string>(
+          (unlockRows || []).map((r: any) => [
+            String((r as any).user_assignment_session_id),
+            String((r as any).unlock_date),
           ])
         );
-        const completedModules = new Set<number>(
-          (completionRows || []).map((r: { module_id: number }) => r.module_id)
+        const completedUasIds = new Set<string>(
+          (completionRows || []).map((r: any) => String((r as any).user_assignment_session_id))
         );
 
         const noUnlockRowsRead =
           !unlockQueryError &&
           !rpcUnlockBootstrapError &&
-          moduleIds.length > 0 &&
-          unlockByModule.size === 0;
+          uasIds.length > 0 &&
+          unlockByUasId.size === 0;
 
         const useAth420ShowAllSessions = unlockTrackingUnavailable || noUnlockRowsRead;
 
@@ -461,33 +475,75 @@ const HomeScreen = () => {
             ? planModules.rows
             : planModules.rows;
 
-        for (const pm of orderedRows as { module_id: number; order_index: number }[]) {
+        const rowsInOrder = (orderedRows as any[]).slice().sort((a, b) => {
+          const ao = Number((a as any).order_index ?? 0);
+          const bo = Number((b as any).order_index ?? 0);
+          if (ao !== bo) return ao - bo;
+          return String((a as any).user_assignment_session_id ?? "").localeCompare(
+            String((b as any).user_assignment_session_id ?? "")
+          );
+        });
+
+        for (let idx = 0; idx < rowsInOrder.length; idx++) {
+          const pm = rowsInOrder[idx];
           const mod = moduleMap.get(pm.module_id);
           if (!mod) continue;
-          const unlockIso = unlockByModule.get(pm.module_id);
-          const unlocked = useAth420ShowAllSessions
-            ? true
-            : isUnlockedByLocalDate(unlockIso);
+          const uasId =
+            planModules.type === "assigned"
+              ? String((pm as any).user_assignment_session_id ?? "")
+              : "";
+          const unlockIso = uasId ? unlockByUasId.get(uasId) : undefined;
+          const scheduledReached = useAth420ShowAllSessions ? true : isUnlockedByLocalDate(unlockIso);
+          const prevUasId =
+            planModules.type === "assigned" && idx > 0
+              ? String((rowsInOrder[idx - 1] as any).user_assignment_session_id ?? "")
+              : "";
+          const prevOk =
+            planModules.type === "assigned" ? (idx === 0 ? true : completedUasIds.has(prevUasId)) : true;
+          const unlocked = scheduledReached && prevOk;
           merged.push({
+            user_assignment_session_id: uasId || undefined,
             module_id: mod.module_id,
             title: mod.title,
             order_index: pm.order_index,
             unlocked,
-            completed: completedModules.has(pm.module_id),
+            completed: uasId ? completedUasIds.has(uasId) : false,
             exerciseCount: countsByModule[String(mod.module_id)] || 0,
           });
         }
 
+        // Phase label should reflect plan progression even when the next session is still locked.
+        // Choose the first not-completed session in plan order; if all are completed, use the last.
+        const mergedInOrder = merged.slice().sort((a, b) => a.order_index - b.order_index);
+        const phaseOrderIndex =
+          mergedInOrder.find((s) => !s.completed)?.order_index ??
+          (mergedInOrder.length > 0 ? mergedInOrder[mergedInOrder.length - 1].order_index : null);
+        setPlanPhaseTitle(phaseOrderIndex != null ? phaseTitleForOrderIndex(phaseOrderIndex) : "");
+
         const visible = merged.filter((s) => s.unlocked);
         // Keep deterministic ordering for UI computations (current = lowest order_index).
         visible.sort((a, b) => a.order_index - b.order_index);
-        setSessions(visible);
 
-        // Session thumbnail = first exercise thumbnail (respect per-client overrides).
-        void (async () => {
+        // Session thumbnail = first exercise thumbnail; resolve before paint so cards don't flash the placeholder.
+        const nextThumbs: Record<string, string> = {};
+        for (const s of visible) {
+          const k = String(s.module_id);
+          const meta = exerciseRpcByModule[k];
+          if (meta?.thumb?.startsWith("http")) {
+            nextThumbs[k] = meta.thumb;
+          }
+        }
+
+        const needRpcThumb = visible.filter((s) => {
+          const k = String(s.module_id);
+          if (exerciseRpcByModule[k]?.ok) return false;
+          return !nextThumbs[k];
+        });
+
+        if (needRpcThumb.length > 0) {
           try {
             const entries = await Promise.all(
-              visible.map(async (s) => {
+              needRpcThumb.map(async (s) => {
                 const { data: rows, error: rpcErr } = await supabase.rpc(
                   "get_current_assigned_session_exercises",
                   { p_module_id: Number(s.module_id) }
@@ -495,26 +551,28 @@ const HomeScreen = () => {
                 if (rpcErr || !Array.isArray(rows) || rows.length === 0) {
                   return [String(s.module_id), ""] as const;
                 }
-                const thumb = String((rows[0] as any)?.thumbnail_url ?? "");
+                const thumb = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
                 return [String(s.module_id), thumb] as const;
               })
             );
-            setSessionThumbs((prev) => {
-              const next = { ...prev };
-              for (const [mid, url] of entries) {
-                if (typeof url === "string" && url.startsWith("http")) {
-                  next[mid] = url;
-                }
+            for (const [mid, url] of entries) {
+              if (typeof url === "string" && url.startsWith("http")) {
+                nextThumbs[mid] = url;
               }
-              return next;
-            });
+            }
           } catch {
-            // non-blocking: thumbnails are optional
+            // optional thumbnails
           }
-        })();
+        }
+
+        setSessionThumbs(nextThumbs);
+        setSessions(visible);
       } catch (err) {
         setError("Something went wrong.");
         setSessions([]);
+        setSessionThumbs({});
+        setPlanTitle("");
+        setPlanPhaseTitle("");
       } finally {
         setLoading(false);
       }
@@ -532,10 +590,15 @@ const HomeScreen = () => {
     setRefreshing(false);
   }, [fetchAssignedSessions]);
 
-  const goToSession = (moduleId: string, sessionName: string) => {
+  const goToSession = (moduleId: string, sessionName: string, uasId?: string) => {
     router.push({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: moduleId, sessionName },
+      params: {
+        sessionId: moduleId,
+        sessionName,
+        ...(uasId ? { userAssignmentSessionId: uasId } : {}),
+        ...(currentAssignmentId ? { assignmentId: currentAssignmentId } : {}),
+      },
     });
   };
 
@@ -575,7 +638,13 @@ const HomeScreen = () => {
       <View style={styles.header}>
         <View style={styles.headerRow}>
           <Text style={styles.greeting}>Hi {displayName || "there"}!</Text>
-          <Text style={styles.brandText}>Floora</Text>
+          <Image
+            testID="home-floora-logo"
+            source={require("../../assets/images/flooraLogo.png")}
+            style={styles.logoImage}
+            resizeMode="contain"
+            accessibilityLabel="Floora"
+          />
         </View>
       </View>
       <ScrollView
@@ -586,7 +655,21 @@ const HomeScreen = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#0F9AA8" />
         }
       >
-        <Text style={styles.sectionTitle}>Your Assigned Sessions</Text>
+        <View style={styles.sectionHeadingBlock}>
+          {hasAssignedPlan ? (
+            <>
+              <Text style={styles.planNameHero} numberOfLines={2}>
+                {planTitle.trim() || "Your Plan"}
+              </Text>
+              {planPhaseTitle ? (
+                <Text style={styles.planPhaseSub} numberOfLines={1}>
+                  {planPhaseTitle}
+                </Text>
+              ) : null}
+            </>
+          ) : null}
+          <Text style={styles.sessionsLabel}>Sessions</Text>
+        </View>
         <View style={styles.accentLine} />
 
         {sessions.length === 0 ? (
@@ -605,31 +688,34 @@ const HomeScreen = () => {
                   onPress={() =>
                     goToSession(
                       String(currentSession.module_id),
-                      currentSession.title || "Session"
+                      currentSession.title || "Session",
+                      currentSession.user_assignment_session_id
                     )
                   }
                   style={{ minHeight: 44 }}
                 >
-                  <View style={[styles.sessionTile, styles.sessionTileCurrent]}>
-                    <View style={styles.currentBadge} pointerEvents="none">
-                      <Text style={styles.currentBadgeText}>Current</Text>
+                  <View style={styles.currentSessionCard}>
+                    <View style={sessionCardStyles.mediaElevatedCurrent}>
+                      <View style={styles.currentBadge} pointerEvents="none">
+                        <Text style={styles.currentBadgeText}>Current</Text>
+                      </View>
+                      <View style={sessionCardStyles.mediaShell}>
+                        <Image
+                          source={
+                            sessionThumbs[String(currentSession.module_id)]
+                              ? { uri: sessionThumbs[String(currentSession.module_id)] }
+                              : fallbackSessionImage
+                          }
+                          style={sessionCardStyles.mediaImage}
+                          resizeMode="cover"
+                        />
+                      </View>
                     </View>
-                    <View style={styles.card}>
-                      <Image
-                        source={
-                          sessionThumbs[String(currentSession.module_id)]
-                            ? { uri: sessionThumbs[String(currentSession.module_id)] }
-                            : fallbackSessionImage
-                        }
-                        style={styles.cardImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                    <Text style={styles.cardCaption}>
-                      <Text style={styles.cardCaptionStrong}>
+                    <Text style={sessionCardStyles.caption}>
+                      <Text style={sessionCardStyles.captionStrong}>
                         {currentSession.title || "Session"}
                       </Text>
-                      <Text style={styles.cardCaptionMeta}>
+                      <Text style={sessionCardStyles.captionMeta}>
                         {` | ${currentSession.exerciseCount ?? 0} `}
                         {(currentSession.exerciseCount ?? 0) === 1
                           ? "Exercise"
@@ -645,38 +731,39 @@ const HomeScreen = () => {
 
             {completedSessions.length > 0 ? (
               <>
-                {completedSessions.map((sessionItem) => (
+                {completedSessions.map((sessionItem, completedIndex) => (
                   <TouchableOpacity
-                    key={`completed-${String(sessionItem.module_id)}`}
+                    key={`completed-oidx-${sessionItem.order_index}-mid-${String(sessionItem.module_id)}-i-${completedIndex}`}
                     activeOpacity={0.9}
                     onPress={() =>
                       goToSession(
                         String(sessionItem.module_id),
-                        sessionItem.title || "Session"
+                        sessionItem.title || "Session",
+                        sessionItem.user_assignment_session_id
                       )
                     }
                     style={{ minHeight: 44 }}
                   >
-                    <View style={styles.sessionTile}>
+                    <View style={sessionCardStyles.tile}>
                       <View style={styles.completedBadge} pointerEvents="none">
                         <Text style={styles.completedBadgeText}>Completed</Text>
                       </View>
-                      <View style={styles.card}>
+                      <View style={sessionCardStyles.mediaShell}>
                         <Image
                           source={
                             sessionThumbs[String(sessionItem.module_id)]
                               ? { uri: sessionThumbs[String(sessionItem.module_id)] }
                               : fallbackSessionImage
                           }
-                          style={styles.cardImage}
+                          style={sessionCardStyles.mediaImage}
                           resizeMode="cover"
                         />
                       </View>
-                      <Text style={styles.cardCaption}>
-                        <Text style={styles.cardCaptionStrong}>
+                      <Text style={sessionCardStyles.caption}>
+                        <Text style={sessionCardStyles.captionStrong}>
                           {sessionItem.title || "Session"}
                         </Text>
-                        <Text style={styles.cardCaptionMeta}>
+                        <Text style={sessionCardStyles.captionMeta}>
                           {` | ${sessionItem.exerciseCount ?? 0} `}
                           {(sessionItem.exerciseCount ?? 0) === 1
                             ? "Exercise"

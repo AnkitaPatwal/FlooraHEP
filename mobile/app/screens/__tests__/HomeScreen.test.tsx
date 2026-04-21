@@ -26,7 +26,9 @@ const mockFrom = jest.fn();
 const mockRpc = jest.fn(
   (_fnName?: string, _params?: Record<string, unknown>) =>
     Promise.resolve({ data: null, error: null })
-);
+) as jest.MockedFunction<
+  (fnName?: string, params?: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>
+>;
 
 jest.mock("../../../lib/supabaseClient", () => ({
   supabase: {
@@ -121,10 +123,12 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
     if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
     if (table === "module") return makeModuleChain([{ module_id: 1, title: "week 1 foundations" }]);
     if (table === "module_exercise") return makeModuleExerciseChain(meRows);
-    if (table === "user_session_unlock") {
-      return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+    if (table === "user_assignment_session_unlock") {
+      return makeEqInSelectChain([
+        { user_assignment_session_id: "uas-1", unlock_date: "2000-01-01T00:00:00.000Z" },
+      ]);
     }
-    if (table === "user_session_completion") {
+    if (table === "user_assignment_session_completion") {
       return makeEqInSelectChain([]);
     }
     return { select: jest.fn() };
@@ -134,7 +138,20 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
 describe("HomeScreen", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRpc.mockResolvedValue({ data: null, error: null });
+    mockRpc.mockImplementation((fnName?: string) => {
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Morning Mobility", error: null });
+      }
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "week 1 foundations" },
+          ],
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
     mockUseAuth.mockImplementation(() => ({ session: mockSession, loading: false }));
     (global as any).userEmail = "keshwa@example.com";
     defaultMockFrom();
@@ -142,12 +159,18 @@ describe("HomeScreen", () => {
 
   it("fetches user_packages when user is signed in", async () => {
     defaultMockFrom();
-    const { findByText } = render(<HomeScreen />);
-    // Wait for loaded UI so the full Supabase chain (user → user_packages → …) has finished.
-    await findByText("week 1 foundations");
+    const { getByText } = render(<HomeScreen />);
+    // Wait for loaded UI (includes resolving session thumbnails before first paint).
+    await waitFor(
+      () => {
+        expect(getByText("week 1 foundations")).toBeTruthy();
+      },
+      { timeout: 5000 }
+    );
     expect(mockFrom.mock.calls.map((c) => c[0])).toContain("user_packages");
-    expect(mockRpc).toHaveBeenCalledWith("ensure_first_session_unlock");
-    expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
+    expect(mockRpc.mock.calls.map((c) => c[0])).toContain("ensure_first_session_unlock");
+    expect(mockRpc.mock.calls.map((c) => c[0])).toContain("get_current_assigned_sessions");
+    expect(mockRpc.mock.calls.map((c) => c[0])).toContain("get_my_assigned_plan_title");
   });
 
   it("renders assigned sessions section and exercise count from module_exercise", async () => {
@@ -159,20 +182,29 @@ describe("HomeScreen", () => {
       expect(getByText("week 1 foundations")).toBeTruthy();
     });
 
-    expect(getByText("Your Assigned Sessions")).toBeTruthy();
+    expect(getByText("Morning Mobility")).toBeTruthy();
+    expect(getByText("Sessions")).toBeTruthy();
     expect(getByText(/3 Exercises/)).toBeTruthy();
     expect(queryByText("No assigned sessions yet.")).toBeNull();
     expect(mockRpc).toHaveBeenCalledWith("get_current_assigned_sessions");
   });
 
   it("prefers merged exercise count from get_current_assigned_session_exercises rpc", async () => {
-    mockRpc.mockImplementation((fnName: string, params?: Record<string, unknown>) => {
+    mockRpc.mockImplementation((fnName: string | undefined, params?: Record<string, unknown>) => {
       if (fnName === "get_current_assigned_sessions") {
-        return Promise.resolve({ data: [{ module_id: 1, order_index: 1, title: "week 1 foundations" }], error: null });
+      return Promise.resolve({
+        data: [
+          { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "week 1 foundations" },
+        ],
+        error: null,
+      });
       }
       if (fnName === "get_current_assigned_session_exercises") {
         expect(params).toEqual({ p_module_id: 1 });
         return Promise.resolve({ data: [{ exercise_id: 1 }, { exercise_id: 2 }], error: null });
+      }
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Morning Mobility", error: null });
       }
       if (fnName === "ensure_first_session_unlock") return Promise.resolve({ data: null, error: null });
       return Promise.resolve({ data: null, error: null });
@@ -191,12 +223,12 @@ describe("HomeScreen", () => {
   it("shows first name in greeting when user has fname", async () => {
     defaultMockFrom({ fname: "Sadaf" });
 
-    const { getByText } = render(<HomeScreen />);
+    const { getByText, getByTestId } = render(<HomeScreen />);
 
     await waitFor(() => {
       expect(getByText("Hi Sadaf!")).toBeTruthy();
     });
-    expect(getByText("Floora")).toBeTruthy();
+    expect(getByTestId("home-floora-logo")).toBeTruthy();
   });
 
   it("shows Hi there! when user has no fname", async () => {
@@ -206,10 +238,12 @@ describe("HomeScreen", () => {
       if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
       if (table === "module") return makeModuleChain([{ module_id: 1, title: "Session 1" }]);
       if (table === "module_exercise") return makeModuleExerciseChain([]);
-      if (table === "user_session_unlock") {
-        return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+      if (table === "user_assignment_session_unlock") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-1", unlock_date: "2000-01-01T00:00:00.000Z" },
+        ]);
       }
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeEqInSelectChain([]);
       }
       return { select: jest.fn() };
@@ -237,6 +271,7 @@ describe("HomeScreen", () => {
     await waitFor(() => {
       expect(getByText("No assigned sessions yet.")).toBeTruthy();
     });
+    expect(getByText("Sessions")).toBeTruthy();
   });
 
   it("shows error state when user cannot be loaded", async () => {
@@ -262,7 +297,80 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", sessionName: "week 1 foundations" },
+      params: {
+        sessionId: "1",
+        sessionName: "week 1 foundations",
+        userAssignmentSessionId: "uas-1",
+      },
     });
+  });
+
+  /** ATH-441: same `module_id` twice in assigned sessions must not reuse React `key` (was `completed-${module_id}`). */
+  it("renders two completed cards for duplicate module_id rows without duplicate-key console errors", async () => {
+    const consoleError = jest.spyOn(console, "error").mockImplementation(() => {});
+
+    mockRpc.mockImplementation((fnName?: string, params?: Record<string, unknown>) => {
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { user_assignment_session_id: "uas-a", module_id: 1, order_index: 1, title: "Caption A" },
+            { user_assignment_session_id: "uas-b", module_id: 1, order_index: 2, title: "Caption B" },
+          ],
+          error: null,
+        });
+      }
+      if (fnName === "get_current_assigned_session_exercises") {
+        expect(params).toEqual({ p_module_id: 1 });
+        return Promise.resolve({
+          data: [{ exercise_id: 1, thumbnail_url: "https://example.com/thumb.jpg" }],
+          error: null,
+        });
+      }
+      if (fnName === "get_my_assigned_plan_title") {
+        return Promise.resolve({ data: "Dup Plan", error: null });
+      }
+      if (fnName === "ensure_first_session_unlock") {
+        return Promise.resolve({ data: null, error: null });
+      }
+      return Promise.resolve({ data: null, error: null });
+    });
+
+    mockFrom.mockImplementation((table: string) => {
+      if (table === "user") return makeUserChain({ user_id: 56, fname: "Keshwa" });
+      if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
+      if (table === "user_assignment_session_unlock") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-a", unlock_date: "2000-01-01T00:00:00.000Z" },
+          { user_assignment_session_id: "uas-b", unlock_date: "2000-01-01T00:00:00.000Z" },
+        ]);
+      }
+      if (table === "user_assignment_session_completion") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-a", completed_at: "2020-01-01T00:00:00.000Z" },
+          { user_assignment_session_id: "uas-b", completed_at: "2020-01-01T00:00:00.000Z" },
+        ]);
+      }
+      return { select: jest.fn() };
+    });
+
+    const { getAllByText, getByText } = render(<HomeScreen />);
+
+    await waitFor(
+      () => {
+        expect(getAllByText("Completed").length).toBe(2);
+      },
+      { timeout: 8000 }
+    );
+
+    expect(getByText("Dup Plan")).toBeTruthy();
+    // `module` map last-write-wins for same module_id — both cards share the resolved title.
+    expect(getAllByText("Caption B").length).toBe(2);
+
+    const dupKeyMessages = consoleError.mock.calls.filter(
+      (c) => typeof c[0] === "string" && c[0].includes("same key")
+    );
+    expect(dupKeyMessages).toHaveLength(0);
+
+    consoleError.mockRestore();
   });
 });

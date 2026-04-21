@@ -5,6 +5,7 @@ import { View, ActivityIndicator } from "react-native";
 import { Tabs, Redirect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../../providers/AuthProvider";
+import { FlooraFonts } from "../../constants/fonts";
 
 export default function TabsLayout() {
   const { session, loading } = useAuth();
@@ -28,7 +29,8 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: "#007AFF", // iOS blue
+        tabBarLabelStyle: { fontFamily: FlooraFonts.medium, fontSize: 11 },
+        tabBarActiveTintColor: "#0D2C2C",
         tabBarInactiveTintColor: "#9CA3AF",
         tabBarStyle: {
           borderTopColor: "#E5E7EB",

@@ -13,14 +13,21 @@ import {
   RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Link, useRouter } from "expo-router";
+import { Link } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 
 import { useAuth } from "../../providers/AuthProvider";
 import { supabase } from "../../lib/supabaseClient";
+import { FlooraFonts } from "../../constants/fonts";
+import { CircularIconButton } from "../../components/CircularBackButton";
 import defaultProfile from "../../assets/images/default-profile.png";
+
+/** Matches `inputWrapper` so edit chips sit flush with the field row. */
+const PROFILE_INPUT_SURFACE = "#F5F5F5";
+/** Pencil on the same surface — slightly darker for legibility. */
+const PROFILE_EDIT_ICON_COLOR = "#9CA3AF";
 
 type ProfileRecord = {
   email: string | null;
@@ -30,8 +37,33 @@ type ProfileRecord = {
   lname?: string | null;
 };
 
+/** DB avatar via Edge Function (service role reads profiles + public.user). */
+async function fetchAvatarUrlFromUpdateProfile(
+  accessToken: string
+): Promise<string | null | undefined> {
+  const base = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  if (!base) return undefined;
+  try {
+    const res = await fetch(`${base}/functions/v1/update-profile`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const data = (await res.json()) as {
+      success?: boolean;
+      profile?: { avatar_url?: string | null };
+    };
+    if (!res.ok || data?.success !== true || !data?.profile) return undefined;
+    const url = data.profile.avatar_url;
+    if (url == null) return null;
+    if (typeof url !== "string") return null;
+    const t = url.trim();
+    return t.length ? t : null;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function Profile() {
-  const router = useRouter();
   const { session } = useAuth();
 
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
@@ -88,6 +120,14 @@ export default function Profile() {
         }
       }
 
+      const token = session?.access_token;
+      if (token) {
+        const apiAvatar = await fetchAvatarUrlFromUpdateProfile(token);
+        if (apiAvatar !== undefined) {
+          merged = { ...merged, avatar_url: apiAvatar };
+        }
+      }
+
       setProfile(merged);
       hasLoadedOnce.current = true;
     } catch (err) {
@@ -95,7 +135,7 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  }, [session?.user?.id, session?.user?.email]);
+  }, [session?.user?.id, session?.user?.email, session?.access_token]);
 
   useEffect(() => {
     void fetchProfile();
@@ -115,7 +155,6 @@ export default function Profile() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    router.replace("/screens/LoginScreen");
   };
 
   const onSignOutPress = () => {
@@ -301,7 +340,9 @@ export default function Profile() {
         contentContainerStyle={{ paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A8E93" />
+          Platform.OS === "web" ? undefined : (
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5A8E93" />
+          )
         }
       >
         <Text style={styles.header}>Profile Settings</Text>
@@ -368,9 +409,12 @@ export default function Profile() {
                   placeholderTextColor="#999"
                 />
                 <Link href="/screens/UpdateName" asChild>
-                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                  <CircularIconButton
+                    accessibilityLabel="Edit name"
+                    style={styles.editIconCircle}
+                  >
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -386,9 +430,12 @@ export default function Profile() {
                   placeholderTextColor="#999"
                 />
                 <Link href="/screens/UpdateEmail" asChild>
-                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                  <CircularIconButton
+                    accessibilityLabel="Edit email"
+                    style={styles.editIconCircle}
+                  >
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -403,9 +450,12 @@ export default function Profile() {
                   style={styles.input}
                 />
                 <Link href="/screens/ChangePassword" asChild>
-                  <TouchableOpacity style={[styles.iconContainer, { minHeight: 44, justifyContent: "center" }]}>
-                    <Feather name="edit-3" size={18} color="#5A8E93" />
-                  </TouchableOpacity>
+                  <CircularIconButton
+                    accessibilityLabel="Change password"
+                    style={styles.editIconCircle}
+                  >
+                    <Feather name="edit-3" size={16} color={PROFILE_EDIT_ICON_COLOR} />
+                  </CircularIconButton>
                 </Link>
               </View>
             </View>
@@ -432,8 +482,8 @@ const styles = StyleSheet.create({
   flexGrow: 1,
 },
   header: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 22,
-    fontWeight: "700",
     textAlign: "center",
     marginBottom: 12,
     marginTop: 20,
@@ -477,17 +527,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statusText: {
+    fontFamily: FlooraFonts.regular,
     marginTop: 12,
     fontSize: 16,
     color: "#333",
   },
   errorText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     color: "#B91C1C",
     marginBottom: 8,
     textAlign: "center",
   },
   successText: {
+    fontFamily: FlooraFonts.regular,
     fontSize: 14,
     color: "#059669",
     marginBottom: 8,
@@ -501,30 +554,32 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 14,
-    fontWeight: "600",
     color: "#333",
     marginBottom: 6,
   },
   inputWrapper: {
   flexDirection: "row",
   alignItems: "center",
-  backgroundColor: "#F5F5F5",
+  backgroundColor: PROFILE_INPUT_SURFACE,
   borderRadius: 8,
   paddingRight: 14,
 },
   input: {
-  flex: 1,
-  paddingVertical: 12,
-  paddingHorizontal: 14,
-  fontSize: 15,
-  color: "#333",
-},
-  iconContainer: {
-  justifyContent: "center",
-  alignItems: "center",
-  marginLeft: 8,
-},
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontFamily: FlooraFonts.regular,
+    fontSize: 15,
+    color: "#333",
+  },
+  editIconCircle: {
+    marginLeft: 4,
+    backgroundColor: PROFILE_INPUT_SURFACE,
+    shadowOpacity: 0.06,
+    elevation: 2,
+  },
   signOutButton: {
     marginTop: 40,
     alignSelf: "center",
@@ -541,9 +596,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   signOutText: {
+    fontFamily: FlooraFonts.medium,
     color: "#fff",
     fontSize: 16,
-    fontWeight: "500",
   },
   retryButton: {
     marginTop: 12,
@@ -556,8 +611,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   retryButtonText: {
+    fontFamily: FlooraFonts.semiBold,
     color: "#fff",
     fontSize: 15,
-    fontWeight: "600",
   },
 });

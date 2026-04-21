@@ -4,15 +4,17 @@
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const storageKey = (userId: string, moduleId: number) =>
-  `@session_exercise_max_completed:${userId}:${moduleId}`;
+// Include assignmentId so a newly published plan starts fresh even when reusing the same module/video.
+const storageKey = (userId: string, assignmentId: string, moduleId: number) =>
+  `@session_exercise_max_completed:${userId}:${assignmentId}:${moduleId}`;
 
 export async function getMaxCompletedExercisePosition(
   userId: string,
+  assignmentId: string,
   moduleId: number
 ): Promise<number> {
   try {
-    const raw = await AsyncStorage.getItem(storageKey(userId, moduleId));
+    const raw = await AsyncStorage.getItem(storageKey(userId, assignmentId, moduleId));
     if (raw == null || raw === "") return 0;
     const n = parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 0;
@@ -31,11 +33,12 @@ export function isExercisePositionUnlocked(maxCompletedPosition: number, positio
  */
 export async function recordExerciseWatchedToEnd(
   userId: string,
+  assignmentId: string,
   moduleId: number,
   position: number
 ): Promise<void> {
-  const max = await getMaxCompletedExercisePosition(userId, moduleId);
+  const max = await getMaxCompletedExercisePosition(userId, assignmentId, moduleId);
   if (position > max + 1) return;
   const next = Math.max(max, position);
-  await AsyncStorage.setItem(storageKey(userId, moduleId), String(next));
+  await AsyncStorage.setItem(storageKey(userId, assignmentId, moduleId), String(next));
 }

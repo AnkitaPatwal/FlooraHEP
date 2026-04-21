@@ -8,6 +8,7 @@ import {
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { FlooraFonts } from "../../constants/fonts";
 
 export default function ResetPassword() {
   const { token } = useLocalSearchParams<{ token?: string }>();
@@ -37,18 +38,27 @@ export default function ResetPassword() {
 
     try {
       setLoading(true);
-      const res = await fetch(
-        `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1/reset-password`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, password: newPassword }),
-        }
-      );
+      const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+      const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+      if (!url || !anon) {
+        throw new Error("App configuration is incomplete.");
+      }
+      const res = await fetch(`${url.replace(/\/$/, "")}/functions/v1/reset-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${anon}`,
+          apikey: anon,
+        },
+        body: JSON.stringify({ token, password: newPassword }),
+      });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Reset failed");
+        const data = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          error?: string;
+        };
+        throw new Error(data.message || data.error || "Reset failed");
       }
 
       alert("Password updated. You can now log in.");
@@ -137,8 +147,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   headerTitle: {
+    fontFamily: FlooraFonts.extraBold,
     fontSize: 20,
-    fontWeight: "800",
     color: "#333",
   },
   body: {
@@ -147,15 +157,15 @@ const styles = StyleSheet.create({
     paddingTop: 36,
   },
   title: {
+    fontFamily: FlooraFonts.bold,
     fontSize: 18,
-    fontWeight: "700",
     textAlign: "center",
     color: "#111827",
     marginBottom: 28,
   },
   label: {
+    fontFamily: FlooraFonts.semiBold,
     fontSize: 15,
-    fontWeight: "600",
     color: "#333",
     marginBottom: 8,
   },
@@ -170,6 +180,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: 12,
+    fontFamily: FlooraFonts.regular,
     fontSize: 15,
     color: "#333",
   },
@@ -182,8 +193,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   buttonText: {
+    fontFamily: FlooraFonts.semiBold,
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
   },
 });

@@ -36,9 +36,13 @@ const router = express.Router();
 /** First session in plan order → first exercise in that session (by order_index) → thumbnail_url */
 function coverThumbnailFromPlanRow(plan: { plan_module?: unknown }): string | null {
   const pms = Array.isArray(plan.plan_module) ? [...plan.plan_module] : [];
+  const orderVal = (v: unknown): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+  };
   pms.sort(
     (a: { order_index?: number }, b: { order_index?: number }) =>
-      (Number(a.order_index) || 0) - (Number(b.order_index) || 0),
+      orderVal(a.order_index) - orderVal(b.order_index),
   );
   const firstPm = pms[0] as
     | {
@@ -53,7 +57,7 @@ function coverThumbnailFromPlanRow(plan: { plan_module?: unknown }): string | nu
     : [];
   mes.sort(
     (a: { order_index?: number }, b: { order_index?: number }) =>
-      (Number(a.order_index) || 0) - (Number(b.order_index) || 0),
+      orderVal(a.order_index) - orderVal(b.order_index),
   );
   for (const me of mes) {
     const url = me?.exercise?.thumbnail_url;
@@ -1418,87 +1422,8 @@ router.get('/dashboard', async (_req, res) => {
       });
     }
 
-    // Plan assigned to a client (user_packages)
-    try {
-      const { data: assigns } = await supabaseAdmin
-        .from('user_packages')
-        .select('created_at, user_id, package_id')
-        .order('created_at', { ascending: false })
-        .limit(25);
-      const assignList = assigns ?? [];
-      const aids = [
-        ...new Set(
-          assignList
-            .map((a: { package_id: number }) => Number(a.package_id))
-            .filter((n) => Number.isFinite(n)),
-        ),
-      ];
-      const planTitleMap = new Map<number, string>();
-      if (aids.length > 0) {
-        const { data: pt } = await supabaseAdmin
-          .from('plan')
-          .select('plan_id, title')
-          .in('plan_id', aids);
-        for (const p of pt ?? []) {
-          planTitleMap.set(
-            Number((p as { plan_id: number }).plan_id),
-            String((p as { title: string }).title),
-          );
-        }
-      }
-      const uuids = [
-        ...new Set(
-          assignList.map((a: { user_id: string }) => String(a.user_id)).filter(Boolean),
-        ),
-      ];
-      const idToEmail = new Map<string, string>();
-      if (uuids.length > 0) {
-        const { data: profs } = await supabaseAdmin
-          .from('profiles')
-          .select('id, email')
-          .in('id', uuids);
-        for (const pr of profs ?? []) {
-          idToEmail.set(String((pr as { id: string }).id), String((pr as { email: string }).email ?? ''));
-        }
-      }
-      const emList = [
-        ...new Set(
-          [...idToEmail.values()].map((e) => e.trim()).filter(Boolean),
-        ),
-      ];
-      const emailToName = new Map<string, string>();
-      if (emList.length > 0) {
-        const { data: usr } = await supabaseAdmin
-          .from('user')
-          .select('email, fname, lname')
-          .in('email', emList);
-        for (const u of usr ?? []) {
-          const e = ((u as { email: string }).email ?? '').trim().toLowerCase();
-          emailToName.set(
-            e,
-            [(u as { fname: string | null }).fname, (u as { lname: string | null }).lname]
-              .filter(Boolean)
-              .join(' ')
-              .trim() || (u as { email: string }).email || 'Client',
-          );
-        }
-      }
-      for (const a of assignList) {
-        const row = a as { created_at: string; user_id: string; package_id: number };
-        const pid = Number(row.package_id);
-        const title = planTitleMap.get(pid) ?? 'Plan';
-        const email = idToEmail.get(String(row.user_id));
-        const nm = email ? emailToName.get(email.trim().toLowerCase()) : undefined;
-        const who = nm ? ` for ${nm}` : '';
-        activityItems.push({
-          at: row.created_at,
-          t: new Date(row.created_at).getTime(),
-          label: `Added: Plan "${title}" assigned${who}`,
-        });
-      }
-    } catch (err) {
-      console.warn('GET /api/admin/dashboard: assignment activity skipped:', err);
-    }
+    // Plan assignments: omit duplicate rows here — assign-package logs to admin_dashboard_activity
+    // with admin + patient names (see assignPackage.ts logPlanAssignmentActivity).
 
     // Plan library updates
     try {

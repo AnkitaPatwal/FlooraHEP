@@ -1,7 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useLocation } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
+import {
+  messageFromApiResponse,
+  messageFromUnknownError,
+  parseResponseJson,
+} from "../../lib/api-errors";
 import { supabase } from "../../lib/supabase-client";
+import "../../components/AdminInlineMessage.css";
 import "./Dashboard.css";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -42,6 +54,10 @@ type DashboardPayload = {
   recentActivity: { at: string; label: string }[];
 };
 
+type DashboardBanner =
+  | { variant: "error"; message: string }
+  | { variant: "success"; message: string };
+
 function formatListUpdated(d: Date): string {
   return `Last updated: ${d.toLocaleDateString("en-US", {
     month: "short",
@@ -69,44 +85,100 @@ function formatPlanEdited(iso: string): string {
   });
 }
 
+/** Matches assign-package activity rows: hide internal `[client:…]` filter prefix. */
+function stripClientActivityPrefix(label: string): string {
+  return label.replace(/^\[client:[^\]]+\]\s*/, "");
+}
+
 export default function Dashboard() {
   const location = useLocation();
   const [lastUpdated, setLastUpdated] = useState(() => new Date());
   const [data, setData] = useState<DashboardPayload | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [banner, setBanner] = useState<DashboardBanner | null>(null);
   const [busy, setBusy] = useState(false);
+  const expectSuccessAfterLoadRef = useRef(false);
+  const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+
+  useEffect(() => {
+    return () => {
+      if (successDismissTimerRef.current) {
+        clearTimeout(successDismissTimerRef.current);
+      }
+    };
+  }, []);
+
+  const dismissBanner = useCallback(() => {
+    if (successDismissTimerRef.current) {
+      clearTimeout(successDismissTimerRef.current);
+      successDismissTimerRef.current = null;
+    }
+    setBanner(null);
+  }, []);
 
   const load = useCallback(async () => {
-    setLoadError(null);
+    setBanner(null);
     setBusy(true);
     try {
       const headers = await authHeaders();
       const res = await fetch(`${API_BASE}/api/admin/dashboard`, { headers });
-      const body = (await res.json().catch(() => null)) as
-        | DashboardPayload
-        | { error?: string }
-        | null;
+      const body = await parseResponseJson(res);
+
       if (!res.ok) {
-        setLoadError(
-          (body && "error" in body && body.error) ||
-            `Dashboard failed (${res.status})`,
-        );
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: messageFromApiResponse(
+            res,
+            body,
+            "Could not load dashboard.",
+          ),
+        });
         return;
       }
-      if (!body || !("counts" in body)) {
-        setLoadError("Invalid dashboard response.");
+
+      if (!body || typeof body !== "object" || !("counts" in body)) {
+        expectSuccessAfterLoadRef.current = false;
+        setBanner({
+          variant: "error",
+          message: "Received an unexpected response from the server.",
+        });
         return;
       }
+
       setData(body as DashboardPayload);
       setLastUpdated(new Date());
+
+      if (expectSuccessAfterLoadRef.current) {
+        expectSuccessAfterLoadRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Dashboard refreshed." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+      }
     } catch (e) {
-      setLoadError(
-        e instanceof Error ? e.message : "Could not load dashboard data.",
-      );
+      expectSuccessAfterLoadRef.current = false;
+      setBanner({
+        variant: "error",
+        message: messageFromUnknownError(
+          e,
+          "Could not load dashboard data.",
+        ),
+      });
     } finally {
       setBusy(false);
     }
   }, []);
+
+  const handleRetry = useCallback(() => {
+    expectSuccessAfterLoadRef.current = true;
+    void load();
+  }, [load]);
 
   // Refetch whenever this screen is visited (e.g. Users → Dashboard). `location.key`
   // changes on each navigation entry, including returning from another admin page.
@@ -134,13 +206,36 @@ export default function Dashboard() {
           <p className="dashboard-updated">{formatListUpdated(lastUpdated)}</p>
         </header>
 
-        {loadError && (
-          <p className="dashboard-error" role="alert">
-            {loadError}
-          </p>
+        {banner && (
+          <div
+            className={`admin-inline-message admin-inline-message--${banner.variant}`}
+            role={banner.variant === "error" ? "alert" : "status"}
+            aria-live={banner.variant === "error" ? "assertive" : "polite"}
+          >
+            <p className="admin-inline-message__text">{banner.message}</p>
+            <div className="admin-inline-message__actions">
+              {banner.variant === "error" && (
+                <button
+                  type="button"
+                  className="admin-inline-message__btn"
+                  onClick={handleRetry}
+                  disabled={busy}
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                type="button"
+                className="admin-inline-message__btn admin-inline-message__btn--ghost"
+                onClick={dismissBanner}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         )}
 
-        {busy && !data && !loadError && (
+        {busy && !data && !banner && (
           <p className="dashboard-loading-hint" aria-live="polite">
             Loading dashboard…
           </p>
@@ -268,7 +363,9 @@ export default function Dashboard() {
                         >
                           <span className="dashboard-activity-dot" />
                         </span>
-                        <p className="dashboard-activity-text">{row.label}</p>
+                        <p className="dashboard-activity-text">
+                          {stripClientActivityPrefix(row.label)}
+                        </p>
                       </li>
                     ))}
                   </ul>

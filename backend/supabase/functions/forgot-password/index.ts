@@ -13,6 +13,80 @@ function toHex(bytes: Uint8Array): string {
     .join("");
 }
 
+const RESEND_FROM_FALLBACK = "Floora HEP <onboarding@resend.dev>";
+
+function normalizeResetBase(s: string): string {
+  return s.replace(/\/+$/, "");
+}
+
+/** Expo / app-only paths must not be used for admin web reset emails. */
+function isMobileOnlyResetBase(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol === "exp:" || u.protocol === "exps:") return true;
+    const p = (u.pathname || "").toLowerCase();
+    if (p.includes("/screens/resetpassword")) return true;
+  } catch {
+    return true;
+  }
+  return false;
+}
+
+function parseAllowedWebResetOrigins(): Set<string> {
+  const raw = Deno.env.get("WEB_RESET_ALLOWED_ORIGINS") ?? "";
+  return new Set(
+    raw
+      .split(",")
+      .map((s) => s.trim().replace(/\/+$/, ""))
+      .filter(Boolean)
+  );
+}
+
+/**
+ * Optional body from admin web: full base ending in /reset-password.
+ * Allowed: http://localhost|127.0.0.1:anyport/... or https origins listed in WEB_RESET_ALLOWED_ORIGINS.
+ */
+function isValidClientWebResetBase(urlStr: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(urlStr.trim());
+  } catch {
+    return false;
+  }
+  const path = ((u.pathname || "/").replace(/\/+$/, "") || "/").toLowerCase();
+  if (path !== "/reset-password") return false;
+
+  const isLocalHttp =
+    u.protocol === "http:" && (u.hostname === "localhost" || u.hostname === "127.0.0.1");
+  if (isLocalHttp) return true;
+
+  const origin = `${u.protocol}//${u.host}`;
+  if (u.protocol === "https:" && parseAllowedWebResetOrigins().has(origin)) return true;
+  return false;
+}
+
+type ParsedForgotBody = { email?: string; client?: string; reset_web_base?: string };
+
+function resolveResetBaseUrl(parsed: ParsedForgotBody, client: "web" | "app"): string | undefined {
+  const envWeb = Deno.env.get("FRONTEND_RESET_PASSWORD_WEB_URL")?.trim();
+  const envApp = Deno.env.get("FRONTEND_RESET_PASSWORD_URL")?.trim();
+
+  if (client === "web") {
+    const clientB =
+      typeof parsed.reset_web_base === "string" ? parsed.reset_web_base.trim() : "";
+    if (clientB && isValidClientWebResetBase(clientB)) {
+      return normalizeResetBase(clientB);
+    }
+    if (envWeb) return normalizeResetBase(envWeb);
+    if (envApp && !isMobileOnlyResetBase(envApp)) return normalizeResetBase(envApp);
+    return undefined;
+  }
+
+  if (envApp) return normalizeResetBase(envApp);
+  if (envWeb) return normalizeResetBase(envWeb);
+  return undefined;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -29,7 +103,7 @@ Deno.serve(async (req) => {
     const rawBody = await req.text();
     console.log("forgot-password raw body:", rawBody);
 
-    let parsed: { email?: string } = {};
+    let parsed: ParsedForgotBody = {};
     try {
       parsed = JSON.parse(rawBody);
     } catch (e) {
@@ -49,6 +123,10 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const clientRaw =
+      typeof parsed.client === "string" ? parsed.client.trim().toLowerCase() : "";
+    const client: "web" | "app" = clientRaw === "web" ? "web" : "app";
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -73,15 +151,25 @@ Deno.serve(async (req) => {
       });
     }
 
-    // SEND EMAIL (token embedded)
-    const resetBaseUrl = Deno.env.get("FRONTEND_RESET_PASSWORD_URL");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-    const fromEmail = Deno.env.get("RESET_FROM_EMAIL");
+    // SEND EMAIL via Resend (same stack as admin-approve/deny). From: env or Resend test sender until custom domain is verified.
+    const resetBaseUrl = resolveResetBaseUrl(parsed, client);
+    const pickFrom = (k: string) => {
+      const v = Deno.env.get(k)?.trim();
+      return v && v.length > 0 ? v : undefined;
+    };
+    const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
+    const fromEmail =
+      pickFrom("RESET_FROM_EMAIL") ||
+      pickFrom("RESEND_FROM_EMAIL") ||
+      pickFrom("FROM_EMAIL") ||
+      RESEND_FROM_FALLBACK;
 
     if (!resetBaseUrl) {
-      console.warn("FRONTEND_RESET_PASSWORD_URL not set; cannot send reset email.");
-    } else if (!resendApiKey || !fromEmail) {
-      console.warn("RESEND_API_KEY or RESET_FROM_EMAIL not set; cannot send reset email.");
+      console.warn(
+        "No reset URL for this client. Web: send reset_web_base (localhost) or set FRONTEND_RESET_PASSWORD_WEB_URL / WEB_RESET_ALLOWED_ORIGINS. App: set FRONTEND_RESET_PASSWORD_URL."
+      );
+    } else if (!resendApiKey) {
+      console.warn("RESEND_API_KEY not set; cannot send reset email.");
     } else {
       const resetUrl = `${resetBaseUrl}?token=${encodeURIComponent(token)}`;
 
@@ -184,23 +272,6 @@ Deno.serve(async (req) => {
         console.error("Resend send email failed:", errText);
       } else {
         console.log("Reset email sent to:", trimmed);
-      }
-    }
-
-    if (resetBaseUrl) {
-      const redirectTo = `${resetBaseUrl}?token=${encodeURIComponent(token)}`;
-      console.log("generating recovery link redirectTo:", redirectTo);
-
-      const { data, error: linkErr } = await supabase.auth.admin.generateLink({
-        type: "recovery",
-        email: trimmed,
-        options: { redirectTo },
-      });
-
-      if (linkErr) {
-        console.error("generateLink error:", linkErr);
-      } else {
-        console.log("Password recovery action_link:", data?.properties?.action_link);
       }
     }
 

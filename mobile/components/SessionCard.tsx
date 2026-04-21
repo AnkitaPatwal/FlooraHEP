@@ -1,6 +1,7 @@
 // components/SessionCard.tsx
 import React from "react";
 import { View, Text, Image, StyleSheet, ImageSourcePropType } from "react-native";
+import { FlooraFonts } from "../constants/fonts";
 
 type Props = { title: string; subtitle: string; image: ImageSourcePropType };
 
@@ -29,6 +30,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   image: { width: "100%", aspectRatio: 16 / 9 },
-  meta: { paddingHorizontal: 12, paddingVertical: 12, color: "#374151", fontSize: 18 },
-  metaStrong: { fontWeight: "800", color: "#1F2937" },
+  meta: {
+    fontFamily: FlooraFonts.regular,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    color: "#374151",
+    fontSize: 18,
+  },
+  metaStrong: { fontFamily: FlooraFonts.extraBold, color: "#1F2937" },
 });

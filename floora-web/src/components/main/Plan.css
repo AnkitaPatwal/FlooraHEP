@@ -160,3 +160,9 @@
 .plan-tag .assignment-count-pulse-icon {
   flex-shrink: 0;
 }
+
+.plan-loading-hint {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: #6b7280;
+}

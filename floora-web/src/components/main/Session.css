@@ -173,15 +173,13 @@
   flex-shrink: 0;
 }
 
-/* Error / empty state */
-.session-error {
-  background: #fef2f2;
-  color: #b91c1c;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+.session-loading-hint {
+  margin: 0 0 16px;
+  font-size: 0.875rem;
+  color: #6b7280;
 }
 
+/* Empty state */
 .session-empty {
   color: #6b7280;
 }

@@ -44,6 +44,118 @@
   margin: 0 0 24px 0;
 }
 
+/* === Per-user session editor (Users route alias) === */
+.patient-session-exercises-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* Polaroid-style exercise tile (Exercise details): image on top, caption below — no “clients” row */
+.patient-session-exercise-card {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.patient-session-exercise-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+}
+
+.patient-session-exercise-card.is-expanded {
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+}
+
+.patient-session-exercise-card-inner {
+  padding: 10px 10px 12px;
+}
+
+.patient-session-exercise-media {
+  border-radius: 12px;
+  background: #e5e7eb;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 8px;
+}
+
+.patient-session-exercise-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.patient-session-exercise-body {
+  padding: 0 2px;
+}
+
+.patient-session-exercise-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.patient-session-exercise-subtitle {
+  margin: 4px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  line-height: 1.35;
+}
+
+.patient-session-exercise-editor {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eef0f3;
+}
+
+.patient-session-exercise-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.patient-session-exercise-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #374151;
+}
+
+.patient-session-exercise-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1280px) {
+  .patient-session-exercises-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1100px) {
+  .patient-session-exercises-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .patient-session-exercises-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Buttons (match Plan/Session/Users) */
 .assign-package-primary-btn {
   display: inline-flex;
@@ -241,5 +353,14 @@
 .assign-package-status.success {
   color: #065f46;
   font-weight: 500;
+}
+
+/* Add Exercise: reuse Create Session grid inside assign-package page */
+.patient-session-add-exercises {
+  margin-top: 28px;
+}
+
+.patient-session-add-exercises .create-session-select-title {
+  margin: 0;
 }
 

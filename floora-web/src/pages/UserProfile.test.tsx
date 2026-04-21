@@ -9,11 +9,14 @@ import { cleanup } from "@testing-library/react";
 afterEach(() => cleanup());
 
 const mockDeleteClient = vi.fn();
+const mockFetchClientProfileAvatar = vi.fn();
 vi.mock("../lib/admin-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/admin-api")>();
   return {
     ...actual,
     deleteClient: (...args: unknown[]) => mockDeleteClient(...args),
+    fetchClientProfileAvatar: (userId: number) =>
+      mockFetchClientProfileAvatar(userId),
   };
 });
 
@@ -40,6 +43,8 @@ function renderWithRouter(initialEntry: string, state?: { user: ActiveClient }) 
 describe("UserProfile", () => {
   beforeEach(() => {
     mockDeleteClient.mockReset();
+    mockFetchClientProfileAvatar.mockReset();
+    mockFetchClientProfileAvatar.mockResolvedValue(null);
   });
 
   it("shows empty message when no user in state", () => {
@@ -65,6 +70,52 @@ describe("UserProfile", () => {
     expect(screen.getByRole("button", { name: /^delete$/i })).toBeInTheDocument();
   });
 
+  it("renders avatar image when avatar_url is set", async () => {
+    const user: ActiveClient = {
+      user_id: 5,
+      email: "jane@example.com",
+      fname: "Jane",
+      lname: "Doe",
+      status: true,
+      avatar_url: "https://example.com/profile.png",
+    };
+    mockFetchClientProfileAvatar.mockResolvedValue("https://example.com/profile.png");
+
+    const { container } = renderWithRouter("/user-profile", { user });
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+    });
+    expect(container.querySelector("img.ua-avatar")).toHaveAttribute(
+      "src",
+      "https://example.com/profile.png"
+    );
+  });
+
+  it("falls back to initials when avatar image fails to load", async () => {
+    const user: ActiveClient = {
+      user_id: 5,
+      email: "jane@example.com",
+      fname: "Jane",
+      lname: "Doe",
+      status: true,
+      avatar_url: "https://example.com/missing.png",
+    };
+    mockFetchClientProfileAvatar.mockResolvedValue("https://example.com/missing.png");
+
+    const { container } = renderWithRouter("/user-profile", { user });
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+    });
+    fireEvent.error(container.querySelector("img.ua-avatar")!);
+
+    await waitFor(() => {
+      expect(container.querySelector("img.ua-avatar")).not.toBeInTheDocument();
+    });
+    expect(screen.getByText("JD")).toBeInTheDocument();
+  });
+
   it("shows confirmation modal when Delete is clicked", async () => {
     const user: ActiveClient = {
       user_id: 5,
@@ -83,7 +134,7 @@ describe("UserProfile", () => {
     const dialog = await screen.findByRole("dialog");
 
     expect(
-      within(dialog).getByText(/Are you sure you want to delete this client\?/i)
+      within(dialog).getByText(/Are you sure you want to delete this user\?/i)
     ).toBeInTheDocument();
 
     // Verify modal buttons (scoped within dialog to avoid "two Delete buttons" issue)

@@ -1,15 +1,19 @@
 // hooks/useRoadmap.ts
 import { useEffect, useState } from "react";
+import { fetchAssignedPlanTitleForCurrentUser } from "../lib/assignedPlanTitle";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../providers/AuthProvider";
 
 export type RoadmapSession = {
+  user_assignment_session_id?: string;
   module_id: number;
   title: string;
   order_index: number;
   isUnlocked: boolean;
   isCompleted: boolean;
   unlockDate: string | null;
+  /** First exercise thumbnail; loaded before roadmap UI shows locked cards (avoids placeholder flash). */
+  thumbnailUrl?: string;
 };
 
 function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
@@ -18,11 +22,7 @@ function isUnlockedByLocalDate(unlockIso: string | null | undefined): boolean {
   if (isNaN(d.getTime())) return false;
   const today = new Date();
   const unlockLocal = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const todayLocal = new Date(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  ).getTime();
+  const todayLocal = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
   return unlockLocal <= todayLocal;
 }
 
@@ -38,6 +38,19 @@ type UseRoadmapResult = {
   error: string;
   reload: () => void;
 };
+
+async function fetchFirstExerciseThumbnailUrl(moduleId: number): Promise<string | undefined> {
+  try {
+    const { data: rows, error: rpcErr } = await supabase.rpc("get_current_assigned_session_exercises", {
+      p_module_id: Number(moduleId),
+    });
+    if (rpcErr || !Array.isArray(rows) || rows.length === 0) return undefined;
+    const u = String((rows[0] as { thumbnail_url?: string })?.thumbnail_url ?? "");
+    return u.startsWith("http") ? u : undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 export function useRoadmap(): UseRoadmapResult {
   const { session } = useAuth();
@@ -67,8 +80,12 @@ export function useRoadmap(): UseRoadmapResult {
         // ── 2. Fetch the user's most recent package ───────────────────────────
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
-          .select("package_id, start_date")
+          .select("package_id, start_date, session_layout_published_at, created_at")
           .eq("user_id", userId)
+          // Roadmap must reflect what's actually live for the patient.
+          // Draft assignments can exist and may have different start_date; exclude them.
+          .not("session_layout_published_at", "is", null)
+          .order("session_layout_published_at", { ascending: false })
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -81,17 +98,17 @@ export function useRoadmap(): UseRoadmapResult {
         const planId = packageRow.package_id;
         const startDate = packageRow.start_date ?? null;
 
-        // ── 3. Fetch the plan title separately ───────────────────────────────
-        const { data: planRow } = await supabase
-          .from("plan")
-          .select("title")
-          .eq("plan_id", planId)
-          .maybeSingle();
-
-        const planName = planRow?.title ?? "Your Plan";
+        // ── 3. Plan title (RPC: reliable when direct `plan` SELECT is RLS-blocked) ──
+        const planTitleRpc = (await fetchAssignedPlanTitleForCurrentUser()).trim();
+        const planName = planTitleRpc !== "" ? planTitleRpc : "Your Plan";
 
         // ── 4. Fetch sessions list (prefer per-assignment overrides) ──────────
-        type AssignedSessionRow = { module_id: number; order_index: number; title: string };
+        type AssignedSessionRow = {
+          user_assignment_session_id: string;
+          module_id: number;
+          order_index: number;
+          title: string;
+        };
         let sessionsSource:
           | { type: "assigned"; rows: AssignedSessionRow[] }
           | { type: "template"; rows: { module_id: number; order_index: number }[] }
@@ -103,6 +120,7 @@ export function useRoadmap(): UseRoadmapResult {
             sessionsSource = {
               type: "assigned",
               rows: (assignedRows as any[]).map((r) => ({
+                user_assignment_session_id: String((r as any).user_assignment_session_id ?? ""),
                 module_id: Number((r as any).module_id),
                 order_index: Number((r as any).order_index),
                 title: String((r as any).title ?? ""),
@@ -162,30 +180,43 @@ export function useRoadmap(): UseRoadmapResult {
           moduleMap = new Map((modules ?? []).map((m: any) => [m.module_id, m.title]));
         }
 
-        // ── 6. Fetch unlock state for this user ───────────────────────────────
-        const { data: unlockRows } = await supabase
-          .from("user_session_unlock")
-          .select("module_id, unlock_date")
-          .eq("user_id", userId);
+        const uasIds =
+          sessionsSource.type === "assigned"
+            ? sessionsSource.rows.map((r) => r.user_assignment_session_id).filter(Boolean)
+            : [];
 
-        const unlockDateByModuleId = new Map<number, string>(
-          (unlockRows ?? []).map((r: any) => [Number(r.module_id), String(r.unlock_date)])
+        const { data: unlockRows } =
+          uasIds.length > 0
+            ? await supabase
+                .from("user_assignment_session_unlock")
+                .select("user_assignment_session_id, unlock_date")
+                .eq("user_id", userId)
+                .in("user_assignment_session_id", uasIds)
+            : { data: [] as any[] };
+
+        const unlockDateByUasId = new Map<string, string>(
+          (unlockRows ?? []).map((r: any) => [
+            String((r as any).user_assignment_session_id),
+            String((r as any).unlock_date),
+          ])
         );
-        // A session is unlocked once the local date reaches/until its unlock_date (ignore time-of-day).
         const unlockedSet = new Set(
           (unlockRows ?? [])
-            .filter((r: any) => isUnlockedByLocalDate(String(r.unlock_date)))
-            .map((r: any) => r.module_id)
+            .filter((r: any) => isUnlockedByLocalDate(String((r as any).unlock_date)))
+            .map((r: any) => String((r as any).user_assignment_session_id))
         );
 
-        // ── 7. Fetch completion state for this user ───────────────────────────
-        const { data: completionRows } = await supabase
-          .from("user_session_completion")
-          .select("module_id")
-          .eq("user_id", userId);
+        const { data: completionRows } =
+          uasIds.length > 0
+            ? await supabase
+                .from("user_assignment_session_completion")
+                .select("user_assignment_session_id")
+                .eq("user_id", userId)
+                .in("user_assignment_session_id", uasIds)
+            : { data: [] as any[] };
 
         const completedSet = new Set(
-          (completionRows ?? []).map((r: any) => r.module_id)
+          (completionRows ?? []).map((r: any) => String((r as any).user_assignment_session_id))
         );
 
         // ── 8. Assemble sessions in plan order ────────────────────────────────
@@ -194,19 +225,52 @@ export function useRoadmap(): UseRoadmapResult {
             ? sessionsSource.rows
             : sessionsSource.rows;
 
-        const sessions: RoadmapSession[] = rows.map((pm: any) => ({
-          module_id: pm.module_id,
-          title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
-          order_index: pm.order_index,
-          isUnlocked: unlockedSet.has(pm.module_id),
-          isCompleted: completedSet.has(pm.module_id),
-          unlockDate: unlockDateByModuleId.get(pm.module_id) ?? null,
-        }));
+        const rowsSorted = [...rows].sort(
+          (a: any, b: any) =>
+            Number(a.order_index) - Number(b.order_index) ||
+            String((a as any).user_assignment_session_id ?? "").localeCompare(
+              String((b as any).user_assignment_session_id ?? "")
+            )
+        );
 
-        // Product requirement: Roadmap shows only locked sessions.
+        const sessions: RoadmapSession[] = rowsSorted.map((pm: any, idx: number) => {
+          const uasId =
+            sessionsSource.type === "assigned"
+              ? String((pm as any).user_assignment_session_id ?? "")
+              : "";
+          const unlockIso = uasId ? unlockDateByUasId.get(uasId) : undefined;
+          const scheduledReached = uasId ? unlockedSet.has(uasId) : false;
+          const prevUasId =
+            sessionsSource.type === "assigned" && idx > 0
+              ? String((rowsSorted[idx - 1] as any).user_assignment_session_id ?? "")
+              : "";
+          const prevOk =
+            sessionsSource.type === "assigned" ? (idx === 0 ? true : completedSet.has(prevUasId)) : true;
+          return {
+            user_assignment_session_id: uasId || undefined,
+            module_id: pm.module_id,
+            title: moduleMap.get(pm.module_id) ?? `Session ${pm.order_index + 1}`,
+            order_index: pm.order_index,
+            isUnlocked: scheduledReached && prevOk,
+            isCompleted: uasId ? completedSet.has(uasId) : false,
+            unlockDate: unlockIso ?? null,
+          };
+        });
+
+        sessions.sort((a, b) => a.order_index - b.order_index);
         const lockedSessions = sessions.filter((s) => !s.isUnlocked);
 
-        setData({ planName, startDate, sessions: lockedSessions });
+        const lockedWithThumbs: RoadmapSession[] =
+          lockedSessions.length === 0
+            ? []
+            : await Promise.all(
+                lockedSessions.map(async (s) => {
+                  const thumbnailUrl = await fetchFirstExerciseThumbnailUrl(s.module_id);
+                  return thumbnailUrl ? { ...s, thumbnailUrl } : s;
+                })
+              );
+
+        setData({ planName, startDate, sessions: lockedWithThumbs });
       } catch (err) {
         setError("Something went wrong loading your roadmap.");
       } finally {

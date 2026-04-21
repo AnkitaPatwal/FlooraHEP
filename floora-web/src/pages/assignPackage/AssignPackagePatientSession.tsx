@@ -1,14 +1,42 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { API_BASE, authHeaders } from "./authHeaders";
-import { assignPackageAssignmentSessionsPath } from "./assignPackagePaths";
 import { LoadingHint } from "./ui/LoadingHint";
 import { AssignContextStrip } from "./ui/AssignContextStrip";
 import { usePatientLabel } from "./usePatientLabel";
-import { AssignBackLink } from "./ui/AssignBackLink";
-import { ConfirmModal } from "./ui/ConfirmModal";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
 import "./AssignPackage.css";
+import "../main/CreateSession.css";
 import { markAssignmentCountsStale } from "../../lib/assignmentsCountsStale";
+import exerciseFallbackImg from "../../assets/exercise.jpg";
+import type { ActiveClient } from "../../lib/admin-api";
+
+const EXERCISES_PAGE_SIZE = 100;
+const EXERCISES_MAX_PAGES = 200;
+
+type PickerExercise = {
+  exercise_id: number;
+  title: string;
+  description?: string;
+  body_part?: string | null;
+  thumbnail_url?: string | null;
+  assigned_user_count?: number | null;
+};
+
+function exerciseCategory(e: PickerExercise): string {
+  const p = e.body_part?.trim();
+  return p || "Uncategorized";
+}
+
+function activeUsersLabel(count: number | null | undefined): string {
+  if (count === null || count === undefined) return "—";
+  return count === 1 ? "1 Active User" : `${count} Active Users`;
+}
+
+type UserProfileNavState = {
+  userProfileClient?: ActiveClient;
+};
 
 type SessionRow = {
   order_index: number;
@@ -38,6 +66,26 @@ export default function AssignPackagePatientSession() {
   }>();
   const mid = moduleId ? Number(moduleId) : NaN;
 
+  const location = useLocation();
+  const navigate = useNavigate();
+  const profileState = (location.state ?? {}) as UserProfileNavState;
+  const isUsersRoute = location.pathname.startsWith("/users/");
+
+  const navigateBackToSessionsList = () => {
+    if (profileState.userProfileClient) {
+      navigate("/user-profile", {
+        state: { user: profileState.userProfileClient },
+      });
+      return;
+    }
+    // Fallback: return to the user list (or just go back if possible).
+    if (isUsersRoute) {
+      navigate("/users");
+      return;
+    }
+    navigate(-1);
+  };
+
   const { patientLabel, patientLabelLoading } = usePatientLabel(userId);
 
   const [planMeta, setPlanMeta] = useState<{
@@ -59,6 +107,7 @@ export default function AssignPackagePatientSession() {
       sets: number;
       reps: number;
       description: string | null;
+      thumbnailUrl: string | null;
     }[]
   >([]);
   const [exercisesLoading, setExercisesLoading] = useState(true);
@@ -69,15 +118,14 @@ export default function AssignPackagePatientSession() {
     rowId: string;
     title: string;
   } | null>(null);
-  const [addingExerciseId, setAddingExerciseId] = useState("");
   const [addingBusy, setAddingBusy] = useState(false);
-  const [library, setLibrary] = useState<Array<{ id: number; title: string }>>(
-    [],
-  );
-  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [exercisePickerList, setExercisePickerList] = useState<PickerExercise[]>([]);
+  const [exercisePickerLoading, setExercisePickerLoading] = useState(false);
+  const [exerciseSearch, setExerciseSearch] = useState("");
   const [draftByRowId, setDraftByRowId] = useState<
     Record<string, { sets: string; reps: string }>
   >({});
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
 
   const loadMeta = useCallback(async () => {
     if (!userId || !assignmentId || !Number.isFinite(mid)) return;
@@ -171,6 +219,7 @@ export default function AssignPackagePatientSession() {
             sets: Number(r.sets ?? 1),
             reps: Number(r.reps ?? 1),
             description: r.description ?? null,
+            thumbnailUrl: r.thumbnail_url == null ? null : String(r.thumbnail_url),
           })),
         );
       } catch {
@@ -184,29 +233,53 @@ export default function AssignPackagePatientSession() {
     void loadExercises();
   }, [userId, assignmentId, mid]);
 
-  // Lightweight exercise library for "add exercise" (first page, no search yet).
   useEffect(() => {
-    const loadLibrary = async () => {
-      setLibraryLoading(true);
+    // If the expanded row disappears after reload/remove, collapse.
+    if (expandedRowId && !exercises.some((e) => e.rowId === expandedRowId)) {
+      setExpandedRowId(null);
+    }
+  }, [expandedRowId, exercises]);
+
+  // Same exercise catalog + search behavior as Create Session (paginated library).
+  useEffect(() => {
+    const loadPickerExercises = async () => {
+      setExercisePickerLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/api/exercises?page=1&pageSize=100`);
-        const body = (await res.json()) as any;
-        const rows = Array.isArray(body?.data) ? body.data : [];
-        setLibrary(
-          rows
-            .map((r: any) => ({
-              id: Number(r.exercise_id),
-              title: String(r.title ?? ""),
-            }))
-            .filter((r: any) => Number.isFinite(r.id) && r.title),
-        );
+        const headers = await authHeaders();
+        const merged: PickerExercise[] = [];
+        for (let page = 1; page <= EXERCISES_MAX_PAGES; page += 1) {
+          const params = new URLSearchParams({
+            page: String(page),
+            pageSize: String(EXERCISES_PAGE_SIZE),
+          });
+          const res = await fetch(`${API_BASE}/api/exercises?${params}`, {
+            method: "GET",
+            headers,
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.message || "Failed to load exercises");
+          const list = data?.data ?? [];
+          const batch: PickerExercise[] = (Array.isArray(list) ? list : []).map(
+            (row: PickerExercise) => ({
+              ...row,
+              exercise_id: Number(row.exercise_id),
+            }),
+          );
+          merged.push(...batch);
+          if (batch.length < EXERCISES_PAGE_SIZE) break;
+        }
+        const byId = new Map<number, PickerExercise>();
+        for (const e of merged) {
+          if (Number.isFinite(e.exercise_id)) byId.set(e.exercise_id, e);
+        }
+        setExercisePickerList(Array.from(byId.values()));
       } catch {
-        setLibrary([]);
+        setExercisePickerList([]);
       } finally {
-        setLibraryLoading(false);
+        setExercisePickerLoading(false);
       }
     };
-    void loadLibrary();
+    void loadPickerExercises();
   }, []);
 
   const reloadExercises = useCallback(async () => {
@@ -247,6 +320,7 @@ export default function AssignPackagePatientSession() {
           sets: Number(r.sets ?? 1),
           reps: Number(r.reps ?? 1),
           description: r.description ?? null,
+          thumbnailUrl: r.thumbnail_url == null ? null : String(r.thumbnail_url),
         })),
       );
     } catch {
@@ -405,10 +479,17 @@ export default function AssignPackagePatientSession() {
     }
   };
 
-  const addExercise = async () => {
+  const assignedExerciseIds = useMemo(() => {
+    return new Set(
+      exercises.map((e) => e.exerciseId).filter((n) => Number.isFinite(n)),
+    );
+  }, [exercises]);
+
+  const addExercise = async (exerciseId: number) => {
     if (!userId || !assignmentId || !Number.isFinite(mid)) return;
-    const exId = Number(addingExerciseId);
+    const exId = Number(exerciseId);
     if (!Number.isFinite(exId)) return;
+    if (assignedExerciseIds.has(exId)) return;
     setAddingBusy(true);
     setExercisesError("");
     setExercisesSuccess("");
@@ -428,7 +509,6 @@ export default function AssignPackagePatientSession() {
         return;
       }
       markAssignmentCountsStale();
-      setAddingExerciseId("");
       await reloadExercises();
       setExercisesSuccess("Exercise added for this client.");
     } catch {
@@ -438,34 +518,63 @@ export default function AssignPackagePatientSession() {
     }
   };
 
-  const assignedExerciseIds = useMemo(() => {
-    return new Set(
-      exercises.map((e) => e.exerciseId).filter((n) => Number.isFinite(n)),
-    );
-  }, [exercises]);
+  const searchTrim = exerciseSearch.trim().toLowerCase();
+  const searchFirstLetter = searchTrim.charAt(0);
+  const filteredPickerExercises = useMemo(() => {
+    return exercisePickerList.filter((e) => {
+      if (!searchFirstLetter) return true;
+      const title = (e.title ?? "").toLowerCase();
+      const bp = (e.body_part ?? "").toLowerCase();
+      const desc = (e.description ?? "").toLowerCase();
+      return (
+        title.startsWith(searchFirstLetter) ||
+        bp.startsWith(searchFirstLetter) ||
+        desc.startsWith(searchFirstLetter)
+      );
+    });
+  }, [exercisePickerList, searchFirstLetter]);
 
-  const availableLibrary = useMemo(() => {
-    return library.filter((e) => !assignedExerciseIds.has(e.id));
-  }, [library, assignedExerciseIds]);
+  const exercisesByCategory = useMemo(() => {
+    const map: Record<string, PickerExercise[]> = {};
+    for (const e of filteredPickerExercises) {
+      const cat = exerciseCategory(e);
+      if (!map[cat]) map[cat] = [];
+      map[cat].push(e);
+    }
+    for (const k of Object.keys(map)) {
+      map[k].sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+    }
+    return map;
+  }, [filteredPickerExercises]);
+
+  const sortedCategoryKeys = useMemo(() => {
+    return Object.keys(exercisesByCategory).sort((a, b) => {
+      if (a === "Uncategorized") return 1;
+      if (b === "Uncategorized") return -1;
+      return a.localeCompare(b);
+    });
+  }, [exercisesByCategory]);
 
   if (!userId || !assignmentId || !Number.isFinite(mid)) {
     return (
       <div className="assign-package-page">
         <header className="assign-package-header">
           <div className="assign-package-header-left">
-            <h1 className="assign-package-title">Assign Plans</h1>
+            <h1 className="assign-package-title">Exercise details</h1>
             <p className="assign-package-subtitle">Missing route parameters.</p>
           </div>
         </header>
         <hr className="assign-package-divider" />
-        <AssignBackLink to="/assign-package" appearance="primary" className="assign-package-primary-btn">
+        <button
+          type="button"
+          className="assign-package-primary-btn"
+          onClick={navigateBackToSessionsList}
+        >
           Back
-        </AssignBackLink>
+        </button>
       </div>
     );
   }
-
-  const backSessions = assignPackageAssignmentSessionsPath(userId, assignmentId);
 
   const metaInitial = metaLoading && !planMeta;
 
@@ -475,9 +584,13 @@ export default function AssignPackagePatientSession() {
         <div className="assign-package-header-left">
           <h1 className="assign-package-title">Exercise details</h1>
         </div>
-        <AssignBackLink to={backSessions} appearance="primary" className="assign-package-primary-btn">
+        <button
+          type="button"
+          className="assign-package-primary-btn"
+          onClick={navigateBackToSessionsList}
+        >
           Back to sessions
-        </AssignBackLink>
+        </button>
       </header>
 
       <hr className="assign-package-divider" />
@@ -519,98 +632,121 @@ export default function AssignPackagePatientSession() {
           <p className="assign-package-status">No exercises in this session yet.</p>
         )}
         {!exercisesLoading && exercises.length > 0 && (
-          <div className="assign-package-grid" role="list" aria-label="Exercises">
+          <div className="patient-session-exercises-grid" role="list" aria-label="Exercises">
             {exercises.map((row) => (
               <article
                 key={row.rowId}
-                className="assign-package-card"
+                className={`patient-session-exercise-card ${
+                  expandedRowId === row.rowId ? "is-expanded" : ""
+                }`}
                 role="listitem"
-                style={{ cursor: "default" }}
+                onClick={() =>
+                  setExpandedRowId((prev) => (prev === row.rowId ? null : row.rowId))
+                }
               >
-                <div className="assign-package-card-inner">
-                  <p className="assign-package-card-title">{row.title}</p>
-                  {row.description ? (
-                    <p className="assign-package-card-subtitle">{row.description}</p>
-                  ) : null}
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ flex: "0 1 120px" }}>
-                      <label style={{ fontSize: 13, fontWeight: 600 }}>
-                        Sets
-                        <input
-                          type="number"
-                          className="assign-package-input"
-                          min={1}
-                          max={99}
-                          value={draftByRowId[row.rowId]?.sets ?? ""}
-                          placeholder={String(row.sets)}
-                          onChange={(e) => updateDraft(row.rowId, { sets: e.target.value })}
-                          disabled={savingRowId === row.rowId}
-                          aria-label={`Sets for ${row.title}`}
-                          style={{ minHeight: 40 }}
-                        />
-                      </label>
-                    </div>
-                    <div style={{ flex: "0 1 120px" }}>
-                      <label style={{ fontSize: 13, fontWeight: 600 }}>
-                        Reps
-                        <input
-                          type="number"
-                          className="assign-package-input"
-                          min={1}
-                          max={999}
-                          value={draftByRowId[row.rowId]?.reps ?? ""}
-                          placeholder={String(row.reps)}
-                          onChange={(e) => updateDraft(row.rowId, { reps: e.target.value })}
-                          disabled={savingRowId === row.rowId}
-                          aria-label={`Reps for ${row.title}`}
-                          style={{ minHeight: 40 }}
-                        />
-                      </label>
-                    </div>
+                <div className="patient-session-exercise-card-inner">
+                  <div className="patient-session-exercise-media">
+                    <img
+                      className="patient-session-exercise-thumb"
+                      src={(row.thumbnailUrl ?? "").trim() || exerciseFallbackImg}
+                      alt={row.title}
+                      loading="lazy"
+                    />
                   </div>
-                  <div style={{ display: "flex", gap: 12, marginTop: 10 }}>
-                    {row.kind === "template" ? (
-                      <button
-                        type="button"
-                        className="assign-package-primary-btn"
-                        onClick={() => void saveTemplateOverrides(row.rowId)}
-                        disabled={
-                          savingRowId === row.rowId ||
-                          ((draftByRowId[row.rowId]?.sets ?? "").trim() === "" &&
-                            (draftByRowId[row.rowId]?.reps ?? "").trim() === "")
-                        }
-                      >
-                        {savingRowId === row.rowId ? "Saving…" : "Save"}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="assign-package-primary-btn"
-                        onClick={() => void saveAddedOverrides(row.rowId)}
-                        disabled={
-                          savingRowId === row.rowId ||
-                          ((draftByRowId[row.rowId]?.sets ?? "").trim() === "" &&
-                            (draftByRowId[row.rowId]?.reps ?? "").trim() === "")
-                        }
-                      >
-                        {savingRowId === row.rowId ? "Saving…" : "Save"}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="assign-package-danger-btn"
-                      onClick={() => {
-                        setExercisesSuccess("");
-                        setExerciseRemoveTarget({
-                          rowId: row.rowId,
-                          title: row.title,
-                        });
-                      }}
-                      disabled={savingRowId === row.rowId}
+                  <div className="patient-session-exercise-body">
+                    <p className="patient-session-exercise-title">{row.title}</p>
+                    {(row.description ?? "").trim() ? (
+                      <p className="patient-session-exercise-subtitle">
+                        {(row.description ?? "").trim()}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  {expandedRowId === row.rowId ? (
+                    <div
+                      className="patient-session-exercise-editor"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {savingRowId === row.rowId ? "Removing…" : "Remove"}
-                    </button>
-                  </div>
+                      <div className="patient-session-exercise-fields">
+                        <label className="patient-session-exercise-field">
+                          <span>Sets</span>
+                          <input
+                            type="number"
+                            className="assign-package-input"
+                            min={1}
+                            max={99}
+                            value={draftByRowId[row.rowId]?.sets ?? ""}
+                            placeholder={String(row.sets)}
+                            onChange={(e) =>
+                              updateDraft(row.rowId, { sets: e.target.value })
+                            }
+                            disabled={savingRowId === row.rowId}
+                            aria-label={`Sets for ${row.title}`}
+                          />
+                        </label>
+                        <label className="patient-session-exercise-field">
+                          <span>Reps</span>
+                          <input
+                            type="number"
+                            className="assign-package-input"
+                            min={1}
+                            max={999}
+                            value={draftByRowId[row.rowId]?.reps ?? ""}
+                            placeholder={String(row.reps)}
+                            onChange={(e) =>
+                              updateDraft(row.rowId, { reps: e.target.value })
+                            }
+                            disabled={savingRowId === row.rowId}
+                            aria-label={`Reps for ${row.title}`}
+                          />
+                        </label>
+                      </div>
+
+                      <div className="patient-session-exercise-actions">
+                        {row.kind === "template" ? (
+                          <button
+                            type="button"
+                            className="assign-package-primary-btn"
+                            onClick={() => void saveTemplateOverrides(row.rowId)}
+                            disabled={
+                              savingRowId === row.rowId ||
+                              ((draftByRowId[row.rowId]?.sets ?? "").trim() === "" &&
+                                (draftByRowId[row.rowId]?.reps ?? "").trim() === "")
+                            }
+                          >
+                            {savingRowId === row.rowId ? "Saving…" : "Save"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="assign-package-primary-btn"
+                            onClick={() => void saveAddedOverrides(row.rowId)}
+                            disabled={
+                              savingRowId === row.rowId ||
+                              ((draftByRowId[row.rowId]?.sets ?? "").trim() === "" &&
+                                (draftByRowId[row.rowId]?.reps ?? "").trim() === "")
+                            }
+                          >
+                            {savingRowId === row.rowId ? "Saving…" : "Save"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="assign-package-danger-btn"
+                          onClick={() => {
+                            setExercisesSuccess("");
+                            setExerciseRemoveTarget({
+                              rowId: row.rowId,
+                              title: row.title,
+                            });
+                          }}
+                          disabled={savingRowId === row.rowId}
+                        >
+                          {savingRowId === row.rowId ? "Removing…" : "Remove"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </article>
             ))}
@@ -618,57 +754,112 @@ export default function AssignPackagePatientSession() {
         )}
       </section>
 
-      <section>
-        <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-          Add Exercise
-        </h2>
-        <div className="assign-package-form">
-          <div className="assign-package-field">
-            <select
-              id="add-exercise"
-              className="assign-package-select"
-              value={addingExerciseId}
-              onChange={(e) => setAddingExerciseId(e.target.value)}
-              disabled={libraryLoading || addingBusy}
-              aria-label="Select exercise to add"
-            >
-              <option value="">
-                {libraryLoading ? "Loading…" : "Select exercise"}
-              </option>
-              {availableLibrary.map((e) => (
-                <option key={e.id} value={String(e.id)}>
-                  {e.title}
-                </option>
-              ))}
-            </select>
-            {!libraryLoading && library.length > 0 && availableLibrary.length === 0 && (
-              <p className="assign-package-hint">
-                No exercises available to add (all are already in this session).
-              </p>
-            )}
+      <section className="patient-session-add-exercises">
+        <div className="create-session-panel-body" style={{ paddingTop: 0 }}>
+          <div className="create-session-exercises-toolbar">
+            <div className="create-session-exercises-heading">
+              <h2 className="assign-package-title create-session-select-title" style={{ fontSize: 20 }}>
+                Add Exercise
+              </h2>
+              <span className="create-session-exercises-total">
+                {exercisePickerList.length} Exercises
+              </span>
+            </div>
+            <div className="create-session-search-wrapper create-session-search-wrapper--toolbar">
+              <span className="create-session-search-icon" aria-hidden>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={2}
+                  stroke="currentColor"
+                  width="18"
+                  height="18"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                  />
+                </svg>
+              </span>
+              <input
+                type="text"
+                className="create-session-search-input"
+                placeholder="Search"
+                value={exerciseSearch}
+                onChange={(e) => setExerciseSearch(e.target.value)}
+                disabled={exercisePickerLoading || addingBusy}
+                aria-label="Search exercises"
+              />
+            </div>
           </div>
-          <button
-            type="button"
-            className="assign-package-primary-btn"
-            onClick={() => void addExercise()}
-            disabled={addingBusy || libraryLoading || !addingExerciseId}
-          >
-            {addingBusy ? "Adding…" : "Add Exercise"}
-          </button>
+
+          <hr className="create-session-exercises-divider" />
+
+          {exercisePickerLoading ? (
+            <p className="assign-package-hint">Loading exercises…</p>
+          ) : exercisePickerList.length === 0 ? (
+            <p className="assign-package-hint">No exercises available.</p>
+          ) : (
+            sortedCategoryKeys.map((category) => {
+              const items = exercisesByCategory[category] ?? [];
+              return (
+                <div className="create-session-category-block" key={category}>
+                  <h3 className="create-session-category-heading">
+                    {category}{" "}
+                    <span className="create-session-category-count">
+                      {items.length} Exercises
+                    </span>
+                  </h3>
+                  <div className="create-session-exercise-grid">
+                    {items.map((e) => {
+                      const inSession = assignedExerciseIds.has(e.exercise_id);
+                      return (
+                        <button
+                          key={e.exercise_id}
+                          type="button"
+                          className={`create-session-exercise-card${inSession ? " is-selected" : ""}`}
+                          disabled={addingBusy || inSession}
+                          onClick={() => void addExercise(e.exercise_id)}
+                        >
+                          <img
+                            src={e.thumbnail_url?.trim() || exerciseFallbackImg}
+                            alt=""
+                            className="create-session-exercise-card-img"
+                          />
+                          <div className="create-session-exercise-card-body">
+                            <h4 className="create-session-exercise-card-title">{e.title}</h4>
+                            <p className="create-session-exercise-card-cat">
+                              {exerciseCategory(e)}
+                            </p>
+                            <span className="create-session-exercise-card-tag">
+                              <AssignmentPulseIcon className="create-session-pulse-icon" />
+                              {activeUsersLabel(e.assigned_user_count)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </section>
 
-      <ConfirmModal
-        open={!!exerciseRemoveTarget}
-        title="Remove exercise for this client?"
+      <ConfirmDialog
+        open={exerciseRemoveTarget != null}
+        title="Remove exercise for this user?"
         message={
           exerciseRemoveTarget
-            ? `Remove “${exerciseRemoveTarget.title}” from this session for this client? This won’t change the global exercise library.`
+            ? `Remove “${exerciseRemoveTarget.title}” from this session for this user? This won’t change the global exercise library.`
             : ""
         }
         confirmLabel="Remove"
         cancelLabel="Cancel"
-        destructive
+        variant="danger"
         busy={
           exerciseRemoveTarget != null &&
           savingRowId === exerciseRemoveTarget.rowId
