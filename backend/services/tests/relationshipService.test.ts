@@ -452,9 +452,16 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
       eq: eqFirstMock,
     }));
 
-    const insertMock = jest.fn().mockResolvedValue({
+    const maybeSingleAfterInsert = jest.fn().mockResolvedValue({
+      data: { id: "assign-1" },
       error: null,
     });
+    const selectAfterInsert = jest.fn(() => ({
+      maybeSingle: maybeSingleAfterInsert,
+    }));
+    const insertMock = jest.fn(() => ({
+      select: selectAfterInsert,
+    }));
 
     const userPackagesChain = {
       select: selectMock,
@@ -470,7 +477,7 @@ describe("ATH-399 — Admin Assign Package + Save Mapping", () => {
 
     const result = await assignPackageToUser(mockSupabase, "56", 2, "2026-03-21");
 
-    expect(result).toEqual({ success: true });
+    expect(result).toEqual({ success: true, assignment_id: "assign-1" });
     expect(mockSupabase.from).toHaveBeenCalledWith("user_packages");
     expect(insertMock).toHaveBeenCalledWith([
       {

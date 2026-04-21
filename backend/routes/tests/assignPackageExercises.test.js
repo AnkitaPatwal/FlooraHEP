@@ -62,7 +62,14 @@ describe("assignPackage exercises endpoints", () => {
       select: jest.fn(() => upChain),
       eq: jest.fn(() => upChain),
       maybeSingle: jest.fn(async () => ({
-        data: { id: 123, user_id: "u1", package_id: 2, start_date: null, created_at: null },
+        data: {
+          id: 123,
+          user_id: "u1",
+          package_id: 2,
+          start_date: null,
+          created_at: null,
+          session_layout_published_at: null,
+        },
         error: null,
       })),
     };
@@ -102,7 +109,14 @@ describe("assignPackage exercises endpoints", () => {
       select: jest.fn(() => upChain),
       eq: jest.fn(() => upChain),
       maybeSingle: jest.fn(async () => ({
-        data: { id: 123, user_id: "u1", package_id: 2, start_date: null, created_at: null },
+        data: {
+          id: 123,
+          user_id: "u1",
+          package_id: 2,
+          start_date: null,
+          created_at: null,
+          session_layout_published_at: null,
+        },
         error: null,
       })),
     };

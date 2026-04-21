@@ -19,8 +19,10 @@ import { FlooraFonts } from "../../constants/fonts";
 import { sessionCardStyles } from "../../constants/sessionCardChrome";
 import { fetchExerciseListByModule, isExerciseApiConfigured } from "../../lib/exerciseApi";
 import { fetchAssignedPlanTitleForCurrentUser } from "../../lib/assignedPlanTitle";
+import { phaseTitleForOrderIndex } from "../../lib/phaseTitles";
 
 type SessionItem = {
+  user_assignment_session_id?: string;
   module_id: number | string;
   title?: string;
   exerciseCount?: number;
@@ -81,6 +83,12 @@ const styles = StyleSheet.create({
     fontFamily: FlooraFonts.extraBold,
     fontSize: 30,
     lineHeight: 36,
+    color: colors.brand,
+    marginBottom: 4,
+  },
+  planPhaseSub: {
+    fontFamily: FlooraFonts.semiBold,
+    fontSize: 18,
     color: colors.brand,
     marginBottom: 4,
   },
@@ -198,6 +206,8 @@ const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [sessionThumbs, setSessionThumbs] = useState<Record<string, string>>({});
   const [planTitle, setPlanTitle] = useState("");
+  const [currentAssignmentId, setCurrentAssignmentId] = useState("");
+  const [planPhaseTitle, setPlanPhaseTitle] = useState("");
 
   const fetchAssignedSessions = useCallback(async () => {
       try {
@@ -213,6 +223,7 @@ const HomeScreen = () => {
           setSessions([]);
           setSessionThumbs({});
           setPlanTitle("");
+          setPlanPhaseTitle("");
           setLoading(false);
           return;
         }
@@ -237,7 +248,7 @@ const HomeScreen = () => {
 
         const { data: packageRow, error: packageError } = await supabase
           .from("user_packages")
-          .select("package_id")
+          .select("id, package_id")
           .eq("user_id", authUserId)
           .order("created_at", { ascending: false })
           .limit(1)
@@ -248,10 +259,13 @@ const HomeScreen = () => {
           setSessions([]);
           setSessionThumbs({});
           setPlanTitle("");
+          setPlanPhaseTitle("");
+          setCurrentAssignmentId("");
           return;
         }
 
         setHasAssignedPlan(true);
+        setCurrentAssignmentId(String((packageRow as any).id ?? ""));
         setPlanTitle(await fetchAssignedPlanTitleForCurrentUser());
 
         const { error: rpcUnlockBootstrapError } = await supabase.rpc("ensure_first_session_unlock");
@@ -259,7 +273,12 @@ const HomeScreen = () => {
           console.warn("[HomeScreen] ensure_first_session_unlock failed:", rpcUnlockBootstrapError.message);
         }
 
-        type AssignedSessionRow = { module_id: number; order_index: number; title: string };
+        type AssignedSessionRow = {
+          user_assignment_session_id: string;
+          module_id: number;
+          order_index: number;
+          title: string;
+        };
         let planModules:
           | { type: "assigned"; rows: AssignedSessionRow[] }
           | { type: "template"; rows: { module_id: number; order_index: number }[] }
@@ -271,6 +290,7 @@ const HomeScreen = () => {
             planModules = {
               type: "assigned",
               rows: (assignedRows as any[]).map((r) => ({
+                user_assignment_session_id: String((r as any).user_assignment_session_id ?? ""),
                 module_id: Number((r as any).module_id),
                 order_index: Number((r as any).order_index),
                 title: String((r as any).title ?? ""),
@@ -386,40 +406,49 @@ const HomeScreen = () => {
           }, {});
         }
 
+        const uasIds =
+          planModules.type === "assigned"
+            ? planModules.rows.map((r) => r.user_assignment_session_id).filter(Boolean)
+            : [];
+
         const [
           { data: unlockRows, error: unlockQueryError },
           { data: completionRows, error: completionQueryError },
         ] = await Promise.all([
-          supabase
-            .from("user_session_unlock")
-            .select("module_id, unlock_date")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
-          supabase
-            .from("user_session_completion")
-            .select("module_id, completed_at")
-            .eq("user_id", authUserId)
-            .in("module_id", moduleIds),
+          uasIds.length > 0
+            ? supabase
+                .from("user_assignment_session_unlock")
+                .select("user_assignment_session_id, unlock_date")
+                .eq("user_id", authUserId)
+                .in("user_assignment_session_id", uasIds)
+            : Promise.resolve({ data: [], error: null } as any),
+          uasIds.length > 0
+            ? supabase
+                .from("user_assignment_session_completion")
+                .select("user_assignment_session_id, completed_at")
+                .eq("user_id", authUserId)
+                .in("user_assignment_session_id", uasIds)
+            : Promise.resolve({ data: [], error: null } as any),
         ]);
 
         const unlockTrackingUnavailable =
           !!rpcUnlockBootstrapError || !!unlockQueryError || !!completionQueryError;
 
-        const unlockByModule = new Map<number, string>(
-          (unlockRows || []).map((r: { module_id: number; unlock_date: string }) => [
-            r.module_id,
-            r.unlock_date,
+        const unlockByUasId = new Map<string, string>(
+          (unlockRows || []).map((r: any) => [
+            String((r as any).user_assignment_session_id),
+            String((r as any).unlock_date),
           ])
         );
-        const completedModules = new Set<number>(
-          (completionRows || []).map((r: { module_id: number }) => r.module_id)
+        const completedUasIds = new Set<string>(
+          (completionRows || []).map((r: any) => String((r as any).user_assignment_session_id))
         );
 
         const noUnlockRowsRead =
           !unlockQueryError &&
           !rpcUnlockBootstrapError &&
-          moduleIds.length > 0 &&
-          unlockByModule.size === 0;
+          uasIds.length > 0 &&
+          unlockByUasId.size === 0;
 
         const useAth420ShowAllSessions = unlockTrackingUnavailable || noUnlockRowsRead;
 
@@ -446,22 +475,50 @@ const HomeScreen = () => {
             ? planModules.rows
             : planModules.rows;
 
-        for (const pm of orderedRows as { module_id: number; order_index: number }[]) {
+        const rowsInOrder = (orderedRows as any[]).slice().sort((a, b) => {
+          const ao = Number((a as any).order_index ?? 0);
+          const bo = Number((b as any).order_index ?? 0);
+          if (ao !== bo) return ao - bo;
+          return String((a as any).user_assignment_session_id ?? "").localeCompare(
+            String((b as any).user_assignment_session_id ?? "")
+          );
+        });
+
+        for (let idx = 0; idx < rowsInOrder.length; idx++) {
+          const pm = rowsInOrder[idx];
           const mod = moduleMap.get(pm.module_id);
           if (!mod) continue;
-          const unlockIso = unlockByModule.get(pm.module_id);
-          const unlocked = useAth420ShowAllSessions
-            ? true
-            : isUnlockedByLocalDate(unlockIso);
+          const uasId =
+            planModules.type === "assigned"
+              ? String((pm as any).user_assignment_session_id ?? "")
+              : "";
+          const unlockIso = uasId ? unlockByUasId.get(uasId) : undefined;
+          const scheduledReached = useAth420ShowAllSessions ? true : isUnlockedByLocalDate(unlockIso);
+          const prevUasId =
+            planModules.type === "assigned" && idx > 0
+              ? String((rowsInOrder[idx - 1] as any).user_assignment_session_id ?? "")
+              : "";
+          const prevOk =
+            planModules.type === "assigned" ? (idx === 0 ? true : completedUasIds.has(prevUasId)) : true;
+          const unlocked = scheduledReached && prevOk;
           merged.push({
+            user_assignment_session_id: uasId || undefined,
             module_id: mod.module_id,
             title: mod.title,
             order_index: pm.order_index,
             unlocked,
-            completed: completedModules.has(pm.module_id),
+            completed: uasId ? completedUasIds.has(uasId) : false,
             exerciseCount: countsByModule[String(mod.module_id)] || 0,
           });
         }
+
+        // Phase label should reflect plan progression even when the next session is still locked.
+        // Choose the first not-completed session in plan order; if all are completed, use the last.
+        const mergedInOrder = merged.slice().sort((a, b) => a.order_index - b.order_index);
+        const phaseOrderIndex =
+          mergedInOrder.find((s) => !s.completed)?.order_index ??
+          (mergedInOrder.length > 0 ? mergedInOrder[mergedInOrder.length - 1].order_index : null);
+        setPlanPhaseTitle(phaseOrderIndex != null ? phaseTitleForOrderIndex(phaseOrderIndex) : "");
 
         const visible = merged.filter((s) => s.unlocked);
         // Keep deterministic ordering for UI computations (current = lowest order_index).
@@ -515,6 +572,7 @@ const HomeScreen = () => {
         setSessions([]);
         setSessionThumbs({});
         setPlanTitle("");
+        setPlanPhaseTitle("");
       } finally {
         setLoading(false);
       }
@@ -532,10 +590,15 @@ const HomeScreen = () => {
     setRefreshing(false);
   }, [fetchAssignedSessions]);
 
-  const goToSession = (moduleId: string, sessionName: string) => {
+  const goToSession = (moduleId: string, sessionName: string, uasId?: string) => {
     router.push({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: moduleId, sessionName },
+      params: {
+        sessionId: moduleId,
+        sessionName,
+        ...(uasId ? { userAssignmentSessionId: uasId } : {}),
+        ...(currentAssignmentId ? { assignmentId: currentAssignmentId } : {}),
+      },
     });
   };
 
@@ -594,9 +657,16 @@ const HomeScreen = () => {
       >
         <View style={styles.sectionHeadingBlock}>
           {hasAssignedPlan ? (
-            <Text style={styles.planNameHero} numberOfLines={2}>
-              {planTitle.trim() || "Your Plan"}
-            </Text>
+            <>
+              <Text style={styles.planNameHero} numberOfLines={2}>
+                {planTitle.trim() || "Your Plan"}
+              </Text>
+              {planPhaseTitle ? (
+                <Text style={styles.planPhaseSub} numberOfLines={1}>
+                  {planPhaseTitle}
+                </Text>
+              ) : null}
+            </>
           ) : null}
           <Text style={styles.sessionsLabel}>Sessions</Text>
         </View>
@@ -618,7 +688,8 @@ const HomeScreen = () => {
                   onPress={() =>
                     goToSession(
                       String(currentSession.module_id),
-                      currentSession.title || "Session"
+                      currentSession.title || "Session",
+                      currentSession.user_assignment_session_id
                     )
                   }
                   style={{ minHeight: 44 }}
@@ -667,7 +738,8 @@ const HomeScreen = () => {
                     onPress={() =>
                       goToSession(
                         String(sessionItem.module_id),
-                        sessionItem.title || "Session"
+                        sessionItem.title || "Session",
+                        sessionItem.user_assignment_session_id
                       )
                     }
                     style={{ minHeight: 44 }}

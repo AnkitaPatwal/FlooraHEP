@@ -76,6 +76,8 @@ const ExerciseDetail = () => {
     id,
     sessionName,
     videoUrl: paramVideoUrl,
+    assignmentId,
+    userAssignmentSessionId,
     exercisePosition,
     sessionExerciseTotal,
     moduleId,
@@ -90,6 +92,8 @@ const ExerciseDetail = () => {
     sessionName?: string;
     fromApi?: string;
     videoUrl?: string;
+    assignmentId?: string;
+    userAssignmentSessionId?: string;
     exercisePosition?: string;
     sessionExerciseTotal?: string;
     moduleId?: string;
@@ -213,6 +217,11 @@ const ExerciseDetail = () => {
     return Number.isInteger(n) && n > 0 ? n : null;
   }, [moduleIdStr]);
 
+  const assignmentIdStr =
+    (typeof assignmentId === "string" ? assignmentId.trim() : "") || "legacy";
+  const uasIdStr =
+    (typeof userAssignmentSessionId === "string" ? userAssignmentSessionId.trim() : "") || null;
+
   const sessionCompletedFromPlan = sessionCompletedParamRaw === "1";
   const sets = useMemo(() => {
     const n = parseInt(String(setsParam ?? ""), 10);
@@ -240,9 +249,13 @@ const ExerciseDetail = () => {
       setMaxCompletedPosition(0);
       return;
     }
-    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    if (!assignmentIdStr) {
+      setMaxCompletedPosition(0);
+      return;
+    }
+    const max = await getMaxCompletedExercisePosition(session.user.id, assignmentIdStr, moduleIdNum);
     setMaxCompletedPosition(max);
-  }, [sessionCompletedFromPlan, session?.user?.id, moduleIdNum, progressTotal]);
+  }, [sessionCompletedFromPlan, session?.user?.id, assignmentIdStr, moduleIdNum, progressTotal]);
 
   useEffect(() => {
     void reloadExerciseProgress();
@@ -255,7 +268,11 @@ const ExerciseDetail = () => {
     }
     let cancelled = false;
     (async () => {
-      const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+      if (!assignmentIdStr) {
+        setSequentialAccess("allowed");
+        return;
+      }
+      const max = await getMaxCompletedExercisePosition(session.user.id, assignmentIdStr, moduleIdNum);
       if (cancelled) return;
       if (progressCurrent > max + 1) {
         setSequentialAccess("denied");
@@ -269,16 +286,16 @@ const ExerciseDetail = () => {
     return () => {
       cancelled = true;
     };
-  }, [sessionCompletedFromPlan, moduleIdNum, session?.user?.id, progressCurrent, router]);
+  }, [sessionCompletedFromPlan, moduleIdNum, session?.user?.id, assignmentIdStr, progressCurrent, router]);
 
   const completeSessionIfLastRpc = useCallback(async () => {
     if (sessionCompletionRequestedRef.current) return;
-    if (moduleIdNum == null || !session?.user?.id) return;
+    if (!uasIdStr || !session?.user?.id) return;
     if (progressCurrent !== progressTotal) return;
 
     sessionCompletionRequestedRef.current = true;
-    const { error } = await supabase.rpc("complete_user_session", {
-      p_module_id: moduleIdNum,
+    const { error } = await supabase.rpc("complete_user_assignment_session", {
+      p_user_assignment_session_id: uasIdStr,
     });
     if (error) {
       sessionCompletionRequestedRef.current = false;
@@ -286,7 +303,7 @@ const ExerciseDetail = () => {
       return;
     }
     Alert.alert("Session complete", "The next session will unlock in 7 days.");
-  }, [moduleIdNum, session?.user?.id, progressCurrent, progressTotal]);
+  }, [uasIdStr, session?.user?.id, progressCurrent, progressTotal]);
 
   const handleVideoPlayToEnd = useCallback(async () => {
     if (sessionCompletedFromPlan) {
@@ -296,9 +313,13 @@ const ExerciseDetail = () => {
       if (progressCurrent === progressTotal) await completeSessionIfLastRpc();
       return;
     }
-    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    if (!assignmentIdStr) {
+      if (progressCurrent === progressTotal) await completeSessionIfLastRpc();
+      return;
+    }
+    const max = await getMaxCompletedExercisePosition(session.user.id, assignmentIdStr, moduleIdNum);
     if (progressCurrent > max + 1) return;
-    await recordExerciseWatchedToEnd(session.user.id, moduleIdNum, progressCurrent);
+    await recordExerciseWatchedToEnd(session.user.id, assignmentIdStr, moduleIdNum, progressCurrent);
     setMaxCompletedPosition((prev) => Math.max(prev, progressCurrent));
     if (progressCurrent === progressTotal) {
       await completeSessionIfLastRpc();
@@ -306,6 +327,7 @@ const ExerciseDetail = () => {
   }, [
     sessionCompletedFromPlan,
     session?.user?.id,
+    assignmentIdStr,
     moduleIdNum,
     progressCurrent,
     progressTotal,
@@ -432,7 +454,6 @@ const ExerciseDetail = () => {
           <View style={styles.sessionRow}>
             <View>
               <Text style={styles.sessionLabel}>{sessionLabel}</Text>
-              <Text style={styles.sessionSub}>Restore</Text>
             </View>
             <View style={styles.sessionRight}>
               <Text style={styles.progressText}>
