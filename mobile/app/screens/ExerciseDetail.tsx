@@ -451,11 +451,11 @@ const ExerciseDetail = () => {
             <RefreshControl refreshing={refreshing} onRefresh={onPullRefresh} tintColor="#0D2C2C" />
           }
         >
-          <View style={styles.sessionRow}>
-            <View>
-              <Text style={styles.sessionLabel}>{sessionLabel}</Text>
-            </View>
-            <View style={styles.sessionRight}>
+          <View style={styles.sessionHeader}>
+            <Text style={styles.sessionLabel} numberOfLines={2} ellipsizeMode="tail">
+              {sessionLabel}
+            </Text>
+            <View style={styles.sessionProgressRow}>
               <Text style={styles.progressText}>
                 {progressCurrent}/{progressTotal}
               </Text>
@@ -551,13 +551,26 @@ const styles = StyleSheet.create({
   },
   topBarSpacer: { flex: 1 },
   container: { paddingHorizontal: 16, paddingBottom: 32 },
-  sessionRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", paddingTop: 24, paddingBottom: 16 },
+  sessionHeader: { paddingTop: 24, paddingBottom: 16 },
   sessionLabel: { fontFamily: FlooraFonts.semiBold, fontSize: 28, color: COLORS.textDark },
   sessionSub: { fontFamily: FlooraFonts.semiBold, marginTop: 4, fontSize: 20, color: COLORS.teal },
-  sessionRight: { alignItems: "flex-end" },
+  /** Stacked under session title: 1/N on top, dots below (right-aligned). */
+  sessionProgressRow: {
+    flexDirection: "column",
+    alignItems: "flex-end",
+    alignSelf: "flex-end",
+    marginTop: 10,
+    maxWidth: "100%",
+  },
   progressText: { fontFamily: FlooraFonts.semiBold, fontSize: 26, color: COLORS.textDark },
-  dotsRow: { flexDirection: "row", marginTop: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.greyDot, marginLeft: 4 },
+  dotsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    marginTop: 6,
+    gap: 4,
+  },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.greyDot },
   dotActive: { backgroundColor: COLORS.teal },
   dotCurrent: {
     borderWidth: 2,
