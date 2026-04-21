@@ -75,6 +75,19 @@ export default function Profile() {
 
   const hasLoadedOnce = useRef(false);
 
+  const showPendingSuccessMessage = useCallback(() => {
+    const pending =
+      (globalThis as any).profileSuccessMessage ?? (global as any).profileSuccessMessage;
+    if (typeof pending !== "string") return;
+    const message = pending.trim();
+    if (!message) return;
+    (global as any).profileSuccessMessage = "";
+    (globalThis as any).profileSuccessMessage = "";
+    setError(null);
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
   const fetchProfile = useCallback(async () => {
     const userId = session?.user?.id;
     const userEmail = session?.user?.email;
@@ -143,8 +156,9 @@ export default function Profile() {
 
   useFocusEffect(
     useCallback(() => {
+      showPendingSuccessMessage();
       void fetchProfile();
-    }, [fetchProfile])
+    }, [fetchProfile, showPendingSuccessMessage])
   );
 
   const onRefresh = useCallback(async () => {
