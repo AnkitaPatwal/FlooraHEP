@@ -10,6 +10,7 @@ import Users from "./pages/main/Users";
 import ExerciseDashboard from "./pages/main/Exercise";
 import Dashboard from "./pages/main/Dashboard";
 import UserApproval from "./pages/UserApproval";
+import DeniedUserDetail from "./pages/DeniedUserDetail";
 import UserProfile from "./pages/UserProfile";
 import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
@@ -94,6 +95,7 @@ export default function App() {
           />
           <Route path="/exercises/:id" element={<ExerciseDetail />} />
           <Route path="/user-approval" element={<UserApproval />} />
+          <Route path="/denied-user" element={<DeniedUserDetail />} />
           <Route path="/user-profile" element={<UserProfile />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin-register" element={<AdminRegister />} />

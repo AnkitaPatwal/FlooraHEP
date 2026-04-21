@@ -146,10 +146,28 @@ function PendingUserCard({
   );
 }
 
-function DeniedUserCard({ client }: { client: PendingClient }) {
+function DeniedUserCard({
+  client,
+  onClick,
+}: {
+  client: PendingClient;
+  onClick?: () => void;
+}) {
   const name = [client.fname, client.lname].filter(Boolean).join(" ") || "—";
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (onClick && (e.key === "Enter" || e.key === " ")) {
+      e.preventDefault();
+      onClick();
+    }
+  };
   return (
-    <article className="user-card user-card--denied">
+    <article
+      className="user-card user-card--denied"
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={handleKeyDown}
+    >
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
           <Avatar name={name} url={client.avatar_url?.trim() || undefined} />
@@ -329,6 +347,10 @@ export default function Users() {
     navigate("/user-approval", { state: { user: client } });
   };
 
+  const handleDeniedCardClick = (client: PendingClient) => {
+    navigate("/denied-user", { state: { user: client } });
+  };
+
   const handleActiveCardClick = (user: User) => {
     const client = activeClients.find(
       (c) => c.status === true && String(c.user_id) === user.id
@@ -377,7 +399,7 @@ export default function Users() {
 
         {deleteSuccessBanner && (
           <div className="user-success-banner" role="status" aria-live="polite">
-            Client deleted successfully. They have been removed from the list.
+            User deleted successfully. They have been removed from the list.
             <button
               type="button"
               className="user-success-dismiss"
@@ -490,7 +512,11 @@ export default function Users() {
               <div className="user-empty">Loading denied users…</div>
             ) : deniedFiltered.length ? (
               deniedFiltered.map((c) => (
-                <DeniedUserCard key={c.user_id} client={c} />
+                <DeniedUserCard
+                  key={c.user_id}
+                  client={c}
+                  onClick={() => handleDeniedCardClick(c)}
+                />
               ))
             ) : (
               <div className="user-empty">No denied users</div>
