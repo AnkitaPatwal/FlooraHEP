@@ -179,6 +179,14 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
     expect(getByText("Sign out")).toBeTruthy();
   });
 
+  it("shows pending profile success message", async () => {
+    (globalThis as any).profileSuccessMessage = "Email updated successfully";
+    const { getByText } = render(<Profile />);
+    await waitFor(() => {
+      expect(getByText("Email updated successfully")).toBeTruthy();
+    });
+  });
+
   it("calls supabase.auth.signOut when Sign out is pressed (tabs layout redirects to login)", async () => {
     alertButtons = [];
     const { supabase } = require("../../../lib/supabaseClient");

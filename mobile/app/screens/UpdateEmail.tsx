@@ -92,6 +92,9 @@ export default function UpdateEmail() {
       }
       await supabase.auth.refreshSession();
       (global as any).userEmail = trimmed;
+      const successText = "Email updated successfully";
+      (global as any).profileSuccessMessage = successText;
+      (globalThis as any).profileSuccessMessage = successText;
       router.back();
     } catch {
       Alert.alert("Error", "Something went wrong. Please try again.");
