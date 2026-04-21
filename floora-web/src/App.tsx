@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import AdminVideoUpload from "./pages/AdminVideoUpload";
 import { AuthProvider } from "./lib/auth";
 import "./App.css";
-import AssignPackage from "./pages/AssignPackage";
 import CreateAccount from "./pages/CreateAccount";
 import AdminLogin from "./pages/AdminLogin";
 import Users from "./pages/main/Users";
@@ -12,6 +11,7 @@ import Dashboard from "./pages/main/Dashboard";
 import UserApproval from "./pages/UserApproval";
 import DeniedUserDetail from "./pages/DeniedUserDetail";
 import UserProfile from "./pages/UserProfile";
+import UserAssignedSession from "./pages/UserAssignedSession";
 import ForgotPassword from "./pages/ForgotPassword";
 import PlanDashboard from "./pages/main/Plan";
 import SessionDashboard from "./pages/main/Session";
@@ -97,6 +97,11 @@ export default function App() {
           <Route path="/user-approval" element={<UserApproval />} />
           <Route path="/denied-user" element={<DeniedUserDetail />} />
           <Route path="/user-profile" element={<UserProfile />} />
+          <Route
+            path="/users/:userId/assignment/:assignmentId/session/:moduleId"
+            element={<UserAssignedSession />}
+          />
+          <Route path="/assign-package/*" element={<Navigate to="/users" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin-register" element={<AdminRegister />} />
           <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
@@ -109,14 +114,6 @@ export default function App() {
                   <CreateAdmin />
                 </AppLayout>
               </SuperAdminRoute>
-            }
-          />
-          <Route
-            path="/assign-package/*"
-            element={
-              <AppLayout>
-                <AssignPackage />
-              </AppLayout>
             }
           />
         </Routes>

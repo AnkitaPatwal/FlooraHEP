@@ -123,10 +123,12 @@ function defaultMockFrom(opts: { fname?: string; moduleExerciseRows?: Array<{ mo
     if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
     if (table === "module") return makeModuleChain([{ module_id: 1, title: "week 1 foundations" }]);
     if (table === "module_exercise") return makeModuleExerciseChain(meRows);
-    if (table === "user_session_unlock") {
-      return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+    if (table === "user_assignment_session_unlock") {
+      return makeEqInSelectChain([
+        { user_assignment_session_id: "uas-1", unlock_date: "2000-01-01T00:00:00.000Z" },
+      ]);
     }
-    if (table === "user_session_completion") {
+    if (table === "user_assignment_session_completion") {
       return makeEqInSelectChain([]);
     }
     return { select: jest.fn() };
@@ -139,6 +141,14 @@ describe("HomeScreen", () => {
     mockRpc.mockImplementation((fnName?: string) => {
       if (fnName === "get_my_assigned_plan_title") {
         return Promise.resolve({ data: "Morning Mobility", error: null });
+      }
+      if (fnName === "get_current_assigned_sessions") {
+        return Promise.resolve({
+          data: [
+            { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "week 1 foundations" },
+          ],
+          error: null,
+        });
       }
       return Promise.resolve({ data: null, error: null });
     });
@@ -182,7 +192,12 @@ describe("HomeScreen", () => {
   it("prefers merged exercise count from get_current_assigned_session_exercises rpc", async () => {
     mockRpc.mockImplementation((fnName: string | undefined, params?: Record<string, unknown>) => {
       if (fnName === "get_current_assigned_sessions") {
-        return Promise.resolve({ data: [{ module_id: 1, order_index: 1, title: "week 1 foundations" }], error: null });
+      return Promise.resolve({
+        data: [
+          { user_assignment_session_id: "uas-1", module_id: 1, order_index: 1, title: "week 1 foundations" },
+        ],
+        error: null,
+      });
       }
       if (fnName === "get_current_assigned_session_exercises") {
         expect(params).toEqual({ p_module_id: 1 });
@@ -223,10 +238,12 @@ describe("HomeScreen", () => {
       if (table === "plan_module") return makePlanModuleChain([{ module_id: 1, order_index: 1 }]);
       if (table === "module") return makeModuleChain([{ module_id: 1, title: "Session 1" }]);
       if (table === "module_exercise") return makeModuleExerciseChain([]);
-      if (table === "user_session_unlock") {
-        return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+      if (table === "user_assignment_session_unlock") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-1", unlock_date: "2000-01-01T00:00:00.000Z" },
+        ]);
       }
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeEqInSelectChain([]);
       }
       return { select: jest.fn() };
@@ -280,7 +297,11 @@ describe("HomeScreen", () => {
 
     expect(mockPush).toHaveBeenCalledWith({
       pathname: "/screens/SessionExerciseList",
-      params: { sessionId: "1", sessionName: "week 1 foundations" },
+      params: {
+        sessionId: "1",
+        sessionName: "week 1 foundations",
+        userAssignmentSessionId: "uas-1",
+      },
     });
   });
 
@@ -292,8 +313,8 @@ describe("HomeScreen", () => {
       if (fnName === "get_current_assigned_sessions") {
         return Promise.resolve({
           data: [
-            { module_id: 1, order_index: 1, title: "Caption A" },
-            { module_id: 1, order_index: 2, title: "Caption B" },
+            { user_assignment_session_id: "uas-a", module_id: 1, order_index: 1, title: "Caption A" },
+            { user_assignment_session_id: "uas-b", module_id: 1, order_index: 2, title: "Caption B" },
           ],
           error: null,
         });
@@ -317,11 +338,17 @@ describe("HomeScreen", () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "user") return makeUserChain({ user_id: 56, fname: "Keshwa" });
       if (table === "user_packages") return makeUserPackagesChain({ package_id: 2 });
-      if (table === "user_session_unlock") {
-        return makeEqInSelectChain([{ module_id: 1, unlock_date: "2000-01-01T00:00:00.000Z" }]);
+      if (table === "user_assignment_session_unlock") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-a", unlock_date: "2000-01-01T00:00:00.000Z" },
+          { user_assignment_session_id: "uas-b", unlock_date: "2000-01-01T00:00:00.000Z" },
+        ]);
       }
-      if (table === "user_session_completion") {
-        return makeEqInSelectChain([{ module_id: 1, completed_at: "2020-01-01T00:00:00.000Z" }]);
+      if (table === "user_assignment_session_completion") {
+        return makeEqInSelectChain([
+          { user_assignment_session_id: "uas-a", completed_at: "2020-01-01T00:00:00.000Z" },
+          { user_assignment_session_id: "uas-b", completed_at: "2020-01-01T00:00:00.000Z" },
+        ]);
       }
       return { select: jest.fn() };
     });

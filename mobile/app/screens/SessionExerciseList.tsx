@@ -6,7 +6,7 @@
  * Plan session *sequence* is defined in Postgres: `plan_module.order_index` per plan.
  * Unlock/completion (first session, then N+1 after 7 days) uses that order in RPC/triggers.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -42,13 +42,19 @@ type Params = {
   sessionId?: string;
   sessionName?: string;
   planName?: string;
-  subtitle?: string;
+  assignmentId?: string;
+  userAssignmentSessionId?: string;
 };
 
 export default function SessionExerciseList() {
   const router = useRouter();
   const { session } = useAuth();
-  const { sessionId, sessionName, planName, subtitle } = useLocalSearchParams<Params>();
+  const { sessionId, sessionName, planName, assignmentId, userAssignmentSessionId } =
+    useLocalSearchParams<Params>();
+  const assignmentIdStr =
+    (typeof assignmentId === "string" ? assignmentId.trim() : "") || "legacy";
+  const uasIdStr =
+    (typeof userAssignmentSessionId === "string" ? userAssignmentSessionId.trim() : "") || null;
 
   const [apiExercises, setApiExercises] = useState<Exercise[]>([]);
   const [apiLoading, setApiLoading] = useState(true);
@@ -56,6 +62,7 @@ export default function SessionExerciseList() {
   const [sessionCompleted, setSessionCompleted] = useState(false);
   const [maxCompletedExercisePosition, setMaxCompletedExercisePosition] = useState(0);
   const [fetchedPlanName, setFetchedPlanName] = useState("");
+  const autoCompletedEmptySessionRef = useRef(false);
 
   const paramPlanName = typeof planName === "string" ? planName.trim() : "";
   const planFromDbOrRoute = fetchedPlanName.trim() || paramPlanName;
@@ -71,24 +78,28 @@ export default function SessionExerciseList() {
   }, [sessionId]);
 
   const refreshCompletion = useCallback(async () => {
-    if (!session?.user?.id || moduleIdNum == null) return;
+    if (!session?.user?.id || !uasIdStr) return;
     const { data } = await supabase
-      .from("user_session_completion")
-      .select("module_id")
+      .from("user_assignment_session_completion")
+      .select("user_assignment_session_id")
       .eq("user_id", session.user.id)
-      .eq("module_id", moduleIdNum)
+      .eq("user_assignment_session_id", uasIdStr)
       .maybeSingle();
     setSessionCompleted(!!data);
-  }, [session?.user?.id, moduleIdNum]);
+  }, [session?.user?.id, uasIdStr]);
 
   const loadExerciseProgress = useCallback(async () => {
     if (!session?.user?.id || moduleIdNum == null) {
       setMaxCompletedExercisePosition(0);
       return;
     }
-    const max = await getMaxCompletedExercisePosition(session.user.id, moduleIdNum);
+    if (!assignmentIdStr) {
+      setMaxCompletedExercisePosition(0);
+      return;
+    }
+    const max = await getMaxCompletedExercisePosition(session.user.id, assignmentIdStr, moduleIdNum);
     setMaxCompletedExercisePosition(max);
-  }, [session?.user?.id, moduleIdNum]);
+  }, [session?.user?.id, assignmentIdStr, moduleIdNum]);
 
   useFocusEffect(
     useCallback(() => {
@@ -244,6 +255,25 @@ export default function SessionExerciseList() {
 
   const exercises = useMemo(() => apiExercises, [apiExercises]);
 
+  // If an admin removes all exercises from a session, treat the session as completed
+  // so the user isn't blocked by an empty session.
+  useEffect(() => {
+    if (apiLoading) return;
+    if (autoCompletedEmptySessionRef.current) return;
+    if (!uasIdStr || !session?.user?.id) return;
+    if (sessionCompleted) return;
+    if (moduleIdNum == null) return;
+    if (exercises.length !== 0) return;
+
+    autoCompletedEmptySessionRef.current = true;
+    void (async () => {
+      const { error } = await supabase.rpc("complete_user_assignment_session", {
+        p_user_assignment_session_id: uasIdStr,
+      });
+      if (!error) setSessionCompleted(true);
+    })();
+  }, [apiLoading, exercises.length, moduleIdNum, session?.user?.id, sessionCompleted, uasIdStr]);
+
   const openExerciseDetail = (exercise: Exercise, positionInSession: number, sessionTotal: number) => {
     const videoUrl = (exercise as { videoSignedUrl?: string }).videoSignedUrl;
     const sets = (exercise as any)?.sets;
@@ -257,6 +287,8 @@ export default function SessionExerciseList() {
         sessionId: moduleIdParam,
         sessionName: headerTitle,
         planName: displayPlanName,
+        assignmentId: assignmentIdStr,
+        ...(uasIdStr ? { userAssignmentSessionId: uasIdStr } : {}),
         exercisePosition: String(positionInSession),
         sessionExerciseTotal: String(sessionTotal),
         exerciseTitle: exercise.title || "Exercise",
@@ -416,7 +448,7 @@ export default function SessionExerciseList() {
               <Text style={styles.exercisesSectionLabel}>Exercises</Text>
             </>
           ) : null}
-          {!planInNav && subtitle ? <Text style={styles.sessionHint}>{subtitle}</Text> : null}
+          {/* Phase title now lives under the plan name on the main dashboard. */}
           <View style={styles.accentLine} />
           {moduleIdValid && !apiLoading && exercises.length > 0 && sessionCompleted ? (
             <View style={styles.completeWrap}>

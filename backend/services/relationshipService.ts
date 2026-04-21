@@ -319,7 +319,8 @@ export async function assignPackageToUser(
   userId: string,
   packageId: number,
   startDate: string,
-): Promise<{ success: true }> {
+  options?: { deferSessionLayoutPublish?: boolean },
+): Promise<{ success: true; assignment_id: string }> {
   if (!userId || !packageId) {
     throw new Error("Please select both user and package.");
   }
@@ -339,19 +340,28 @@ export async function assignPackageToUser(
     throw new Error("This package is already assigned to this user.");
   }
 
-  const { error: insertError } = await supabase
+  const insertRow: Record<string, unknown> = {
+    user_id: userId,
+    package_id: packageId,
+    start_date: startDate,
+  };
+  if (options?.deferSessionLayoutPublish) {
+    insertRow.session_layout_published_at = null;
+  }
+
+  const { data: inserted, error: insertError } = await supabase
     .from("user_packages")
-    .insert([
-      {
-        user_id: userId,
-        package_id: packageId,
-        start_date: startDate,
-      },
-    ]);
+    .insert([insertRow])
+    .select("id")
+    .maybeSingle();
 
   if (insertError) {
     throw new Error(`Failed to assign package: ${insertError.message}`);
   }
+  const aid = inserted && (inserted as { id?: string }).id != null ? String((inserted as { id: string }).id) : "";
+  if (!aid) {
+    throw new Error("Failed to assign package: no assignment id returned.");
+  }
 
-  return { success: true };
+  return { success: true, assignment_id: aid };
 }

@@ -12,6 +12,7 @@ const routeParams: Record<string, string | undefined> = {
   sessionName: "Test Module",
   planName: "Leakage",
   subtitle: "Restore",
+  userAssignmentSessionId: "uas-1",
 };
 
 jest.mock("expo-router", () => ({
@@ -92,10 +93,10 @@ function makeModuleExerciseChain(rows: Array<{ exercise_id: number; order_index:
   return { select };
 }
 
-function makeCompletionLookupChain(row: { module_id: number } | null) {
+function makeCompletionLookupChain(row: { user_assignment_session_id: string } | null) {
   const maybeSingle = jest.fn().mockResolvedValue({ data: row, error: null });
-  const eqModule = jest.fn(() => ({ maybeSingle }));
-  const eqUser = jest.fn(() => ({ eq: eqModule }));
+  const eqUas = jest.fn(() => ({ maybeSingle }));
+  const eqUser = jest.fn(() => ({ eq: eqUas }));
   const select = jest.fn(() => ({ eq: eqUser }));
   return { select };
 }
@@ -148,7 +149,7 @@ describe("SessionExerciseList (ATH-428)", () => {
           },
         ]);
       }
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
@@ -212,7 +213,7 @@ describe("SessionExerciseList (ATH-428)", () => {
       },
     ]);
     mockFrom.mockImplementation((table: string) => {
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
@@ -228,7 +229,7 @@ describe("SessionExerciseList (ATH-428)", () => {
   it("shows empty state when module has no exercises", async () => {
     mockFrom.mockImplementation((table: string) => {
       if (table === "module_exercise") return makeModuleExerciseChain([]);
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
@@ -269,7 +270,7 @@ describe("SessionExerciseList (ATH-428)", () => {
 
     // If RPC is used, we should not need module_exercise/exercise queries for the list.
     mockFrom.mockImplementation((table: string) => {
-      if (table === "user_session_completion") return makeCompletionLookupChain(null);
+      if (table === "user_assignment_session_completion") return makeCompletionLookupChain(null);
       return { select: jest.fn() };
     });
 
@@ -318,7 +319,7 @@ describe("SessionExerciseList (ATH-428)", () => {
     });
 
     mockFrom.mockImplementation((table: string) => {
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
@@ -339,6 +340,8 @@ describe("SessionExerciseList (ATH-428)", () => {
         sessionId: "1",
         sessionName: "Test Module",
         planName: "Leakage",
+        assignmentId: "legacy",
+        userAssignmentSessionId: "uas-1",
         exercisePosition: "1",
         sessionExerciseTotal: "2",
         exerciseTitle: "First",
@@ -359,7 +362,7 @@ describe("SessionExerciseList (ATH-428)", () => {
       { exercise_id: 2, title: "B", description: "", video_url: null },
     ]);
     mockFrom.mockImplementation((table: string) => {
-      if (table === "user_session_completion") {
+      if (table === "user_assignment_session_completion") {
         return makeCompletionLookupChain(null);
       }
       return { select: jest.fn() };
