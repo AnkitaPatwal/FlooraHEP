@@ -6,6 +6,10 @@ import "../../pages/main/CreatePlan.css";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const MIN_SETS = 1;
+const MAX_SETS = 20;
+const MIN_REPS = 1;
+const MAX_REPS = 100;
 
 async function authHeaders(): Promise<HeadersInit> {
   const {
@@ -38,6 +42,10 @@ function isValidVideoFile(file: File): boolean {
 function isValidThumbnailFile(file: File): boolean {
   const ext = file.name.split(".").pop()?.toLowerCase();
   return ["png", "jpg", "jpeg", "webp"].includes(ext || "");
+}
+
+function sanitizeIntegerInput(value: string): string {
+  return value.replace(/[^\d]/g, "");
 }
 
 function PlusIcon() {
@@ -156,7 +164,11 @@ const CreateExercise: React.FC = () => {
   const [dragOver, setDragOver] = useState<"video" | "thumbnail" | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    if (name === "setCount" || name === "repCount") {
+      value = sanitizeIntegerInput(value);
+    }
     setExercise((prev) => ({ ...prev, [name]: value }));
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   };
@@ -224,8 +236,16 @@ const CreateExercise: React.FC = () => {
     if (!exercise.exerciseCopy.trim()) errors.exerciseCopy = "Description is required";
     const sets = exercise.setCount ? Number(exercise.setCount) : NaN;
     const reps = exercise.repCount ? Number(exercise.repCount) : NaN;
-    if (!Number.isInteger(sets) || sets < 1) errors.setCount = "Sets must be a positive integer";
-    if (!Number.isInteger(reps) || reps < 1) errors.repCount = "Reps must be a positive integer";
+    if (!Number.isInteger(sets)) {
+      errors.setCount = "Sets must be a whole number";
+    } else if (sets < MIN_SETS || sets > MAX_SETS) {
+      errors.setCount = `Sets must be between ${MIN_SETS} and ${MAX_SETS}`;
+    }
+    if (!Number.isInteger(reps)) {
+      errors.repCount = "Reps must be a whole number";
+    } else if (reps < MIN_REPS || reps > MAX_REPS) {
+      errors.repCount = `Reps must be between ${MIN_REPS} and ${MAX_REPS}`;
+    }
     if (!exercise.video) {
       errors.video = "Video is required";
     } else if (!isValidVideoFile(exercise.video)) {
@@ -528,12 +548,13 @@ const CreateExercise: React.FC = () => {
               <label htmlFor="setCount">Set Count</label>
               <input
                 id="setCount"
-                type="number"
+                type="text"
                 name="setCount"
                 value={exercise.setCount}
                 onChange={handleChange}
                 placeholder="3"
-                min={1}
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
               {fieldErrors.setCount ? <div className="field-error">{fieldErrors.setCount}</div> : null}
             </div>
@@ -542,12 +563,13 @@ const CreateExercise: React.FC = () => {
               <label htmlFor="repCount">Rep Count</label>
               <input
                 id="repCount"
-                type="number"
+                type="text"
                 name="repCount"
                 value={exercise.repCount}
                 onChange={handleChange}
                 placeholder="3"
-                min={1}
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
               {fieldErrors.repCount ? <div className="field-error">{fieldErrors.repCount}</div> : null}
             </div>

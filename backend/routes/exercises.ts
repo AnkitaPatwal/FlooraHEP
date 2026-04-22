@@ -7,6 +7,26 @@ import { linkVideoToExercise, BUCKET_NAME } from '../services/videoService';
 import { logDashboardActivity } from '../services/dashboardActivityLog';
 
 const router = express.Router();
+const MIN_SETS = 1;
+const MAX_SETS = 20;
+const MIN_REPS = 1;
+const MAX_REPS = 100;
+
+function validateIntegerRange(
+  value: unknown,
+  label: string,
+  min: number,
+  max: number
+): { ok: true; value: number } | { ok: false; message: string } {
+  const n = Number(value);
+  if (!Number.isInteger(n)) {
+    return { ok: false, message: `${label} must be a whole number` };
+  }
+  if (n < min || n > max) {
+    return { ok: false, message: `${label} must be between ${min} and ${max}` };
+  }
+  return { ok: true, value: n };
+}
 
 /** PostgREST often serializes bigint `exercise_id` as string; Map keys must match lookup type. */
 function normalizeExerciseId(id: unknown): number | null {
@@ -385,8 +405,38 @@ router.patch(
       const payload: any = {};
       if (title !== undefined) payload.title = String(title).trim();
       if (description !== undefined) payload.description = String(description).trim();
-      if (default_sets !== undefined) payload.default_sets = Number(default_sets) || null;
-      if (default_reps !== undefined) payload.default_reps = Number(default_reps) || null;
+      if (default_sets !== undefined) {
+        if (default_sets === null || default_sets === '') {
+          payload.default_sets = null;
+        } else {
+          const setsValidation = validateIntegerRange(
+            default_sets,
+            'Sets',
+            MIN_SETS,
+            MAX_SETS
+          );
+          if (!setsValidation.ok) {
+            return res.status(400).json({ error: setsValidation.message });
+          }
+          payload.default_sets = setsValidation.value;
+        }
+      }
+      if (default_reps !== undefined) {
+        if (default_reps === null || default_reps === '') {
+          payload.default_reps = null;
+        } else {
+          const repsValidation = validateIntegerRange(
+            default_reps,
+            'Reps',
+            MIN_REPS,
+            MAX_REPS
+          );
+          if (!repsValidation.ok) {
+            return res.status(400).json({ error: repsValidation.message });
+          }
+          payload.default_reps = repsValidation.value;
+        }
+      }
       if (category !== undefined) payload.body_part = String(category).trim() || null;
 
       if (Object.keys(payload).length > 0) {
@@ -506,13 +556,23 @@ router.post(
       if (!description || typeof description !== 'string' || !description.trim()) {
         return res.status(400).json({ error: 'Description is required' });
       }
-      const sets = default_sets != null ? Number(default_sets) : null;
-      const reps = default_reps != null ? Number(default_reps) : null;
-      if (sets == null || !Number.isInteger(sets) || sets < 1) {
-        return res.status(400).json({ error: 'Sets must be a positive integer' });
+      const setsValidation = validateIntegerRange(
+        default_sets,
+        'Sets',
+        MIN_SETS,
+        MAX_SETS
+      );
+      if (!setsValidation.ok) {
+        return res.status(400).json({ error: setsValidation.message });
       }
-      if (reps == null || !Number.isInteger(reps) || reps < 1) {
-        return res.status(400).json({ error: 'Reps must be a positive integer' });
+      const repsValidation = validateIntegerRange(
+        default_reps,
+        'Reps',
+        MIN_REPS,
+        MAX_REPS
+      );
+      if (!repsValidation.ok) {
+        return res.status(400).json({ error: repsValidation.message });
       }
       if (!category || typeof category !== 'string' || !category.trim()) {
         return res.status(400).json({ error: 'Category is required' });
@@ -536,8 +596,8 @@ router.post(
       const payload: any = {
         title: title.trim(),
         description: description.trim(),
-        default_sets: sets,
-        default_reps: reps,
+        default_sets: setsValidation.value,
+        default_reps: repsValidation.value,
         body_part: category.trim(),
         tags: [],
         created_by_admin_id: null,

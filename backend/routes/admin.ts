@@ -1175,19 +1175,48 @@ router.put('/plans/:id', async (req, res) => {
  */
 router.delete('/plans/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const planId = Number(req.params.id);
+    if (!Number.isFinite(planId) || planId < 1) {
+      return res.status(400).json({ error: 'Invalid plan id.' });
+    }
+
+    const { data: planRow } = await supabaseAdmin
+      .from('plan')
+      .select('title')
+      .eq('plan_id', planId)
+      .maybeSingle();
+    const planTitle = String((planRow as { title?: string } | null)?.title ?? `id ${planId}`);
+
+    // Defensive cleanup for environments where FK cascades may be missing/outdated.
+    const { error: assignmentDeleteError } = await supabaseAdmin
+      .from('user_packages')
+      .delete()
+      .eq('package_id', planId);
+    if (assignmentDeleteError) {
+      console.error('Error deleting assigned users for plan:', assignmentDeleteError);
+      return res.status(500).json({ error: 'Failed to delete plan assignments.' });
+    }
+
+    const { error: linkDeleteError } = await supabaseAdmin
+      .from('plan_module')
+      .delete()
+      .eq('plan_id', planId);
+    if (linkDeleteError) {
+      console.error('Error deleting plan modules:', linkDeleteError);
+      return res.status(500).json({ error: 'Failed to delete plan modules.' });
+    }
 
     const { error: deleteError } = await supabaseAdmin
       .from('plan')
       .delete()
-      .eq('plan_id', id);
+      .eq('plan_id', planId);
 
     if (deleteError) {
       console.error('Error deleting plan:', deleteError);
       return res.status(500).json({ error: 'Failed to delete plan.' });
     }
 
-    void logDashboardActivity(`Deleted: Plan (id ${id})`);
+    void logDashboardActivity(`Deleted: Plan "${planTitle}"`);
     return res.status(200).json({ message: 'Plan deleted successfully.' });
   } catch (error) {
     console.error('Failed to delete plan:', error);
