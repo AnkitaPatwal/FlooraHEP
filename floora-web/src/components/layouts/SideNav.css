@@ -24,7 +24,8 @@
 }
 
 .logo-img {
-  width: 150px;
+  width: 180px;
+  max-width: 100%;
   height: auto;
   display: block;
   filter: brightness(0) invert(1);
@@ -135,25 +136,84 @@
   font-weight: 500;
 }
 
-.logout-btn {
+.footer-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.footer-menu-trigger {
   background: none;
   border: none;
   cursor: pointer;
   color: #ffffff;
-  padding: 4px;
+  padding: 6px;
   display: flex;
   align-items: center;
-  opacity: 0.8;
-  transition: opacity 0.2s;
+  justify-content: center;
+  border-radius: 8px;
+  opacity: 0.9;
+  transition: opacity 0.2s, background-color 0.2s;
 }
 
-.logout-btn svg {
+.footer-menu-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.footer-menu-trigger:hover {
+  opacity: 1;
+  background-color: rgba(255, 255, 255, 0.12);
+}
+
+.footer-menu-dropdown {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 132px;
+  background: #ffffff;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  padding: 4px 0;
+  z-index: 100;
+}
+
+.footer-menu-item {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1f2937;
+  cursor: pointer;
+}
+
+.footer-menu-item:hover:not(.footer-menu-item-signout) {
+  background: #f3f4f6;
+}
+
+.footer-menu-item-signout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #dc2626;
+}
+
+.footer-menu-item-signout:hover {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.footer-menu-signout-icon {
   width: 18px;
   height: 18px;
-}
-
-.logout-btn:hover {
-  opacity: 1;
+  min-width: 18px;
+  flex-shrink: 0;
+  color: currentColor;
 }
 
 .floora-logo {

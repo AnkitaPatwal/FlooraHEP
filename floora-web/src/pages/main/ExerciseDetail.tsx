@@ -5,8 +5,7 @@ import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
 import "../../components/main/CreateExercise.css";
 import "../../components/main/Exercise.css";
-import "./CreatePlan.css";
-import "./CreateSession.css";
+import "../../components/UserProfile.css";
 import "./ExerciseDetail.css";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
@@ -99,8 +98,10 @@ function ExerciseDetail() {
   if (loading) {
     return (
       <AppLayout>
-        <div className="exercise-detail-page ce-page--mock">
-          <p className="ce-loading-text">Loading…</p>
+        <div className="up-page exercise-detail-page-up">
+          <div className="up-shell">
+            <p className="up-inline-hint">Loading…</p>
+          </div>
         </div>
       </AppLayout>
     );
@@ -109,16 +110,23 @@ function ExerciseDetail() {
   if (!exercise) {
     return (
       <AppLayout>
-        <div className="exercise-detail-page ce-page--mock create-plan-page--unified">
-          <div className="ce-content">
-            <div className="exercise-detail-error">{error || "Exercise not found"}</div>
-            <button
-              type="button"
-              className="back-btn back-btn--v2 create-plan-back-btn"
-              onClick={() => navigate("/exercise-dashboard")}
-            >
-              Back to exercises
-            </button>
+        <div className="up-page exercise-detail-page-up">
+          <div className="up-shell">
+            <header className="up-topbar">
+              <div>
+                <h1 className="up-page-title">Exercise</h1>
+                <p className="up-page-subtitle">Library</p>
+              </div>
+              <div className="up-topbar-actions">
+                <button type="button" className="up-btn up-btn-back" onClick={() => navigate("/exercise-dashboard")}>
+                  Back
+                </button>
+              </div>
+            </header>
+            <hr className="up-divider" />
+            <p className="up-inline-error" role="alert">
+              {error || "Exercise not found"}
+            </p>
           </div>
         </div>
       </AppLayout>
@@ -127,42 +135,52 @@ function ExerciseDetail() {
 
   return (
     <AppLayout>
-      <div className="exercise-detail-page ce-page--mock create-plan-page--unified">
-        <div className="ce-content">
-          {successMessage && (
-            <div className="message-banner success-banner">{successMessage}</div>
-          )}
-          {error && (
-            <div className="message-banner error-banner">{error}</div>
-          )}
-
-          <header className="create-session-header create-session-header--v2 create-plan-page-header exercise-detail-header exercise-detail-header--actions-right">
-            <div className="create-session-header-right">
-              {!isAuthLoading && isSuperAdmin && (
+      <div className="up-page exercise-detail-page-up">
+        <div className="up-shell">
+          <header className="up-topbar">
+            <div>
+              <h1 className="up-page-title">{exercise.title}</h1>
+              <p className="up-page-subtitle">
+                {(exercise.body_part ?? "").trim() || "Exercise library"}
+              </p>
+            </div>
+            <div className="up-topbar-actions">
+              {!isAuthLoading && isSuperAdmin ? (
                 <button
                   type="button"
-                  className="delete-btn"
+                  className="up-btn up-btn-delete"
                   onClick={() => setDeleteConfirm(true)}
                   disabled={deleting}
                 >
                   Delete
                 </button>
-              )}
+              ) : null}
               <button
                 type="button"
-                className="back-btn back-btn--v2 create-plan-back-btn"
+                className="up-btn up-btn-back"
                 onClick={() => navigate("/exercise-dashboard")}
                 disabled={deleting}
               >
                 Back
               </button>
-              {!isAuthLoading && isSuperAdmin && (
-                <button type="button" className="save-btn create-plan-save-btn" onClick={handleEdit}>
+              {!isAuthLoading && isSuperAdmin ? (
+                <button type="button" className="up-btn up-btn-save" onClick={handleEdit}>
                   Edit
                 </button>
-              )}
+              ) : null}
             </div>
           </header>
+
+          <hr className="up-divider" />
+
+          <div className="up-feedback" aria-live="polite">
+            {successMessage ? <p className="up-inline-success">{successMessage}</p> : null}
+            {error ? (
+              <p className="up-inline-error" role="alert">
+                {error}
+              </p>
+            ) : null}
+          </div>
 
           <div className="exercise-detail-body">
             <div className="exercise-detail-video-section">
@@ -179,13 +197,6 @@ function ExerciseDetail() {
             </div>
 
             <div className="exercise-detail-info">
-              <header className="exercise-detail-info-hero">
-                <h1 className="exercise-detail-title">{exercise.title}</h1>
-                {exercise.body_part && (
-                  <p className="exercise-detail-category">{exercise.body_part}</p>
-                )}
-              </header>
-
               {exercise.assigned_count_rpc_unavailable && (
                 <div className="exercise-assignment-counts-banner exercise-assignment-counts-banner--critical" role="alert">
                   Plan-based client counts are unavailable (database function missing or failed). Run migrations

@@ -1,16 +1,22 @@
 /* === Create Exercise Page === */
 .create-exercise-page {
+  --create-exercise-upload-col-max: 380px;
+  --create-exercise-form-fields-col-max: 300px;
+  --create-exercise-form-max-width: calc(2 * var(--create-exercise-form-fields-col-max) + 28px);
   padding-bottom: 48px;
   box-sizing: border-box;
-  color: #1f2937;
+  color: #333333;
   min-height: 100vh;
+  max-width: none;
+  width: 100%;
 }
 
 /* === Header === */
 .create-exercise-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: flex-start;
+  gap: 24px;
   margin-bottom: 28px;
   margin-top: 20px;
 }
@@ -18,20 +24,38 @@
 .create-exercise-header-left {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .create-exercise-header-left h1 {
   font-size: 28px;
   font-weight: 700;
-  color: #1f2937;
+  color: #333333;
   margin: 0;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
-/* === Buttons (Back & Save) === */
+.create-exercise-subtitle {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: #888888;
+  line-height: 1.4;
+}
+
 .create-exercise-header-right {
   display: flex;
+  flex-shrink: 0;
+  align-items: center;
   gap: 12px;
+  padding-top: 4px;
+}
+
+.create-exercise-page.create-plan-page--unified .create-plan-back-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 .back-btn,
@@ -45,7 +69,6 @@
   transition: all 0.2s ease;
 }
 
-/* Back button */
 .back-btn {
   background-color: #ffffff;
   color: #5a8e93;
@@ -55,7 +78,6 @@
   background-color: #f0f6f6;
 }
 
-/* Save button */
 .save-btn {
   background-color: #5a8e93;
   color: #fff;
@@ -68,10 +90,243 @@
 .exercise-form {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 28px;
 }
 
-/* === Upload Section === */
+.create-exercise-page .exercise-form {
+  gap: 44px;
+}
+
+/* Text fields only; upload grid uses --create-exercise-upload-col-max independently */
+.create-exercise-page .create-exercise-fields {
+  max-width: var(--create-exercise-form-max-width);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* === Upload: two dashed cards (Create Exercise) === */
+.create-exercise-upload-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, var(--create-exercise-upload-col-max)));
+  gap: 28px;
+  align-items: start;
+  justify-content: start;
+}
+
+.create-exercise-upload-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 0;
+}
+
+.create-exercise-dropzone {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  box-sizing: border-box;
+  border: 1.75px dashed #7fa6a6;
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  overflow: visible;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.create-exercise-dropzone--video {
+  background-color: #f7f7f7;
+}
+
+.create-exercise-dropzone--video:hover:not(.is-error) {
+  background-color: #f0f0f0;
+}
+
+.create-exercise-dropzone--video.is-dragover:not(.is-error) {
+  background-color: #efefef;
+  border-color: #6a9494;
+}
+
+.create-exercise-dropzone--thumbnail {
+  background-color: #ddebec;
+}
+
+.create-exercise-dropzone--thumbnail:hover:not(.is-error) {
+  background-color: #d4e5e6;
+}
+
+.create-exercise-dropzone--thumbnail.create-exercise-dropzone--thumbnail-active:not(.is-error) {
+  background-color: #d0e2e3;
+}
+
+.create-exercise-dropzone--thumbnail.is-dragover:not(.is-error) {
+  background-color: #d0e2e3;
+  border-color: #6a9494;
+}
+
+.create-exercise-dropzone.is-error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.create-exercise-dropzone:focus {
+  outline: none;
+}
+
+.create-exercise-dropzone:focus-visible {
+  outline: none;
+  border-color: #5a8e93;
+}
+
+.create-exercise-dropzone-body {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.create-exercise-dropzone-body .create-exercise-browse {
+  pointer-events: auto;
+}
+
+.create-exercise-dropzone-body--faded {
+  opacity: 0.42;
+}
+
+.create-exercise-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.create-exercise-upload-icon {
+  flex-shrink: 0;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(90, 142, 147, 0.12));
+}
+
+.create-exercise-dropzone-hint {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.5;
+  max-width: 260px;
+}
+
+.create-exercise-browse {
+  display: inline;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 700;
+  color: #5a8e93;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.create-exercise-browse:hover {
+  color: #4a7a7f;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.create-exercise-video-filename {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  word-break: break-word;
+  max-width: 220px;
+  line-height: 1.35;
+}
+
+.create-exercise-upload-floating-actions {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.create-exercise-file-pill {
+  pointer-events: auto;
+  max-width: min(220px, 48vw);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background-color: #5a8e93;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 2px 8px rgba(90, 142, 147, 0.35);
+}
+
+.create-exercise-replace-btn {
+  pointer-events: auto;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #22c55e;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+  transition:
+    background-color 0.15s ease,
+    transform 0.12s ease;
+}
+
+.create-exercise-replace-btn:hover {
+  background-color: #16a34a;
+  transform: scale(1.04);
+}
+
+.create-exercise-upload-caption {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333333;
+  align-self: flex-start;
+}
+
+.create-exercise-field-error {
+  margin-top: 0;
+}
+
+/* === Upload Section (Edit Exercise) === */
 .upload-section {
   display: flex;
   align-items: flex-start;
@@ -135,6 +390,41 @@
   gap: 6px;
 }
 
+.create-exercise-page .input-group label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333333;
+}
+
+.create-exercise-page .input-group input,
+.create-exercise-page .input-group textarea {
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  color: #333333;
+  outline: none;
+  background-color: #f5f5f5;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.create-exercise-page .input-group input::placeholder,
+.create-exercise-page .input-group textarea::placeholder {
+  color: #9e9e9e;
+}
+
+.create-exercise-page .input-group input:focus,
+.create-exercise-page .input-group textarea:focus {
+  border-color: #c5d8da;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.12);
+}
+
+.create-exercise-page .input-group textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+/* Non–create-exercise forms still use neutral inputs */
 .input-group label {
   font-size: 14px;
   font-weight: 600;
@@ -202,6 +492,11 @@
 
 /* === Responsive === */
 @media (max-width: 768px) {
+  .create-exercise-upload-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
   .upload-section {
     flex-direction: column;
   }
@@ -214,5 +509,10 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+
+  .create-exercise-header-right {
+    justify-content: flex-start;
+    padding-top: 0;
   }
 }

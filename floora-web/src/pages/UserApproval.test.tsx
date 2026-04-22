@@ -72,7 +72,7 @@ describe("UserApproval", () => {
     expect(await screen.findByRole("button", { name: /deny/i })).toBeInTheDocument();
   });
 
-  it("shows initials in avatar when user has fname and lname", () => {
+  it("shows placeholder avatar with initials in title when user has no photo", () => {
     const user: PendingClient = {
       user_id: 1,
       email: "jane@example.com",
@@ -83,7 +83,10 @@ describe("UserApproval", () => {
 
     renderWithRouter("/user-approval", { user });
 
-    expect(screen.getByText("JD")).toBeInTheDocument();
+    expect(screen.getByTitle("JD")).toBeInTheDocument();
+    expect(
+      document.querySelector(".ua-avatar-wrap .user-avatar-placeholder-svg"),
+    ).toBeTruthy();
   });
 
   it("shows empty state when no user is selected", () => {

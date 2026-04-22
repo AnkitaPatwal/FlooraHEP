@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
+import UserAvatar from "../components/common/UserAvatar";
+import SessionNestedDropdown from "../components/SessionNestedDropdown";
+import PlanSelectDropdown from "../components/PlanSelectDropdown";
 import {
   deleteClient,
   fetchActiveClients,
@@ -13,42 +16,6 @@ import { API_BASE, authHeaders } from "./assignPackage/authHeaders";
 import { markAssignmentCountsStale } from "../lib/assignmentsCountsStale";
 import sessionFallbackImg from "../assets/exercise.jpg";
 const DEFAULT_ADMIN_ID = 1;
-
-function ProfileAvatar({ name, url }: { name: string; url?: string | null }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  useEffect(() => {
-    setImgFailed(false);
-  }, [url]);
-
-  const initials = useMemo(
-    () =>
-      name
-        .split(" ")
-        .map((s) => s[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [name]
-  );
-
-  const trimmedUrl = url?.trim() ?? "";
-  const showImg = Boolean(trimmedUrl) && !imgFailed;
-
-  return (
-    <div className="ua-avatar-wrap">
-      {showImg ? (
-        <img
-          className="ua-avatar"
-          src={trimmedUrl}
-          alt=""
-          onError={() => setImgFailed(true)}
-        />
-      ) : (
-        <div className="ua-avatar ua-avatar-fallback">{initials}</div>
-      )}
-    </div>
-  );
-}
 
 type AssignUser = {
   id: string;
@@ -283,29 +250,10 @@ function UnlockIcon() {
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      className="up-select-chevron"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M6 9l6 6 6-6"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function SessionCard({ item }: { item: SessionCardItem }) {
   const locked = item.status === "Locked";
   return (
-    <article className="up-session-card">
+    <article className={`up-session-card${locked ? " up-session-card--locked" : ""}`}>
       <div className="up-session-image-wrap">
         <img className="up-session-image" src={item.image} alt={item.title} />
       </div>
@@ -363,103 +311,18 @@ function AddSessionCard({
   }>;
   onPickModuleId: (moduleId: number) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!open) setActiveCategory(null);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      const root = rootRef.current;
-      const target = e.target as Node | null;
-      if (!root || !target) return;
-      if (!root.contains(target)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown, { passive: true });
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown as any);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const active = categories.find((c) => c.label === activeCategory) ?? null;
-  const view: "categories" | "sessions" = active ? "sessions" : "categories";
-
   return (
-    <div ref={rootRef} className="up-add-card up-add-card--menu">
-      <div className="up-add-icon">+</div>
-      <button
-        type="button"
-        className="up-add-btn"
-        onClick={() => setOpen((v) => !v)}
-        disabled={disabled}
-      >
-        Select a Session
-        <span className="up-add-chevron">▾</span>
-      </button>
-
-      {open ? (
-        <>
-          <div className="up-menu" role="menu" aria-label="Session picker">
-            <div className="up-menu-col up-menu-col--single">
-              {view === "categories" ? (
-                <>
-                  {categories.map((c) => (
-                    <button
-                      key={c.label}
-                      type="button"
-                      className="up-menu-item"
-                      onClick={() => setActiveCategory(c.label)}
-                    >
-                      <span>{c.label}</span>
-                    </button>
-                  ))}
-                  {categories.length === 0 ? (
-                    <div className="up-menu-empty">No categories</div>
-                  ) : null}
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="up-menu-back"
-                    onClick={() => setActiveCategory(null)}
-                  >
-                    ‹ Back
-                  </button>
-                  <div className="up-menu-heading">{active?.label ?? "Category"}</div>
-                  {(active?.sessions ?? []).map((s) => (
-                    <button
-                      key={s.module_id}
-                      type="button"
-                      className="up-menu-item"
-                      onClick={() => {
-                        setOpen(false);
-                        onPickModuleId(s.module_id);
-                      }}
-                    >
-                      {s.title}
-                    </button>
-                  ))}
-                  {active && active.sessions.length === 0 ? (
-                    <div className="up-menu-empty">No sessions</div>
-                  ) : null}
-                </>
-              )}
-            </div>
-          </div>
-        </>
-      ) : null}
+    <div className="up-add-card">
+      <div className="up-add-card-inner">
+        <div className="up-add-card-fill">
+          <div className="up-add-icon">+</div>
+        </div>
+        <SessionNestedDropdown
+          categories={categories}
+          disabled={disabled}
+          onSessionSelect={onPickModuleId}
+        />
+      </div>
     </div>
   );
 }
@@ -495,7 +358,7 @@ function SessionRow({
     <div className="up-session-group">
       <div className="up-session-group-header">
         <h3 className="up-group-title">{title}</h3>
-        <span className="up-group-weeks">{weeks}</span>
+        <p className="up-group-weeks">{weeks}</p>
       </div>
 
       <div className="up-session-grid">
@@ -1042,7 +905,7 @@ export default function UserProfile() {
         category: (s.description ?? "").trim() || "Session",
         image: (s.thumbnail_url ?? "").trim() || SESSION_IMAGE,
         status: patientCompleted ? "Completed" : locked ? "Locked" : "Unlocked",
-        showEdit: locked,
+        showEdit: true,
         showDelete: true,
         onDelete: () =>
           setRemoveSessionTarget({
@@ -1312,7 +1175,9 @@ export default function UserProfile() {
 
           <section className="up-profile-row">
             <div className="up-avatar-column">
-              <ProfileAvatar name={name} url={avatarUrlForDisplay} />
+              <div className="up-avatar-frame">
+                <UserAvatar name={name} url={avatarUrlForDisplay ?? undefined} />
+              </div>
             </div>
 
             <form className="up-form-grid" onSubmit={(e) => e.preventDefault()}>
@@ -1336,35 +1201,25 @@ export default function UserProfile() {
 
               <div className="up-plan-select-wrap">
                 <div className="up-plan-controls">
-                  <div className="up-select-shell">
-                    <select
-                      className="up-plan-select"
-                      value={selectedPlanId != null ? String(selectedPlanId) : ""}
-                      onChange={(e) => void handlePlanSelect(e.target.value)}
-                      disabled={
-                        loadingAssignData ||
-                        savingStartDate ||
-                        savingPlan ||
-                        publishingLayout ||
-                        assignUserId == null ||
-                        pendingPlanChange != null
-                      }
-                    >
-                      <option value="">Select a Plan</option>
-                      {plans.map((p) => (
-                        <option key={p.plan_id} value={String(p.plan_id)}>
-                          {p.title}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDownIcon />
-                  </div>
+                  <PlanSelectDropdown
+                    plans={plans}
+                    selectedPlanId={selectedPlanId}
+                    disabled={
+                      loadingAssignData ||
+                      savingStartDate ||
+                      savingPlan ||
+                      publishingLayout ||
+                      assignUserId == null ||
+                      pendingPlanChange != null
+                    }
+                    onSelect={(id) => void handlePlanSelect(id)}
+                  />
                 </div>
               </div>
             </div>
 
             {assignment != null && sessionLayoutIsDraft ? (
-              <p className="up-inline-hint" role="status">
+              <p className="up-inline-hint up-plan-draft-hint" role="status">
                 Draft: sessions stay locked here until you click Save and confirm the start date; the
                 client does not see this plan or unlocks until then.
               </p>

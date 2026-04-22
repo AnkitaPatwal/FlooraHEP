@@ -1,12 +1,7 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type KeyboardEvent,
-} from "react";
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../../components/layouts/AppLayout";
+import UserAvatar from "../../components/common/UserAvatar";
 import {
   fetchActiveClients,
   fetchClientProfileAvatars,
@@ -23,6 +18,7 @@ type User = {
   name: string;
   status: "active";
   planSummary: string;
+  sessionSummary: string;
   avatarUrl?: string;
   email?: string;
 };
@@ -30,7 +26,7 @@ type User = {
 function planSubtitle(plans: ActiveClient["plans"]): string {
   const list = plans ?? [];
   const n = list.length;
-  if (!n) return "No plan assigned";
+  if (!n) return "No Plan";
   const firstEntry = list.find((p) => p.title?.trim()) ?? list[0];
   const first = (firstEntry?.title ?? "Plan").trim() || "Plan";
   if (n === 1) return first;
@@ -63,37 +59,8 @@ function toUser(c: ActiveClient): User {
     email: c.email,
     avatarUrl: c.avatar_url?.trim() || undefined,
     planSummary,
+    sessionSummary: "No Session",
   };
-}
-
-function Avatar({ name, url }: { name: string; url?: string }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  useEffect(() => {
-    setImgFailed(false);
-  }, [url]);
-  const initials = useMemo(
-    () =>
-      name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .slice(0, 2)
-        .toUpperCase(),
-    [name]
-  );
-  const showImg = Boolean(url?.trim()) && !imgFailed;
-  return showImg ? (
-    <img
-      className="user-avatar-img"
-      src={url}
-      alt=""
-      onError={() => setImgFailed(true)}
-    />
-  ) : (
-    <div className="user-avatar-fallback" aria-hidden>
-      {initials}
-    </div>
-  );
 }
 
 function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
@@ -113,11 +80,12 @@ function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
     >
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
-          <Avatar name={user.name} url={user.avatarUrl} />
+          <UserAvatar name={user.name} url={user.avatarUrl} />
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{user.name}</h3>
-          <p className="user-card-muted">{user.planSummary}</p>
+          <p className="user-card-plan">{user.planSummary}</p>
+          <p className="user-card-session">{user.sessionSummary}</p>
         </div>
       </div>
     </article>
@@ -136,7 +104,7 @@ function PendingUserCard({
     <article className="user-card" role="button" tabIndex={0} onClick={onClick}>
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
-          <Avatar name={name} url={client.avatar_url?.trim() || undefined} />
+          <UserAvatar name={name} url={client.avatar_url?.trim() || undefined} />
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{name}</h3>
@@ -171,7 +139,7 @@ function DeniedUserCard({
     >
       <div className="user-card-inner">
         <div className="user-avatar-wrap">
-          <Avatar name={name} url={client.avatar_url?.trim() || undefined} />
+          <UserAvatar name={name} url={client.avatar_url?.trim() || undefined} />
         </div>
         <div className="user-card-text">
           <h3 className="user-card-name">{name}</h3>
@@ -367,33 +335,6 @@ export default function Users() {
             <h1 className="user-title">Users</h1>
             <p className="user-count">{active.length} Active Users</p>
           </div>
-          <div className="user-header-right">
-            <div className="user-search-wrap">
-              <span className="user-search-icon" aria-hidden>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="user-search-svg"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
-                  />
-                </svg>
-              </span>
-              <input
-                className="user-search-input"
-                placeholder="Search users…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                aria-label="Search users"
-              />
-            </div>
-          </div>
         </header>
 
         <hr className="user-divider" />
@@ -453,10 +394,39 @@ export default function Users() {
           </div>
         </section>
 
-        <section className="user-section" aria-labelledby="active-users-title">
-          <h2 id="active-users-title" className="user-section-title">
-            Active Users
-          </h2>
+        <section className="user-section user-section--active" aria-labelledby="active-users-title">
+          <div className="user-section-header">
+            <h2 id="active-users-title" className="user-section-title">
+              Active Users
+            </h2>
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  strokeWidth={1.5}
+                  stroke="currentColor"
+                  className="icon"
+                  aria-hidden
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                  />
+                </svg>
+              </span>
+              <input
+                type="text"
+                className="plan-search-bar"
+                placeholder="Search"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search users"
+              />
+            </div>
+          </div>
 
           <div className="user-grid">
             {activeLoading ? (

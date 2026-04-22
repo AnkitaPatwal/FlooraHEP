@@ -20,7 +20,7 @@
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .user-title {
     font-size: 28px;
     font-weight: 700;
@@ -77,53 +77,64 @@
     color: #1f2937;
     margin-bottom: 16px;
   }
-  
-  /* --- Active section header with search on the right (desktop only) --- */
-  .user-section-header {
-    display: grid;
-    grid-template-columns: 1fr auto; /* title grows, search stays tight */
-    align-items: end;
-    column-gap: 16px;
-    margin-bottom: 16px;
-    flex-wrap: nowrap;
-  }
-  .user-section-title {
-    margin: 0;                /* avoid extra height that could push wrapping */
-    white-space: nowrap;      /* desktop-only: keep on one line */
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 
   /* Only increase space under the Pending Users header */
 #pending-users-title.user-section-title {
     margin-bottom: 24px;
   }
-  
+
+  /* Active Users: title + search on one row (search right-aligned with grid below) */
+  .user-section-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    column-gap: 16px;
+    margin-bottom: 24px;
+    min-width: 0;
+  }
+
+  .user-section-header .user-section-title {
+    margin: 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Same footprint as `.plan-search-bar` on Exercises / Plans (PlanSearchField.css) */
   .user-section-header .plan-search-wrapper {
     position: relative;
-    width: 340px;
-    min-width: 340px;
+    width: 580px;
+    max-width: min(580px, 100%);
+    flex-shrink: 0;
+    box-sizing: border-box;
   }
+
   .user-section-header .plan-search-bar {
     width: 100%;
+    max-width: none;
+    box-sizing: border-box;
   }
-  .user-section-header > * { min-width: 0; }
   
-  /* === Grid (matches exercise-grid sizing) === */
+  /* === Grid — four columns on wide layouts like reference === */
   .user-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 28px;
+    gap: 24px;
+  }
+
+  @media (min-width: 1200px) {
+    .user-section--active .user-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
   
-  /* === User Card — white surface, subtle depth (less gray than #f4f5f6) === */
+  /* === User Card — light tile, centered stack (Users reference) === */
   .user-card {
-    background-color: #ffffff;
-    border-radius: 12px;
-    border: 1px solid #e8ecf1;
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.05),
-      0 4px 12px rgba(15, 23, 42, 0.04);
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #ededed;
+    box-shadow: 0 1px 5px rgba(15, 23, 42, 0.04);
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
@@ -132,50 +143,28 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 204px;
-    padding: 22px 16px;
+    min-height: 256px;
+    padding: 28px 20px;
     box-sizing: border-box;
   }
   .user-card:hover {
-    border-color: rgba(90, 142, 147, 0.35);
+    border-color: #e0e0e0;
     box-shadow:
-      0 2px 6px rgba(15, 23, 42, 0.06),
-      0 8px 20px rgba(90, 142, 147, 0.08);
+      0 3px 10px rgba(15, 23, 42, 0.055),
+      0 1px 3px rgba(15, 23, 42, 0.03);
   }
 
   .user-card-inner {
-    display: grid;
-    justify-items: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 14px;
     width: 100%;
   }
 
   .user-avatar-wrap {
-    display: grid;
-    place-items: center;
-  }
-
-  .user-avatar-img {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    object-fit: cover;
-    border: 1px solid #e8ecf1;
-    background: #fff;
-  }
-
-  /* fallback initials — light brand mint, not flat gray */
-  .user-avatar-fallback {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: linear-gradient(145deg, #ecfdf5 0%, #f0fdfa 100%);
-    color: #3f7d78;
-    font-weight: 600;
-    font-size: 22px;
-    border: 1px solid #c7f0e8;
+    display: flex;
+    justify-content: center;
   }
 
   .user-card-text {
@@ -188,17 +177,17 @@
     font-size: 16px;
     font-weight: 700;
     color: #111827;
-    margin: 0 0 6px 0;
+    margin: 0 0 8px 0;
     line-height: 1.25;
     letter-spacing: -0.01em;
   }
 
   .user-card-plan {
-    font-size: 13px;
-    font-weight: 500;
-    color: #374151;
-    margin: 0 0 4px 0;
-    line-height: 1.35;
+    font-size: 14px;
+    font-weight: 400;
+    color: #4b5563;
+    margin: 0 0 6px 0;
+    line-height: 1.4;
   }
 
   .user-card-plan--email {
@@ -208,8 +197,25 @@
   .user-card-session {
     font-size: 12px;
     font-weight: 400;
-    color: #6b7280;
+    color: #9ca3af;
     margin: 0;
+    line-height: 1.35;
+  }
+
+  .user-card-email {
+    font-size: 13px;
+    font-weight: 400;
+    color: #4b5563;
+    margin: 0 0 6px 0;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  .user-card-muted {
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    margin: 4px 0 0 0;
     line-height: 1.35;
   }
 
@@ -264,5 +270,26 @@
   /* (Optional legacy) standalone search row — safe to remove if unused */
   .user-search-row {
     display: none;
+  }
+
+  @media (max-width: 640px) {
+    .user-section-header {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .user-section-header .user-section-title {
+      white-space: normal;
+    }
+
+    .user-section-header .plan-search-wrapper {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .user-section-header .plan-search-bar {
+      width: 100%;
+      max-width: none;
+    }
   }
   

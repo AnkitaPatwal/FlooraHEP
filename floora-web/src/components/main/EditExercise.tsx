@@ -2,6 +2,7 @@ import AppLayout from "../../components/layouts/AppLayout";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import "../../pages/main/CreatePlan.css";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -201,7 +202,7 @@ const EditExercise: React.FC = () => {
   if (loadingExercise) {
     return (
       <AppLayout>
-        <div className="create-exercise-page">
+        <div className="create-exercise-page create-plan-page--unified">
           <p>Loading exercise...</p>
         </div>
       </AppLayout>
@@ -210,15 +211,15 @@ const EditExercise: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="create-exercise-page">
+      <div className="create-exercise-page create-plan-page--unified">
         <header className="create-exercise-header">
           <div className="create-exercise-header-left">
             <h1 className="exercise-title">Edit Exercise</h1>
           </div>
-          <div className="create-exercise-header-right">
+          <div className="create-exercise-header-right create-session-header-right">
             <button
               type="button"
-              className="back-btn"
+              className="back-btn back-btn--v2 create-plan-back-btn"
               onClick={() => navigate(`/exercises/${id}`)}
               disabled={isSubmitting}
             >
@@ -226,7 +227,7 @@ const EditExercise: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="save-btn"
+              className="save-btn create-plan-save-btn"
               form="edit-exercise-form"
               disabled={isSubmitting}
             >
@@ -271,6 +272,7 @@ const EditExercise: React.FC = () => {
             </div>
           </div>
 
+          <div className="create-exercise-fields">
           <div className={`input-group ${fieldErrors.title ? "error" : ""}`}>
             <label htmlFor="title">Title</label>
             <input
@@ -333,6 +335,7 @@ const EditExercise: React.FC = () => {
               placeholder="Describe how to perform this exercise..."
             />
             {fieldErrors.description && <div className="field-error">{fieldErrors.description}</div>}
+          </div>
           </div>
         </form>
       </div>

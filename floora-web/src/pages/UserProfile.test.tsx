@@ -84,9 +84,9 @@ describe("UserProfile", () => {
     const { container } = renderWithRouter("/user-profile", { user });
 
     await waitFor(() => {
-      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+      expect(container.querySelector("img.user-avatar-img")).toBeTruthy();
     });
-    expect(container.querySelector("img.ua-avatar")).toHaveAttribute(
+    expect(container.querySelector("img.user-avatar-img")).toHaveAttribute(
       "src",
       "https://example.com/profile.png"
     );
@@ -106,14 +106,14 @@ describe("UserProfile", () => {
     const { container } = renderWithRouter("/user-profile", { user });
 
     await waitFor(() => {
-      expect(container.querySelector("img.ua-avatar")).toBeTruthy();
+      expect(container.querySelector("img.user-avatar-img")).toBeTruthy();
     });
-    fireEvent.error(container.querySelector("img.ua-avatar")!);
+    fireEvent.error(container.querySelector("img.user-avatar-img")!);
 
     await waitFor(() => {
-      expect(container.querySelector("img.ua-avatar")).not.toBeInTheDocument();
+      expect(container.querySelector("img.user-avatar-img")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("JD")).toBeInTheDocument();
+    expect(screen.getByTitle("JD")).toBeInTheDocument();
   });
 
   it("shows confirmation modal when Delete is clicked", async () => {
@@ -134,7 +134,7 @@ describe("UserProfile", () => {
     const dialog = await screen.findByRole("dialog");
 
     expect(
-      within(dialog).getByText(/Are you sure you want to delete this user\?/i)
+      within(dialog).getByText(/Are you sure you want to delete this client\?/i),
     ).toBeInTheDocument();
 
     // Verify modal buttons (scoped within dialog to avoid "two Delete buttons" issue)

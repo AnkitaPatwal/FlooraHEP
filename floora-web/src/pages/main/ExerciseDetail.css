@@ -1,33 +1,20 @@
-/* Exercise detail — layout + content; header buttons use CreatePlan + CreateSession (Edit Session). */
+/* Exercise detail — matches Edit User shell (`up-page` / `up-shell`). */
 
+.exercise-detail-page-up.up-page {
+  background: #ffffff;
+  min-height: 0;
+}
+
+.exercise-detail-page-up .exercise-detail-body {
+  max-width: 920px;
+  width: 100%;
+}
+
+/* Legacy class kept for any older imports */
 .exercise-detail-page {
   box-sizing: border-box;
-}
-
-.exercise-detail-page .ce-content {
-  max-width: 920px;
-}
-
-/* Slightly tighter than default unified header gap for this page */
-.exercise-detail-page.create-plan-page--unified .exercise-detail-header.create-plan-page-header {
-  margin-bottom: 28px;
-}
-
-/*
- * Toolbar actions on the right (match Edit Plan: title left + actions right).
- * Unified header uses justify-content: space-between; with only one flex child that pins to the
- * start — margin-left: auto on the action group fixes alignment without a dummy left column.
- */
-.exercise-detail-page.create-plan-page--unified .exercise-detail-header--actions-right.create-plan-page-header {
-  justify-content: flex-end;
   width: 100%;
-  box-sizing: border-box;
-}
-
-.exercise-detail-page.create-plan-page--unified
-  .exercise-detail-header--actions-right
-  .create-session-header-right {
-  margin-left: auto;
+  min-width: 0;
 }
 
 .exercise-detail-body {
@@ -146,12 +133,14 @@
 }
 
 @media (max-width: 768px) {
+  .exercise-detail-page .exercise-detail-toolbar.create-session-header,
   .exercise-detail-page .exercise-detail-header--actions-right.create-session-header {
     flex-direction: row;
     justify-content: flex-end;
     align-items: center;
   }
 
+  .exercise-detail-page .exercise-detail-toolbar .create-session-header-right,
   .exercise-detail-page .exercise-detail-header--actions-right .create-session-header-right {
     width: auto;
     max-width: 100%;

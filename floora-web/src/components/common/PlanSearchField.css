@@ -15,7 +15,7 @@
 .plan-search-icon {
   position: absolute;
   left: 14px;
-  color: #999999;
+  color: #9ca3af;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -38,18 +38,18 @@
   font-size: 15px;
   line-height: 1.4;
   color: #4b5563;
-  background-color: #f2f2f2;
+  background-color: #f6f7f9;
   box-shadow: none;
   transition: background-color 0.15s ease;
 }
 
 .plan-search-bar::placeholder {
-  color: #999999;
+  color: #9ca3af;
 }
 
 .plan-search-bar:focus {
   outline: none;
-  background-color: #ebebeb;
+  background-color: #eceef2;
 }
 
 .plan-search-bar:disabled {
