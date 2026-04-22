@@ -329,7 +329,10 @@ export default function CreateSession() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete session");
-      navigate("/sessions", { replace: true });
+      navigate("/sessions", {
+        replace: true,
+        state: { deletedSession: true },
+      });
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Delete failed.");
     } finally {

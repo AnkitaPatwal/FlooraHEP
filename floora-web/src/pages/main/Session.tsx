@@ -63,6 +63,9 @@ type Module = {
 type SessionsBanner =
   | { variant: "error"; message: string }
   | { variant: "success"; message: string };
+type SessionRouteState = {
+  deletedSession?: boolean;
+};
 
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
@@ -81,6 +84,8 @@ function Session() {
   const [banner, setBanner] = useState<SessionsBanner | null>(null);
   const [search, setSearch] = useState("");
   const expectSuccessAfterLoadRef = useRef(false);
+  const pendingDeletedBannerRef = useRef(false);
+  const handledDeletedStateKeyRef = useRef<string | null>(null);
   const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -137,6 +142,19 @@ function Session() {
 
       setModules(body as Module[]);
 
+      if (pendingDeletedBannerRef.current) {
+        pendingDeletedBannerRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Session deleted successfully." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+        return;
+      }
+
       if (expectSuccessAfterLoadRef.current) {
         expectSuccessAfterLoadRef.current = false;
         if (successDismissTimerRef.current) {
@@ -163,6 +181,17 @@ function Session() {
     expectSuccessAfterLoadRef.current = true;
     void loadModules();
   }, [loadModules]);
+
+  useEffect(() => {
+    const routeState = (location.state as SessionRouteState | null) ?? null;
+    if (
+      routeState?.deletedSession &&
+      handledDeletedStateKeyRef.current !== location.key
+    ) {
+      handledDeletedStateKeyRef.current = location.key;
+      pendingDeletedBannerRef.current = true;
+    }
+  }, [location.key, location.state]);
 
   useEffect(() => {
     void loadModules();

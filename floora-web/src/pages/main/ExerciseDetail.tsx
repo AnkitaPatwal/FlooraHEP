@@ -82,7 +82,14 @@ function ExerciseDetail() {
         throw new Error(data.detail || data.error || "Delete failed");
       }
       setSuccessMessage("Exercise deleted successfully");
-      setTimeout(() => navigate("/exercise-dashboard", { replace: true }), 800);
+      setTimeout(
+        () =>
+          navigate("/exercise-dashboard", {
+            replace: true,
+            state: { deletedExercise: true },
+          }),
+        800,
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to delete");
     } finally {

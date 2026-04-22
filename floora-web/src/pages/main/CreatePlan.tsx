@@ -279,7 +279,10 @@ export default function CreatePlan() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete plan");
-      navigate("/plan-dashboard", { replace: true });
+      navigate("/plan-dashboard", {
+        replace: true,
+        state: { deletedPlan: true },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete plan");
     } finally {

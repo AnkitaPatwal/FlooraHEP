@@ -18,7 +18,6 @@ type User = {
   name: string;
   status: "active";
   planSummary: string;
-  sessionSummary: string;
   avatarUrl?: string;
   email?: string;
 };
@@ -59,7 +58,6 @@ function toUser(c: ActiveClient): User {
     email: c.email,
     avatarUrl: c.avatar_url?.trim() || undefined,
     planSummary,
-    sessionSummary: "No Session",
   };
 }
 
@@ -85,7 +83,6 @@ function UserCard({ user, onClick }: { user: User; onClick?: () => void }) {
         <div className="user-card-text">
           <h3 className="user-card-name">{user.name}</h3>
           <p className="user-card-plan">{user.planSummary}</p>
-          <p className="user-card-session">{user.sessionSummary}</p>
         </div>
       </div>
     </article>

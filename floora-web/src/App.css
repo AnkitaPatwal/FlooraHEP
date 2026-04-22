@@ -96,6 +96,16 @@ html, body, #root {
   font-weight: 500;
 }
 
+.forgot {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: -8px;
+  margin-bottom: 6px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .create-account {
   margin-top: 12px;
 }

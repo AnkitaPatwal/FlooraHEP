@@ -899,13 +899,14 @@ export default function UserProfile() {
       const patientCompleted = s.patient_is_completed === true;
       const patientUnlocked = s.patient_is_unlocked === true;
       const locked = draftLayout ? true : !patientUnlocked;
+      const canEdit = locked;
       return {
         id: s.module_id + phaseIndex * 1_000 + slot * 10_000,
         title: s.title || "Session",
         category: (s.description ?? "").trim() || "Session",
         image: (s.thumbnail_url ?? "").trim() || SESSION_IMAGE,
         status: patientCompleted ? "Completed" : locked ? "Locked" : "Unlocked",
-        showEdit: true,
+        showEdit: canEdit,
         showDelete: true,
         onDelete: () =>
           setRemoveSessionTarget({
@@ -917,7 +918,7 @@ export default function UserProfile() {
                 : `${API_BASE}/api/assign-package/users/${encodeURIComponent(assignUserId ?? "")}/assignments/${encodeURIComponent(assignment?.id ?? "")}/sessions/${encodeURIComponent(String(s.module_id))}`,
           }),
         onEdit: () => {
-          if (!assignUserId || !assignment?.id || !user) return;
+          if (!canEdit || !assignUserId || !assignment?.id || !user) return;
           navigate(
             `/users/${encodeURIComponent(assignUserId)}/assignment/${encodeURIComponent(assignment.id)}/session/${encodeURIComponent(String(s.module_id))}`,
             { state: { userProfileClient: user } },
