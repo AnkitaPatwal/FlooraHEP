@@ -53,10 +53,31 @@ export default function App() {
         <Routes>
           <Route path="/" element={<AdminLogin />} />
           <Route path="/create" element={<CreateAccount />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route
+            path="/dashboard"
+            element={
+              <AdminRoute>
+                <Dashboard />
+              </AdminRoute>
+            }
+          />
           <Route path="/admin-login" element={<AdminLogin />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/plan-dashboard" element={<PlanDashboard />} />
+          <Route
+            path="/users"
+            element={
+              <AdminRoute>
+                <Users />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/plan-dashboard"
+            element={
+              <AdminRoute>
+                <PlanDashboard />
+              </AdminRoute>
+            }
+          />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/plan-dashboard/create" element={
             <AdminRoute>
@@ -72,11 +93,46 @@ export default function App() {
               <CreatePlan />
             </AdminRoute>
           } />
-          <Route path="/sessions" element={<SessionDashboard />} />
-          <Route path="/sessions/create" element={<CreateSession />} />
-          <Route path="/sessions/:id/edit" element={<CreateSession />} />
-          <Route path="/sessions/:id" element={<SessionDetail />} />
-          <Route path="/exercise-dashboard" element={<ExerciseDashboard />} />
+          <Route
+            path="/sessions"
+            element={
+              <AdminRoute>
+                <SessionDashboard />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/sessions/create"
+            element={
+              <AdminRoute>
+                <CreateSession />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/sessions/:id/edit"
+            element={
+              <AdminRoute>
+                <CreateSession />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/sessions/:id"
+            element={
+              <AdminRoute>
+                <SessionDetail />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/exercise-dashboard"
+            element={
+              <AdminRoute>
+                <ExerciseDashboard />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/exercises/create"
             element={
@@ -93,18 +149,57 @@ export default function App() {
               </SuperAdminRoute>
             }
           />
-          <Route path="/exercises/:id" element={<ExerciseDetail />} />
-          <Route path="/user-approval" element={<UserApproval />} />
-          <Route path="/denied-user" element={<DeniedUserDetail />} />
-          <Route path="/user-profile" element={<UserProfile />} />
+          <Route
+            path="/exercises/:id"
+            element={
+              <AdminRoute>
+                <ExerciseDetail />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/user-approval"
+            element={
+              <AdminRoute>
+                <UserApproval />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/denied-user"
+            element={
+              <AdminRoute>
+                <DeniedUserDetail />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/user-profile"
+            element={
+              <AdminRoute>
+                <UserProfile />
+              </AdminRoute>
+            }
+          />
           <Route
             path="/users/:userId/assignment/:assignmentId/session/:moduleId"
-            element={<UserAssignedSession />}
+            element={
+              <AdminRoute>
+                <UserAssignedSession />
+              </AdminRoute>
+            }
           />
           <Route path="/assign-package/*" element={<Navigate to="/users" replace />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/admin-register" element={<AdminRegister />} />
-          <Route path="/admin/video-upload" element={<AdminVideoUpload />} />
+          <Route
+            path="/admin/video-upload"
+            element={
+              <AdminRoute>
+                <AdminVideoUpload />
+              </AdminRoute>
+            }
+          />
           <Route path="/admin-accept-invite" element={<AdminAcceptInvite />} />
           <Route
             path="/create-admin"
