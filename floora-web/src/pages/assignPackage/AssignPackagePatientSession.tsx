@@ -2,10 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { API_BASE, authHeaders } from "./authHeaders";
 import { LoadingHint } from "./ui/LoadingHint";
-import { AssignContextStrip } from "./ui/AssignContextStrip";
 import { usePatientLabel } from "./usePatientLabel";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
+import "../../components/UserProfile.css";
+import "../../components/common/PlanSearchField.css";
 import "./AssignPackage.css";
 import "../main/CreateSession.css";
 import { markAssignmentCountsStale } from "../../lib/assignmentsCountsStale";
@@ -58,6 +59,35 @@ function sessionHeading(s: SessionRow): string {
   return s.title;
 }
 
+type SessionExerciseRow = {
+  rowId: string;
+  kind: "template" | "added";
+  moduleExerciseId?: number;
+  addedId?: string;
+  exerciseId: number;
+  title: string;
+  sets: number;
+  reps: number;
+  description: string | null;
+  thumbnailUrl: string | null;
+};
+
+/** One stable id per row — never use `exercise_id`/`order_index` alone (collisions expand multiple cards). */
+function stablePatientSessionExerciseRowId(r: {
+  kind?: string;
+  id?: string | number;
+  module_exercise_id?: number | string | null;
+  user_assignment_exercise_id?: string | null;
+}): string {
+  const isAdded = String(r.kind) === "added";
+  if (isAdded) {
+    const aid = r.user_assignment_exercise_id ?? r.id;
+    return `uae:${String(aid)}`;
+  }
+  const mid = r.module_exercise_id ?? r.id;
+  return `me:${String(mid)}`;
+}
+
 export default function AssignPackagePatientSession() {
   const { userId, assignmentId, moduleId } = useParams<{
     userId: string;
@@ -96,20 +126,7 @@ export default function AssignPackagePatientSession() {
   const [metaLoading, setMetaLoading] = useState(true);
   const [metaError, setMetaError] = useState("");
 
-  const [exercises, setExercises] = useState<
-    {
-      rowId: string;
-      kind: "template" | "added";
-      moduleExerciseId?: number;
-      addedId?: string;
-      exerciseId: number;
-      title: string;
-      sets: number;
-      reps: number;
-      description: string | null;
-      thumbnailUrl: string | null;
-    }[]
-  >([]);
+  const [exercises, setExercises] = useState<SessionExerciseRow[]>([]);
   const [exercisesLoading, setExercisesLoading] = useState(true);
   const [exercisesError, setExercisesError] = useState("");
   const [exercisesSuccess, setExercisesSuccess] = useState("");
@@ -206,7 +223,7 @@ export default function AssignPackagePatientSession() {
           : [];
         setExercises(
           list.map((r: any) => ({
-            rowId: String(r.id ?? r.module_exercise_id ?? r.user_assignment_exercise_id ?? r.exercise_id ?? r.order_index),
+            rowId: stablePatientSessionExerciseRowId(r),
             kind: r.kind === "added" ? "added" : "template",
             moduleExerciseId:
               r.module_exercise_id != null ? Number(r.module_exercise_id) : undefined,
@@ -234,7 +251,6 @@ export default function AssignPackagePatientSession() {
   }, [userId, assignmentId, mid]);
 
   useEffect(() => {
-    // If the expanded row disappears after reload/remove, collapse.
     if (expandedRowId && !exercises.some((e) => e.rowId === expandedRowId)) {
       setExpandedRowId(null);
     }
@@ -301,13 +317,7 @@ export default function AssignPackagePatientSession() {
       const list = Array.isArray(body?.exercises) ? body.exercises : [];
       setExercises(
         list.map((r: any) => ({
-          rowId: String(
-            r.id ??
-              r.module_exercise_id ??
-              r.user_assignment_exercise_id ??
-              r.exercise_id ??
-              r.order_index,
-          ),
+          rowId: stablePatientSessionExerciseRowId(r),
           kind: r.kind === "added" ? "added" : "template",
           moduleExerciseId:
             r.module_exercise_id != null ? Number(r.module_exercise_id) : undefined,
@@ -557,81 +567,86 @@ export default function AssignPackagePatientSession() {
 
   if (!userId || !assignmentId || !Number.isFinite(mid)) {
     return (
-      <div className="assign-package-page">
-        <header className="assign-package-header">
-          <div className="assign-package-header-left">
-            <h1 className="assign-package-title">Exercise details</h1>
-            <p className="assign-package-subtitle">Missing route parameters.</p>
-          </div>
-        </header>
-        <hr className="assign-package-divider" />
-        <button
-          type="button"
-          className="assign-package-primary-btn"
-          onClick={navigateBackToSessionsList}
-        >
-          Back
-        </button>
+      <div className="up-page assign-package-session-page">
+        <div className="up-shell">
+          <header className="up-topbar">
+            <div>
+              <h1 className="up-page-title">Session exercises</h1>
+              <p className="up-page-subtitle">Missing route parameters.</p>
+            </div>
+            <div className="up-topbar-actions">
+              <button type="button" className="up-btn up-btn-back" onClick={navigateBackToSessionsList}>
+                Back
+              </button>
+            </div>
+          </header>
+          <hr className="up-divider" />
+        </div>
       </div>
     );
   }
 
   const metaInitial = metaLoading && !planMeta;
 
+  const pageTitle =
+    planMeta?.sessionTitle?.trim() ||
+    (metaLoading ? "Loading session…" : "Session exercises");
+
+  const subtitlePatient = patientLabelLoading ? "…" : patientLabel?.trim() || "—";
+  const subtitleParts: string[] = [];
+  if (subtitlePatient !== "…") subtitleParts.push(subtitlePatient);
+  if (planMeta?.planTitle?.trim()) subtitleParts.push(planMeta.planTitle.trim());
+  const pageSubtitle = subtitleParts.length > 0 ? subtitleParts.join(" · ") : "—";
+
   return (
-    <div className="assign-package-page">
-      <header className="assign-package-header">
-        <div className="assign-package-header-left">
-          <h1 className="assign-package-title">Exercise details</h1>
+    <div className="up-page assign-package-session-page">
+      <div className="up-shell">
+        <header className="up-topbar">
+          <div>
+            <h1 className="up-page-title">{pageTitle}</h1>
+            <p className="up-page-subtitle">{patientLabelLoading ? "…" : pageSubtitle}</p>
+          </div>
+          <div className="up-topbar-actions">
+            <button type="button" className="up-btn up-btn-back" onClick={navigateBackToSessionsList}>
+              Back
+            </button>
+          </div>
+        </header>
+
+        <hr className="up-divider" />
+
+        <div className="up-feedback" aria-live="polite">
+          {metaError ? (
+            <p className="up-inline-error" role="alert">
+              {metaError}
+            </p>
+          ) : null}
         </div>
-        <button
-          type="button"
-          className="assign-package-primary-btn"
-          onClick={navigateBackToSessionsList}
-        >
-          Back to sessions
-        </button>
-      </header>
-
-      <hr className="assign-package-divider" />
-
-      <AssignContextStrip
-        patientLabel={patientLabel}
-        patientLoading={patientLabelLoading}
-        planName={planMeta?.planTitle ?? null}
-        sessionName={planMeta?.sessionTitle ?? null}
-      />
-
-      {metaError && (
-        <p className="assign-package-status error" role="alert">
-          {metaError}
-        </p>
-      )}
-      {metaInitial && !metaError && (
-        <LoadingHint message="Loading session and plan details…" />
-      )}
-
-      <section style={{ marginBottom: 28 }}>
-        <h2 className="assign-package-title" style={{ fontSize: 20 }}>
-          Exercises
-        </h2>
-        {exercisesError && (
-          <p className="assign-package-status error" role="alert">
-            {exercisesError}
-          </p>
+        {metaInitial && !metaError && (
+          <LoadingHint message="Loading session and plan details…" />
         )}
-        {exercisesSuccess && !exercisesError && (
-          <p className="assign-package-status success" role="status">
-            {exercisesSuccess}
-          </p>
-        )}
-        {exercisesLoading && (
-          <LoadingHint message="Loading exercises for this patient…" />
-        )}
-        {!exercisesLoading && exercises.length === 0 && (
-          <p className="assign-package-status">No exercises in this session yet.</p>
-        )}
-        {!exercisesLoading && exercises.length > 0 && (
+
+        <section className="assign-session-section">
+          <div className="up-session-group-header">
+            <h2 className="up-group-title">Exercises</h2>
+          </div>
+          {exercisesError ? (
+            <p className="up-inline-error" role="alert">
+              {exercisesError}
+            </p>
+          ) : null}
+          {exercisesSuccess && !exercisesError ? (
+            <p className="up-inline-success" role="status">
+              {exercisesSuccess}
+            </p>
+          ) : null}
+          {exercisesLoading && (
+            <LoadingHint message="Loading exercises for this patient…" />
+          )}
+          {!exercisesLoading && exercises.length === 0 && (
+            <p className="up-inline-hint">No exercises in this session yet.</p>
+          )}
+          {!exercisesLoading && exercises.length > 0 && (
           <div className="patient-session-exercises-grid" role="list" aria-label="Exercises">
             {exercises.map((row) => (
               <article
@@ -706,7 +721,7 @@ export default function AssignPackagePatientSession() {
                         {row.kind === "template" ? (
                           <button
                             type="button"
-                            className="assign-package-primary-btn"
+                            className="up-btn up-btn-save"
                             onClick={() => void saveTemplateOverrides(row.rowId)}
                             disabled={
                               savingRowId === row.rowId ||
@@ -719,7 +734,7 @@ export default function AssignPackagePatientSession() {
                         ) : (
                           <button
                             type="button"
-                            className="assign-package-primary-btn"
+                            className="up-btn up-btn-save"
                             onClick={() => void saveAddedOverrides(row.rowId)}
                             disabled={
                               savingRowId === row.rowId ||
@@ -732,7 +747,7 @@ export default function AssignPackagePatientSession() {
                         )}
                         <button
                           type="button"
-                          className="assign-package-danger-btn"
+                          className="up-btn up-btn-delete"
                           onClick={() => {
                             setExercisesSuccess("");
                             setExerciseRemoveTarget({
@@ -750,50 +765,47 @@ export default function AssignPackagePatientSession() {
                 </div>
               </article>
             ))}
-          </div>
-        )}
-      </section>
+            </div>
+          )}
+        </section>
 
-      <section className="patient-session-add-exercises">
-        <div className="create-session-panel-body" style={{ paddingTop: 0 }}>
-          <div className="create-session-exercises-toolbar">
-            <div className="create-session-exercises-heading">
-              <h2 className="assign-package-title create-session-select-title" style={{ fontSize: 20 }}>
-                Add Exercise
-              </h2>
-              <span className="create-session-exercises-total">
-                {exercisePickerList.length} Exercises
-              </span>
+        <section className="patient-session-add-exercises assign-session-section">
+          <div className="create-session-panel-body" style={{ paddingTop: 0 }}>
+            <div className="create-session-exercises-toolbar">
+              <div className="create-session-exercises-heading">
+                <h2 className="up-group-title create-session-select-title">Add exercise</h2>
+                <span className="create-session-exercises-total">
+                  {exercisePickerList.length} Exercises
+                </span>
+              </div>
+              <div className="plan-search-wrapper">
+                <span className="plan-search-icon" aria-hidden>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="icon"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
+                    />
+                  </svg>
+                </span>
+                <input
+                  type="text"
+                  className="plan-search-bar"
+                  placeholder="Search"
+                  value={exerciseSearch}
+                  onChange={(e) => setExerciseSearch(e.target.value)}
+                  disabled={exercisePickerLoading || addingBusy}
+                  aria-label="Search exercises"
+                />
+              </div>
             </div>
-            <div className="create-session-search-wrapper create-session-search-wrapper--toolbar">
-              <span className="create-session-search-icon" aria-hidden>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2}
-                  stroke="currentColor"
-                  width="18"
-                  height="18"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M21 21l-4.35-4.35m1.6-4.15a7.5 7.5 0 11-15 0 7.5 7.5 0 0115 0z"
-                  />
-                </svg>
-              </span>
-              <input
-                type="text"
-                className="create-session-search-input"
-                placeholder="Search"
-                value={exerciseSearch}
-                onChange={(e) => setExerciseSearch(e.target.value)}
-                disabled={exercisePickerLoading || addingBusy}
-                aria-label="Search exercises"
-              />
-            </div>
-          </div>
 
           <hr className="create-session-exercises-divider" />
 
@@ -845,34 +857,35 @@ export default function AssignPackagePatientSession() {
                 </div>
               );
             })
-          )}
-        </div>
-      </section>
+            )}
+          </div>
+        </section>
 
-      <ConfirmDialog
-        open={exerciseRemoveTarget != null}
-        title="Remove exercise for this user?"
-        message={
-          exerciseRemoveTarget
-            ? `Remove “${exerciseRemoveTarget.title}” from this session for this user? This won’t change the global exercise library.`
-            : ""
-        }
-        confirmLabel="Remove"
-        cancelLabel="Cancel"
-        variant="danger"
-        busy={
-          exerciseRemoveTarget != null &&
-          savingRowId === exerciseRemoveTarget.rowId
-        }
-        onConfirm={() => {
-          if (exerciseRemoveTarget) {
-            void executeRemoveExercise(exerciseRemoveTarget.rowId);
+        <ConfirmDialog
+          open={exerciseRemoveTarget != null}
+          title="Remove exercise for this user?"
+          message={
+            exerciseRemoveTarget
+              ? `Remove “${exerciseRemoveTarget.title}” from this session for this user? This won’t change the global exercise library.`
+              : ""
           }
-        }}
-        onCancel={() => {
-          if (savingRowId === null) setExerciseRemoveTarget(null);
-        }}
-      />
+          confirmLabel="Remove"
+          cancelLabel="Cancel"
+          variant="danger"
+          busy={
+            exerciseRemoveTarget != null &&
+            savingRowId === exerciseRemoveTarget.rowId
+          }
+          onConfirm={() => {
+            if (exerciseRemoveTarget) {
+              void executeRemoveExercise(exerciseRemoveTarget.rowId);
+            }
+          }}
+          onCancel={() => {
+            if (savingRowId === null) setExerciseRemoveTarget(null);
+          }}
+        />
+      </div>
     </div>
   );
 }

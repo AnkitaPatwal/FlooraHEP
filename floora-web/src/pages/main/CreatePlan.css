@@ -1,31 +1,315 @@
-/* Create Plan reuses Create Session v2 layout; these are plan-specific tweaks only */
+/* Create Plan: mock layout + session cards aligned with Plans page cards */
 
 .create-plan-page--unified {
   min-width: 0;
-}
-
-.create-plan-meta-wide {
-  max-width: min(640px, 100%);
-}
-
-.create-plan-page--unified .create-session-unified .input-group textarea {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 10px 14px;
-  font-size: 15px;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
   color: #1f2937;
-  background: #f9fafb;
-  outline: none;
-  resize: vertical;
-  min-height: 100px;
-  font-family: inherit;
-  line-height: 1.45;
+  padding-top: 4px;
 }
 
-.create-plan-page--unified .create-session-unified .input-group textarea:focus {
+/* Header: title left, Back/Save top-right; extra space before hero */
+.create-plan-page--unified .create-plan-page-header.create-session-header--v2 {
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 48px;
+  gap: 24px;
+}
+
+.create-plan-page--unified .create-plan-page-header .create-session-header-right {
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.create-plan-page--unified .create-plan-page-header .create-session-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: #1f2937;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Back = outlined teal (mock); Save stays solid teal from base */
+.create-plan-page--unified .create-plan-back-btn.back-btn--v2 {
+  color: #5a8e93;
   border-color: #5a8e93;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(90, 142, 147, 0.18);
+}
+
+.create-plan-page--unified .create-plan-back-btn.back-btn--v2:hover:not(:disabled) {
+  background: #f0f6f6;
+  border-color: #5a8e93;
+  color: #4f7d81;
+}
+
+.create-plan-page--unified .create-session-header-right .create-plan-back-btn,
+.create-plan-page--unified .create-session-header-right .create-plan-save-btn {
+  border-radius: 6px;
+  min-width: 92px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+}
+
+.create-plan-page--unified .create-session-header-right .create-plan-save-btn {
+  border: none;
+  background-color: #5a8e93;
+  color: #ffffff;
+}
+
+.create-plan-page--unified .create-session-header-right .create-plan-save-btn:hover:not(:disabled) {
+  background-color: #4f7d81;
+}
+
+.create-plan-page--unified .create-session-header-right .create-plan-save-btn:disabled {
+  opacity: 0.65;
+}
+
+/* Edit plan: Delete matches Back / Save footprint */
+.create-plan-page--unified .create-session-header-right .delete-btn {
+  min-width: 92px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Hero: explicit 2-column grid — card left, form right */
+.create-plan-page--unified .create-session-panel-hero.create-plan-panel-hero {
+  display: grid;
+  grid-template-columns: minmax(260px, min(380px, 42vw)) minmax(0, 1fr);
+  align-items: start;
+  column-gap: clamp(32px, 5vw, 72px);
+  row-gap: 32px;
+  padding-bottom: 48px;
+}
+
+@media (max-width: 768px) {
+  .create-plan-page--unified .create-session-panel-hero.create-plan-panel-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+.create-plan-stack-visual {
+  width: 100%;
+  max-width: 440px;
+  margin: 12px auto 0;
+  justify-self: center;
+}
+
+.create-plan-stack-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.create-plan-hero-fields {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+}
+
+.create-plan-page--unified .create-plan-hero-fields.create-session-meta-fields--stacked {
+  gap: 28px;
+}
+
+.create-plan-page--unified .create-plan-hero-fields .input-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 8px;
+}
+
+.create-plan-page--unified .create-session-panel-body {
+  padding-top: 56px;
+}
+
+/* Light gray fields — taller, wider feel */
+.create-plan-page--unified .create-session-unified .input-group input {
+  border: none;
+  border-radius: 10px;
+  background: #f2f2f2;
+  padding: 14px 16px;
+  min-height: 48px;
+  font-size: 15px;
+  box-shadow: none;
+  width: 100%;
+}
+
+.create-plan-page--unified .create-session-unified .input-group input:focus {
+  background: #ebebeb;
+  box-shadow: none;
+}
+
+.create-plan-page--unified .create-session-unified .input-group input::placeholder {
+  color: #9ca3af;
+}
+
+/* Title / Category: shorter field width (not full column) */
+.create-plan-page--unified .create-plan-hero-fields .input-group input {
+  max-width: min(560px, 100%);
+}
+
+.create-plan-page--unified .create-session-exercises-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  width: 100%;
+}
+
+.create-plan-page--unified .create-session-exercises-heading {
+  flex: 1;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.create-plan-page--unified .create-session-select-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.create-plan-page--unified .create-session-exercises-total {
+  font-size: 15px;
+  font-weight: 400;
+  color: #9ca3af;
+  white-space: nowrap;
+}
+
+.create-plan-page--unified .create-session-category-heading {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.create-plan-page--unified .create-session-category-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.create-plan-page--unified .create-session-exercises-divider {
+  margin: 28px 0 28px;
+  border-top-color: #e5e7eb;
+}
+
+/* Session grid: up to 4 columns on wide layouts */
+.create-plan-page--unified .create-session-exercise-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 24px;
+}
+
+@media (max-width: 1200px) {
+  .create-plan-page--unified .create-session-exercise-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .create-plan-page--unified .create-session-exercise-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .create-plan-page--unified .create-session-exercise-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Session cards — same structure as Plans page `.plan-card` (2px border avoids layout shift when selected) */
+.create-plan-page--unified .create-session-exercise-card {
+  padding: 12px;
+  padding-bottom: 14px;
+  gap: 12px;
+  border-radius: 10px;
+  border: 2px solid #dcdcdc;
+  background-color: #f4f5f6;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  overflow: visible;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.create-plan-page--unified .create-session-exercise-card:hover:not(.is-selected) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
+  border-color: #bfbfbf;
+}
+
+/* Selected = mint fill + teal border (mock “green” selection) */
+.create-plan-page--unified .create-session-exercise-card.is-selected {
+  border-color: #5a8e93;
+  background-color: #ecfdf5;
+  box-shadow: 0 1px 3px rgba(90, 142, 147, 0.12);
+}
+
+.create-plan-page--unified .create-session-exercise-card.is-selected:hover {
+  transform: translateY(-1px);
+}
+
+.create-plan-page--unified .create-session-exercise-card-img {
+  border-radius: 8px;
+  aspect-ratio: 4 / 3;
+  background-color: #e8e8ea;
+}
+
+.create-plan-page--unified .create-session-exercise-card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  gap: 6px;
+}
+
+.create-plan-page--unified .create-session-exercise-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.create-plan-page--unified .create-session-exercise-card-cat {
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  margin: 0;
+}
+
+.create-plan-page--unified .create-session-exercise-card-tag {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 6px 12px;
+  gap: 6px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  background-color: #d8f0ed;
+  color: #0d9488;
+}
+
+.create-plan-page--unified .create-session-pulse-icon {
+  width: 14px;
+  height: 14px;
 }

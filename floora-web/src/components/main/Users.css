@@ -20,7 +20,7 @@
     flex-direction: column;
     gap: 8px;
   }
-  
+
   .user-title {
     font-size: 28px;
     font-weight: 700;
@@ -33,21 +33,6 @@
     color: #6b7280;
     margin: 0;
   }
-  
-  /* === New User button (matches Exercise button) === */
-  .new-user-btn {
-    background-color: #5a8e93;
-    color: #fff;
-    border: none;
-    padding: 8px 20px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    width: fit-content;
-    transition: background-color 0.2s ease;
-  }
-  .new-user-btn:hover { background-color: #4f7d81; }
   
   /* === Divider === */
   .user-divider {
@@ -92,116 +77,146 @@
     color: #1f2937;
     margin-bottom: 16px;
   }
-  
-  /* --- Active section header with search on the right (desktop only) --- */
-  .user-section-header {
-    display: grid;
-    grid-template-columns: 1fr auto; /* title grows, search stays tight */
-    align-items: end;
-    column-gap: 16px;
-    margin-bottom: 16px;
-    flex-wrap: nowrap;
-  }
-  .user-section-title {
-    margin: 0;                /* avoid extra height that could push wrapping */
-    white-space: nowrap;      /* desktop-only: keep on one line */
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 
   /* Only increase space under the Pending Users header */
 #pending-users-title.user-section-title {
     margin-bottom: 24px;
   }
-  
-  .user-section-header .user-search-wrap {
+
+  /* Active Users: title + search on one row (search right-aligned with grid below) */
+  .user-section-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    column-gap: 16px;
+    margin-bottom: 24px;
+    min-width: 0;
+  }
+
+  .user-section-header .user-section-title {
+    margin: 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Same footprint as `.plan-search-bar` on Exercises / Plans (PlanSearchField.css) */
+  .user-section-header .plan-search-wrapper {
     position: relative;
-    width: 340px;             /* fixed desktop width */
-    min-width: 340px;
+    width: 580px;
+    max-width: min(580px, 100%);
+    flex-shrink: 0;
+    box-sizing: border-box;
   }
-  .user-section-header .user-search-input {
+
+  .user-section-header .plan-search-bar {
     width: 100%;
+    max-width: none;
+    box-sizing: border-box;
   }
-  .user-section-header > * { min-width: 0; }
   
-  /* === Grid (matches exercise-grid sizing) === */
+  /* === Grid — four columns on wide layouts like reference === */
   .user-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 28px;
+    gap: 24px;
+  }
+
+  @media (min-width: 1200px) {
+    .user-section--active .user-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
   
-  /* === User Card (parallels exercise-card) === */
+  /* === User Card — light tile, centered stack (Users reference) === */
   .user-card {
-    background-color: #ffffff;
+    background-color: #f8f9fa;
     border-radius: 10px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-    transition: all 0.2s ease;
+    border: 1px solid #ededed;
+    box-shadow: 0 1px 5px rgba(15, 23, 42, 0.04);
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
     cursor: pointer;
     overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 190px;
-    border: 1px solid rgba(0,0,0,0.06);
+    min-height: 256px;
+    padding: 28px 20px;
+    box-sizing: border-box;
   }
   .user-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    border-color: #e0e0e0;
+    box-shadow:
+      0 3px 10px rgba(15, 23, 42, 0.055),
+      0 1px 3px rgba(15, 23, 42, 0.03);
   }
-  
+
   .user-card-inner {
-    display: grid;
-    justify-items: center;
-    gap: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
   }
-  
-  .user-avatar-wrap { display: grid; place-items: center; }
-  
-  .user-avatar-img {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    object-fit: cover;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.12);
+
+  .user-avatar-wrap {
+    display: flex;
+    justify-content: center;
   }
-  
-  /* fallback initials avatar */
-  .user-avatar-fallback {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    display: grid;
-    place-items: center;
-    background: #e9f2f1;
-    color: #3b756e;
-    font-weight: 700;
-    font-size: 22px;
-    border: 1px solid rgba(0,0,0,0.05);
+
+  .user-card-text {
+    text-align: center;
+    min-width: 0;
+    width: 100%;
   }
-  
-  .user-card-text { text-align: center; }
-  
+
   .user-card-name {
-    font-size: 15px;
-    font-weight: 600;
-    color: #1f2937;
-    margin: 0 0 4px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 8px 0;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
   }
-  
-  .user-card-muted {
+
+  .user-card-plan {
+    font-size: 14px;
+    font-weight: 400;
+    color: #4b5563;
+    margin: 0 0 6px 0;
+    line-height: 1.4;
+  }
+
+  .user-card-plan--email {
+    word-break: break-word;
+  }
+
+  .user-card-session {
     font-size: 12px;
-    color: #999;
+    font-weight: 400;
+    color: #9ca3af;
     margin: 0;
-    line-height: 1.2;
+    line-height: 1.35;
   }
 
   .user-card-email {
     font-size: 13px;
-    color: #5a8e93;
-    margin: 0;
-    line-height: 1.3;
+    font-weight: 400;
+    color: #4b5563;
+    margin: 0 0 6px 0;
+    line-height: 1.35;
     word-break: break-word;
+  }
+
+  .user-card-muted {
+    font-size: 12px;
+    font-weight: 500;
+    color: #9ca3af;
+    margin: 4px 0 0 0;
+    line-height: 1.35;
   }
 
   .user-error-wrap {
@@ -241,45 +256,8 @@
     background: #4f7d81;
   }
   
-  /* === Search styles (same look/feel as exercise search) === */
-  .user-search-wrap {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-  
-  .user-search-icon {
-    position: absolute;
-    left: 14px;
-    color: #9ca3af;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  
-  .user-search-svg {
-    width: 18px;
-    height: 18px;
-  }
-  
-  .user-search-input {
-    border: 1px solid #d1d5db;
-    border-radius: 25px;
-    padding: 10px 14px 10px 44px;
-    width: 340px; /* default width if used elsewhere */
-    font-size: 15px;
-    color: #4b5563;
-    background-color: #ffffff;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05), inset 0 1px 2px rgba(255,255,255,0.3);
-    transition: all 0.2s ease;
-  }
-  .user-search-input::placeholder { color: #9ca3af; }
-  .user-search-input:focus {
-    outline: none;
-    border-color: #bcd1d1;
-    box-shadow: 0 0 0 2px rgba(90,142,147,0.2);
-  }
-  
+  /* Search: shared `PlanSearchField.css` (`.plan-search-*`) */
+
   /* === Empty state === */
   .user-empty {
     grid-column: 1 / -1;
@@ -292,5 +270,26 @@
   /* (Optional legacy) standalone search row — safe to remove if unused */
   .user-search-row {
     display: none;
+  }
+
+  @media (max-width: 640px) {
+    .user-section-header {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .user-section-header .user-section-title {
+      white-space: normal;
+    }
+
+    .user-section-header .plan-search-wrapper {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .user-section-header .plan-search-bar {
+      width: 100%;
+      max-width: none;
+    }
   }
   

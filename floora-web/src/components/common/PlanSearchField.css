@@ -1,0 +1,78 @@
+/* Shared search field — same as Plans page (`.plan-search-*`) */
+
+.plan-header-right {
+  display: flex;
+  align-items: flex-end;
+}
+
+.plan-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.plan-search-icon {
+  position: absolute;
+  left: 14px;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.plan-search-icon .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.plan-search-bar {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px 10px 42px;
+  width: 340px;
+  max-width: min(340px, 100%);
+  min-height: 44px;
+  box-sizing: border-box;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #4b5563;
+  background-color: #f6f7f9;
+  box-shadow: none;
+  transition: background-color 0.15s ease;
+}
+
+.plan-search-bar::placeholder {
+  color: #9ca3af;
+}
+
+.plan-search-bar:focus {
+  outline: none;
+  background-color: #eceef2;
+}
+
+.plan-search-bar:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Create Plan / Create Session toolbars — wider field, same look */
+.plan-search-wrapper--toolbar {
+  flex: 0 1 480px;
+  max-width: min(480px, 100%);
+  width: 100%;
+  min-width: 0;
+}
+
+.plan-search-wrapper--toolbar .plan-search-bar {
+  width: 100%;
+  max-width: none;
+}
+
+@media (max-width: 560px) {
+  .plan-search-wrapper--toolbar {
+    flex: 1 1 100%;
+    max-width: 100%;
+  }
+}

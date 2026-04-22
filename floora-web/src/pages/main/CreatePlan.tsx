@@ -4,9 +4,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
 import sessionImg from "../../assets/exercise.jpg";
+import "../../components/common/PlanSearchField.css";
 import "./CreateSession.css";
 import "./CreatePlan.css";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { StackedCardIllustration } from "../../components/main/StackedCardIllustration";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -57,76 +59,6 @@ function moduleThumbnail(m: PlanModule): string {
 function activeUsersLabel(count: number | null | undefined): string {
   if (count === null || count === undefined) return "—";
   return count === 1 ? "1 Active User" : `${count} Active Users`;
-}
-
-/** Stacked cards; center number = sessions currently selected for the plan. */
-function PlanStackIllustration({ selectedCount }: { selectedCount: number }) {
-  const label =
-    selectedCount === 0
-      ? "No sessions selected"
-      : selectedCount === 1
-        ? "1 session selected"
-        : `${selectedCount} sessions selected`;
-  const digits = String(selectedCount);
-  const fontSize = digits.length > 2 ? 28 : digits.length > 1 ? 36 : 44;
-
-  return (
-    <div
-      className="create-session-stack-visual"
-      aria-live="polite"
-      aria-label={label}
-    >
-      <svg
-        className="create-session-stack-svg"
-        viewBox="0 0 200 168"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <rect
-          x="28"
-          y="36"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#e5e7eb"
-          strokeWidth="2"
-        />
-        <rect
-          x="20"
-          y="24"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#d1d5db"
-          strokeWidth="2"
-        />
-        <rect
-          x="12"
-          y="12"
-          width="132"
-          height="100"
-          rx="12"
-          fill="#fff"
-          stroke="#5a8e93"
-          strokeWidth="2"
-        />
-        <text
-          x="78"
-          y="64"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fill="#5a8e93"
-          fontSize={fontSize}
-          fontWeight="700"
-          fontFamily="system-ui, Segoe UI, sans-serif"
-        >
-          {digits}
-        </text>
-      </svg>
-    </div>
-  );
 }
 
 export default function CreatePlan() {
@@ -270,6 +202,10 @@ export default function CreatePlan() {
     });
   }, [modulesByCategory]);
 
+  const totalExerciseCount = useMemo(() => {
+    return modules.reduce((n, m) => n + (m.module_exercise?.length ?? 0), 0);
+  }, [modules]);
+
   const selectedSet = useMemo(() => new Set(selectedModuleIds), [selectedModuleIds]);
 
   const toggleModule = (moduleId: number) => {
@@ -282,10 +218,11 @@ export default function CreatePlan() {
   };
 
   const handleSave = async () => {
-    if (!title.trim() || !description.trim()) {
-      setError("Title and description are required.");
+    if (!title.trim()) {
+      setError("Title is required.");
       return;
     }
+    const descriptionForApi = description.trim() || title.trim();
 
     setIsSaving(true);
     setError(null);
@@ -296,7 +233,7 @@ export default function CreatePlan() {
       const categoryId = await ensureCategoryId(categoryName);
       const payload = {
         title: title.trim(),
-        description: description.trim(),
+        description: descriptionForApi,
         categoryId,
         moduleIds: selectedModuleIds,
       };
@@ -342,7 +279,10 @@ export default function CreatePlan() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete plan");
-      navigate("/plan-dashboard", { replace: true });
+      navigate("/plan-dashboard", {
+        replace: true,
+        state: { deletedPlan: true },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete plan");
     } finally {
@@ -356,21 +296,13 @@ export default function CreatePlan() {
   return (
     <AppLayout>
       <div className="create-session-page create-session-page--v2 create-plan-page--unified">
-        <header className="create-session-header create-session-header--v2">
+        <header className="create-session-header create-session-header--v2 create-plan-page-header">
           <div className="create-session-header-left">
             <h1 className="create-session-title">
               {isEditMode ? "Edit Plan" : "Create New Plan"}
             </h1>
           </div>
           <div className="create-session-header-right">
-            <button
-              type="button"
-              className="back-btn back-btn--v2"
-              onClick={() => navigate("/plan-dashboard")}
-              disabled={isSaving || deleting}
-            >
-              Back
-            </button>
             {isEditMode ? (
               !deleteConfirm ? (
                 <button
@@ -385,9 +317,17 @@ export default function CreatePlan() {
             ) : null}
             <button
               type="button"
-              className="save-btn"
+              className="back-btn back-btn--v2 create-plan-back-btn"
+              onClick={() => navigate("/plan-dashboard")}
+              disabled={isSaving || deleting}
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              className="save-btn create-plan-save-btn"
               onClick={handleSaveClick}
-              disabled={isSaving || pageBusy || !title.trim() || !description.trim()}
+              disabled={isSaving || pageBusy || !title.trim()}
             >
               {isSaving ? "Saving…" : "Save"}
             </button>
@@ -401,9 +341,12 @@ export default function CreatePlan() {
           <p>Loading plan…</p>
         ) : (
           <div className="create-session-unified">
-            <div className="create-session-panel-hero">
-              <PlanStackIllustration selectedCount={selectedModuleIds.length} />
-              <div className="create-session-meta-fields create-session-meta-fields--stacked create-plan-meta-wide">
+            <div className="create-session-panel-hero create-plan-panel-hero">
+              <StackedCardIllustration
+                variant="plan"
+                selectedCount={selectedModuleIds.length}
+              />
+              <div className="create-session-meta-fields create-session-meta-fields--stacked create-plan-hero-fields">
                 <div className="input-group">
                   <label htmlFor="plan-title-v2">Title of Plan</label>
                   <input
@@ -412,16 +355,6 @@ export default function CreatePlan() {
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Title"
-                  />
-                </div>
-                <div className="input-group">
-                  <label htmlFor="plan-description-v2">Description</label>
-                  <textarea
-                    id="plan-description-v2"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe this plan…"
-                    rows={4}
                   />
                 </div>
                 <div className="input-group">
@@ -442,19 +375,19 @@ export default function CreatePlan() {
                 <div className="create-session-exercises-heading">
                   <h2 className="create-session-select-title">Select Sessions</h2>
                   <span className="create-session-exercises-total">
-                    {modules.length} Sessions
+                    {totalExerciseCount}{" "}
+                    {totalExerciseCount === 1 ? "Exercise" : "Exercises"}
                   </span>
                 </div>
-                <div className="create-session-search-wrapper create-session-search-wrapper--toolbar">
-                  <span className="create-session-search-icon" aria-hidden>
+                <div className="plan-search-wrapper plan-search-wrapper--toolbar">
+                  <span className="plan-search-icon" aria-hidden>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
-                      strokeWidth={2}
+                      strokeWidth={1.5}
                       stroke="currentColor"
-                      width="18"
-                      height="18"
+                      className="icon"
                     >
                       <path
                         strokeLinecap="round"
@@ -465,7 +398,7 @@ export default function CreatePlan() {
                   </span>
                   <input
                     type="text"
-                    className="create-session-search-input"
+                    className="plan-search-bar"
                     placeholder="Search"
                     value={sessionSearch}
                     onChange={(e) => setSessionSearch(e.target.value)}
@@ -499,6 +432,7 @@ export default function CreatePlan() {
                               key={m.module_id}
                               type="button"
                               className={`create-session-exercise-card${selected ? " is-selected" : ""}`}
+                              aria-pressed={selected}
                               onClick={() => toggleModule(m.module_id)}
                             >
                               <img
@@ -531,8 +465,8 @@ export default function CreatePlan() {
 
       <ConfirmDialog
         open={deleteConfirm}
-        title="Are you sure you want to delete this plan?"
-        message="This will permanently remove the plan from the library."
+        title="Remove Plan"
+        message="Are you sure you want to delete this plan?"
         confirmLabel="Delete"
         variant="danger"
         busy={deleting}

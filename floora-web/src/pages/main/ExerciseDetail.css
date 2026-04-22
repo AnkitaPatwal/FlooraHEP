@@ -1,79 +1,42 @@
-/* === Exercise Detail Page === */
-.message-banner {
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 16px;
-  font-weight: 500;
-}
-.message-banner.error-banner {
-  background-color: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
-}
-.message-banner.success-banner {
-  background-color: #f0fdf4;
-  color: #166534;
-  border: 1px solid #bbf7d0;
+/* Exercise detail — matches Edit User shell (`up-page` / `up-shell`). */
+
+.exercise-detail-page-up.up-page {
+  background: #ffffff;
+  min-height: 0;
 }
 
+.exercise-detail-page-up .exercise-detail-body {
+  max-width: 920px;
+  width: 100%;
+}
+
+/* Legacy class kept for any older imports */
 .exercise-detail-page {
-  padding-bottom: 48px;
   box-sizing: border-box;
-  color: #1f2937;
-  min-height: 100vh;
-}
-
-.exercise-detail-loading,
-.exercise-detail-error {
-  padding: 40px 20px;
-  text-align: center;
-  color: #6b7280;
-}
-
-.exercise-detail-error {
-  color: #b91c1c;
-  margin-bottom: 16px;
-}
-
-.exercise-detail-main {
-  display: flex;
-  gap: 32px;
-  margin-top: 20px;
-  align-items: flex-start;
-}
-
-.exercise-detail-content {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
-.exercise-detail-header {
-  margin-bottom: 24px;
+.exercise-detail-body {
+  width: 100%;
 }
 
-.exercise-detail-back {
-  background: transparent;
-  border: 1px solid #5a8e93;
-  color: #5a8e93;
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.exercise-detail-back:hover {
-  background-color: #f0f6f6;
+.exercise-detail-error {
+  padding: 16px 0;
+  text-align: left;
+  color: #b91c1c;
+  margin-bottom: 16px;
+  font-size: 15px;
 }
 
 .exercise-detail-video-section {
-  margin-bottom: 24px;
-  border-radius: 10px;
+  margin-bottom: 28px;
+  border-radius: 12px;
   overflow: hidden;
   background: #000;
   aspect-ratio: 16 / 9;
-  max-width: 640px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .exercise-detail-video {
@@ -88,103 +51,105 @@
   text-align: center;
   color: #9ca3af;
   font-size: 15px;
+  background: #f3f4f6;
+}
+
+/* Info below video — minimal: type hierarchy + hairline sections */
+.exercise-detail-info {
+  margin-top: 2px;
+}
+
+.exercise-detail-info-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px 16px;
+  margin-bottom: 0;
 }
 
 .exercise-detail-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #1f2937;
-  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.exercise-detail-info-hero .exercise-detail-title {
+  margin-bottom: 0;
+  flex: 1 1 auto;
+  min-width: min(12rem, 100%);
 }
 
 .exercise-detail-category {
   font-size: 14px;
   color: #6b7280;
-  margin: 0 0 8px 0;
+  margin: 0;
+  font-weight: 400;
+  text-align: right;
+  flex: 0 1 auto;
+  max-width: min(100%, 14rem);
 }
 
-.exercise-detail-meta {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
+.exercise-detail-section {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid #e5e7eb;
 }
 
-.exercise-detail-meta-label {
-  font-weight: 600;
-  color: #6b7280;
+.exercise-detail-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #9ca3af;
+  margin: 0 0 6px 0;
 }
 
-.exercise-detail-meta-value {
-  color: #1f2937;
+.exercise-detail-value {
+  font-size: 15px;
+  color: #374151;
+  margin: 0;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
-.exercise-detail-description h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #1f2937;
-  margin: 0 0 8px 0;
-}
-
-.exercise-detail-description p {
+.exercise-detail-prose {
   font-size: 15px;
   line-height: 1.6;
   color: #4b5563;
   margin: 0;
+  max-width: 42rem;
 }
 
-/* === Actions Panel (right side) === */
-.exercise-detail-actions-panel {
-  flex-shrink: 0;
-  width: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
+.exercise-detail-info .exercise-assignment-counts-banner {
+  margin-top: 16px;
+  margin-bottom: 0;
 }
 
-.exercise-detail-actions-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.exercise-detail-edit-btn,
-.exercise-detail-delete-btn {
-  display: inline-block;
-  padding: 6px 14px;
-  border-radius: 6px;
-  font-weight: 600;
-  font-size: 14px;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
-}
-
-.exercise-detail-edit-btn {
-  background-color: #5a8e93;
-  color: #fff;
-}
-
-.exercise-detail-edit-btn:hover {
-  background-color: #4f7d81;
-}
-
-.exercise-detail-delete-btn {
-  background-color: transparent;
-  color: #b91c1c;
-  border: 1px solid #b91c1c;
-}
-
-.exercise-detail-delete-btn:hover {
-  background-color: #fef2f2;
+.exercise-detail-info .exercise-assignment-counts-banner + .exercise-detail-section {
+  margin-top: 20px;
+  padding-top: 20px;
 }
 
 @media (max-width: 768px) {
-  .exercise-detail-main {
-    flex-direction: column;
+  .exercise-detail-page .exercise-detail-toolbar.create-session-header,
+  .exercise-detail-page .exercise-detail-header--actions-right.create-session-header {
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
   }
 
-  .exercise-detail-actions-panel {
-    width: 100%;
+  .exercise-detail-page .exercise-detail-toolbar .create-session-header-right,
+  .exercise-detail-page .exercise-detail-header--actions-right .create-session-header-right {
+    width: auto;
+    max-width: 100%;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .exercise-detail-section {
+    margin-top: 18px;
+    padding-top: 18px;
   }
 }

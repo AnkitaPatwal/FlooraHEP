@@ -2,9 +2,18 @@ import AppLayout from "../../components/layouts/AppLayout";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase-client";
+import "../../pages/main/CreatePlan.css";
 import "./CreateExercise.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
+const MIN_SETS = 1;
+const MAX_SETS = 20;
+const MIN_REPS = 1;
+const MAX_REPS = 100;
+
+function sanitizeIntegerInput(value: string): string {
+  return value.replace(/[^\d]/g, "");
+}
 
 async function authHeaders(): Promise<HeadersInit> {
   const { data: { session } } = await supabase.auth.getSession();
@@ -75,7 +84,11 @@ const EditExercise: React.FC = () => {
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
+    const { name } = e.target;
+    let value = e.target.value;
+    if (name === "setCount" || name === "repCount") {
+      value = sanitizeIntegerInput(value);
+    }
     setExercise((prev) => ({ ...prev, [name]: value }));
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: "" }));
   };
@@ -90,6 +103,18 @@ const EditExercise: React.FC = () => {
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
+    const sets = exercise.setCount ? Number(exercise.setCount) : NaN;
+    const reps = exercise.repCount ? Number(exercise.repCount) : NaN;
+    if (!Number.isInteger(sets)) {
+      errors.setCount = "Sets must be a whole number";
+    } else if (sets < MIN_SETS || sets > MAX_SETS) {
+      errors.setCount = `Sets must be between ${MIN_SETS} and ${MAX_SETS}`;
+    }
+    if (!Number.isInteger(reps)) {
+      errors.repCount = "Reps must be a whole number";
+    } else if (reps < MIN_REPS || reps > MAX_REPS) {
+      errors.repCount = `Reps must be between ${MIN_REPS} and ${MAX_REPS}`;
+    }
     if (exercise.video) {
       const ext = exercise.video.name.split(".").pop()?.toLowerCase();
       if (!["mp4", "mov"].includes(ext || "")) errors.video = "Video must be .mp4 or .mov";
@@ -201,7 +226,7 @@ const EditExercise: React.FC = () => {
   if (loadingExercise) {
     return (
       <AppLayout>
-        <div className="create-exercise-page">
+        <div className="create-exercise-page create-plan-page--unified">
           <p>Loading exercise...</p>
         </div>
       </AppLayout>
@@ -210,15 +235,15 @@ const EditExercise: React.FC = () => {
 
   return (
     <AppLayout>
-      <div className="create-exercise-page">
+      <div className="create-exercise-page create-plan-page--unified">
         <header className="create-exercise-header">
           <div className="create-exercise-header-left">
             <h1 className="exercise-title">Edit Exercise</h1>
           </div>
-          <div className="create-exercise-header-right">
+          <div className="create-exercise-header-right create-session-header-right">
             <button
               type="button"
-              className="back-btn"
+              className="back-btn back-btn--v2 create-plan-back-btn"
               onClick={() => navigate(`/exercises/${id}`)}
               disabled={isSubmitting}
             >
@@ -226,7 +251,7 @@ const EditExercise: React.FC = () => {
             </button>
             <button
               type="submit"
-              className="save-btn"
+              className="save-btn create-plan-save-btn"
               form="edit-exercise-form"
               disabled={isSubmitting}
             >
@@ -271,6 +296,7 @@ const EditExercise: React.FC = () => {
             </div>
           </div>
 
+          <div className="create-exercise-fields">
           <div className={`input-group ${fieldErrors.title ? "error" : ""}`}>
             <label htmlFor="title">Title</label>
             <input
@@ -297,29 +323,33 @@ const EditExercise: React.FC = () => {
           </div>
 
           <div className="input-row">
-            <div className="input-group half">
+            <div className={`input-group half ${fieldErrors.setCount ? "error" : ""}`}>
               <label htmlFor="setCount">Set Count</label>
               <input
                 id="setCount"
-                type="number"
+                type="text"
                 name="setCount"
                 value={exercise.setCount}
                 onChange={handleChange}
                 placeholder="3"
-                min={1}
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
+              {fieldErrors.setCount && <div className="field-error">{fieldErrors.setCount}</div>}
             </div>
-            <div className="input-group half">
+            <div className={`input-group half ${fieldErrors.repCount ? "error" : ""}`}>
               <label htmlFor="repCount">Rep Count</label>
               <input
                 id="repCount"
-                type="number"
+                type="text"
                 name="repCount"
                 value={exercise.repCount}
                 onChange={handleChange}
                 placeholder="3"
-                min={1}
+                inputMode="numeric"
+                pattern="[0-9]*"
               />
+              {fieldErrors.repCount && <div className="field-error">{fieldErrors.repCount}</div>}
             </div>
           </div>
 
@@ -333,6 +363,7 @@ const EditExercise: React.FC = () => {
               placeholder="Describe how to perform this exercise..."
             />
             {fieldErrors.description && <div className="field-error">{fieldErrors.description}</div>}
+          </div>
           </div>
         </form>
       </div>

@@ -1,0 +1,201 @@
+/* Nested session picker — mirrors Tailwind-style layout tokens from design spec */
+
+.snd-root {
+  position: relative;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 176px;
+}
+
+.snd-trigger {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 9px;
+  border: 1px solid #d6d6d6;
+  background: #ffffff;
+  padding: 8px 16px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  outline: none;
+  box-shadow: none;
+  transition: background-color 0.12s ease;
+}
+
+.snd-trigger:hover:not(:disabled) {
+  background: #fafafa;
+}
+
+.snd-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.snd-trigger-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snd-chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: #666666;
+}
+
+.snd-layer {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 10px);
+  z-index: 960;
+  transform: translateX(-50%);
+}
+
+.snd-flyout {
+  position: relative;
+  display: inline-block;
+}
+
+.snd-categories {
+  width: 240px;
+  overflow: visible;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px 0;
+  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.14);
+  box-sizing: border-box;
+  outline: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.snd-category-slot {
+  position: relative;
+  margin: 0 8px 2px;
+}
+
+.snd-category-slot:last-child {
+  margin-bottom: 0;
+}
+
+.snd-category-row {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 8px;
+  border: none;
+  margin: 0;
+  padding: 8px 16px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  transition: background-color 0.12s ease;
+}
+
+.snd-category-row:hover,
+.snd-category-row:focus-visible {
+  background: #ddebec;
+  outline: none;
+}
+
+.snd-category-row.is-active {
+  background: #ddebec;
+}
+
+.snd-category-label {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.snd-category-arrow {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  color: #4b5563;
+  display: block;
+  align-self: center;
+}
+
+/* Submenu side: right = “left-full + 6px gap”, left = “right-full + 6px gap” (see computeSubmenuDirection) */
+.snd-submenu-anchor {
+  position: absolute;
+  top: 0;
+  z-index: 970;
+  box-sizing: border-box;
+}
+
+/* Open to the right of the category row (default): 6px gap + bridge for hover into submenu */
+.snd-submenu-anchor--right {
+  left: 100%;
+  right: auto;
+  padding-left: 6px;
+  padding-right: 0;
+}
+
+/* Open to the left when there isn’t enough space on the right */
+.snd-submenu-anchor--left {
+  right: 100%;
+  left: auto;
+  padding-right: 6px;
+  padding-left: 0;
+}
+
+.snd-submenu {
+  position: relative;
+  min-width: 200px;
+  max-width: 260px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #ffffff;
+  padding: 8px 0;
+  box-shadow: 0 12px 40px -8px rgba(0, 0, 0, 0.14);
+  box-sizing: border-box;
+  outline: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.snd-session-row {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  cursor: pointer;
+  border: none;
+  margin: 0;
+  padding: 8px 16px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333333;
+  transition: background-color 0.12s ease;
+}
+
+.snd-session-row:hover,
+.snd-session-row:focus-visible {
+  background: #ddebec;
+  outline: none;
+}
+
+.snd-empty {
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+}

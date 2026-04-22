@@ -1,6 +1,7 @@
 import AppLayout from "../../components/layouts/AppLayout";
 import "../../components/AdminInlineMessage.css";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
+import "../../components/common/PlanSearchField.css";
 import "../../components/main/Session.css";
 import {
   useCallback,
@@ -62,6 +63,9 @@ type Module = {
 type SessionsBanner =
   | { variant: "error"; message: string }
   | { variant: "success"; message: string };
+type SessionRouteState = {
+  deletedSession?: boolean;
+};
 
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
@@ -80,6 +84,8 @@ function Session() {
   const [banner, setBanner] = useState<SessionsBanner | null>(null);
   const [search, setSearch] = useState("");
   const expectSuccessAfterLoadRef = useRef(false);
+  const pendingDeletedBannerRef = useRef(false);
+  const handledDeletedStateKeyRef = useRef<string | null>(null);
   const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -136,6 +142,19 @@ function Session() {
 
       setModules(body as Module[]);
 
+      if (pendingDeletedBannerRef.current) {
+        pendingDeletedBannerRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Session deleted successfully." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+        return;
+      }
+
       if (expectSuccessAfterLoadRef.current) {
         expectSuccessAfterLoadRef.current = false;
         if (successDismissTimerRef.current) {
@@ -162,6 +181,17 @@ function Session() {
     expectSuccessAfterLoadRef.current = true;
     void loadModules();
   }, [loadModules]);
+
+  useEffect(() => {
+    const routeState = (location.state as SessionRouteState | null) ?? null;
+    if (
+      routeState?.deletedSession &&
+      handledDeletedStateKeyRef.current !== location.key
+    ) {
+      handledDeletedStateKeyRef.current = location.key;
+      pendingDeletedBannerRef.current = true;
+    }
+  }, [location.key, location.state]);
 
   useEffect(() => {
     void loadModules();
@@ -222,13 +252,13 @@ function Session() {
             </Link>
           </div>
           <div className="session-header-right">
-            <div className="session-search-wrapper">
-              <span className="session-search-icon">
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -241,8 +271,8 @@ function Session() {
               </span>
               <input
                 type="text"
-                className="session-search-bar"
-                placeholder="Search sessions"
+                className="plan-search-bar"
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

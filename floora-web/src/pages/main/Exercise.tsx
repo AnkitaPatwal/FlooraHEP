@@ -1,7 +1,9 @@
 import AppLayout from "../../components/layouts/AppLayout";
+import "../../components/AdminInlineMessage.css";
 import { AssignmentPulseIcon } from "../../components/icons/AssignmentPulseIcon";
+import "../../components/common/PlanSearchField.css";
 import "../../components/main/Exercise.css";
-import { useState, useEffect, useSyncExternalStore } from "react";
+import { useState, useEffect, useSyncExternalStore, useRef, useCallback } from "react";
 import exerciseImg from "../../assets/exercise.jpg";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
@@ -41,8 +43,8 @@ export interface Exercise {
   assigned_user_count?: number | null;
 }
 
-function clientsAssignedLabel(count: number): string {
-  return count === 1 ? "1 client assigned" : `${count} clients assigned`;
+function activeUsersLabel(count: number): string {
+  return count === 1 ? "1 Active User" : `${count} Active Users`;
 }
 
 /** List grouping + card subtitle: API stores category as `body_part`; prefer `category` if present. */
@@ -65,13 +67,51 @@ function ExerciseDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [assignmentCountsError, setAssignmentCountsError] = useState(false);
   const [assignmentCountsRpcUnavailable, setAssignmentCountsRpcUnavailable] = useState(false);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const handledDeletedStateKeyRef = useRef<string | null>(null);
+  const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const dismissSuccessBanner = useCallback(() => {
+    if (successDismissTimerRef.current) {
+      clearTimeout(successDismissTimerRef.current);
+      successDismissTimerRef.current = null;
+    }
+    setSuccessBanner(null);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successDismissTimerRef.current) {
+        clearTimeout(successDismissTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
+
+  useEffect(() => {
+    const routeState = (location.state as { deletedExercise?: boolean } | null) ?? null;
+    if (
+      !routeState?.deletedExercise ||
+      handledDeletedStateKeyRef.current === location.key
+    ) {
+      return;
+    }
+    handledDeletedStateKeyRef.current = location.key;
+    if (successDismissTimerRef.current) {
+      clearTimeout(successDismissTimerRef.current);
+    }
+    setSuccessBanner("Exercise deleted successfully.");
+    successDismissTimerRef.current = setTimeout(() => {
+      setSuccessBanner(null);
+      successDismissTimerRef.current = null;
+    }, 4000);
+  }, [location.key, location.state]);
 
   useEffect(() => {
     const fetchExercises = async () => {
@@ -127,13 +167,13 @@ function ExerciseDashboard() {
           </div>
 
           <div className="exercise-header-right">
-            <div className="search-wrapper">
-              <span className="search-icon">
+            <div className="plan-search-wrapper">
+              <span className="plan-search-icon">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -146,8 +186,8 @@ function ExerciseDashboard() {
               </span>
               <input
                 type="text"
-                className="search-bar"
-                placeholder="Search exercises..."
+                className="plan-search-bar"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -156,6 +196,25 @@ function ExerciseDashboard() {
         </header>
 
         <hr className="divider" />
+
+        {successBanner && (
+          <div
+            className="admin-inline-message admin-inline-message--success"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="admin-inline-message__text">{successBanner}</p>
+            <div className="admin-inline-message__actions">
+              <button
+                type="button"
+                className="admin-inline-message__btn admin-inline-message__btn--ghost"
+                onClick={dismissSuccessBanner}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {error && (
           <div
@@ -232,7 +291,7 @@ function ExerciseDashboard() {
                         {assignmentCountsError ? (
                           <span className="exercise-card-assignment-error">Count unavailable</span>
                         ) : (
-                          clientsAssignedLabel(exercise.assigned_user_count ?? 0)
+                          activeUsersLabel(exercise.assigned_user_count ?? 0)
                         )}
                       </span>
                     </div>

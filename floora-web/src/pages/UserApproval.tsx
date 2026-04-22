@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
+import UserAvatar from "../components/common/UserAvatar";
 import { approveClient, denyClient, type PendingClient } from "../lib/admin-api";
+import "../components/UserProfile.css";
 import "../components/UserApproval.css";
 
 const DEFAULT_ADMIN_ID = 1;
@@ -52,7 +54,11 @@ export default function UserApproval() {
           <div className="ua-panel">
             <header className="ua-header">
               <h1 className="ua-title">Edit User</h1>
-              <button className="ua-back-btn" type="button" onClick={handleBack}>
+              <button
+                className="up-btn ua-btn-header-solid"
+                type="button"
+                onClick={handleBack}
+              >
                 Back
               </button>
             </header>
@@ -65,12 +71,6 @@ export default function UserApproval() {
 
   // If a user is selected, show the user's name and email
   const name = [user.fname, user.lname].filter(Boolean).join(" ") || "—";
-  const initials = name
-    .split(" ")
-    .map((s) => s[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <AppLayout>
@@ -81,7 +81,7 @@ export default function UserApproval() {
               <h1 className="ua-title">Edit User</h1>
               <p className="ua-subtitle">{name}</p>
             </div>
-            <button className="ua-back-btn" type="button" onClick={handleBack}>
+            <button className="up-btn ua-btn-header-solid" type="button" onClick={handleBack}>
               Back
             </button>
           </header>
@@ -89,25 +89,28 @@ export default function UserApproval() {
           <div className="ua-body">
             <aside className="ua-left">
               <div className="ua-avatar-wrap">
-                <div className="ua-avatar ua-avatar-fallback">{initials}</div>
+                <UserAvatar
+                  name={name}
+                  url={user.avatar_url?.trim() || undefined}
+                />
               </div>
 
               <div className="ua-actions">
                 <button
-                  className="ua-approve"
-                  type="button"
-                  disabled={busy}
-                  onClick={handleApprove}
-                >
-                  {busy ? "…" : "Approve"}
-                </button>
-                <button
-                  className="ua-deny"
+                  className="up-btn up-btn-back"
                   type="button"
                   disabled={busy}
                   onClick={handleDeny}
                 >
                   Deny
+                </button>
+                <button
+                  className="up-btn up-btn-save"
+                  type="button"
+                  disabled={busy}
+                  onClick={handleApprove}
+                >
+                  {busy ? "…" : "Approve"}
                 </button>
               </div>
               {error && (
