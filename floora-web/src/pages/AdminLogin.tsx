@@ -14,8 +14,13 @@ export default function AdminLogin() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setLoginError(null);
+    if (!email.trim() && !password.trim()) {
+      setLoginError("Missing email or password");
+      return;
+    }
+
+    setLoading(true);
 
     try {
       const normalizedEmail = email.trim().toLowerCase();
