@@ -10,6 +10,11 @@ afterEach(() => cleanup());
 
 const mockDeleteClient = vi.fn();
 const mockFetchClientProfileAvatar = vi.fn();
+const mockFetch = vi.fn();
+
+// UserProfile loads assign-package modules via fetch on mount.
+// In tests we mock it to avoid real network calls (and unhandled rejections).
+global.fetch = mockFetch;
 vi.mock("../lib/admin-api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../lib/admin-api")>();
   return {
@@ -45,6 +50,24 @@ describe("UserProfile", () => {
     mockDeleteClient.mockReset();
     mockFetchClientProfileAvatar.mockReset();
     mockFetchClientProfileAvatar.mockResolvedValue(null);
+    mockFetch.mockReset();
+    mockFetch.mockImplementation((url: RequestInfo | URL) => {
+      const u = String(url);
+      if (u.includes("/api/assign-package/modules")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      // Most tests don't exercise assign-package fetches; keep them inert.
+      if (u.includes("/api/assign-package/")) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        } as Response);
+      }
+      return Promise.reject(new Error(`not mocked: ${u}`));
+    });
   });
 
   it("shows empty message when no user in state", () => {
