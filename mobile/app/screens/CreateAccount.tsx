@@ -11,6 +11,25 @@ const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_MIN_LENGTH = 8;
+const PASSWORD_HAS_LETTER = /[A-Za-z]/;
+const PASSWORD_HAS_NUMBER = /\d/;
+
+function isValidEmail(value: string): boolean {
+  return EMAIL_REGEX.test(value.trim());
+}
+
+function getPasswordError(value: string): string | null {
+  if (value.length < PASSWORD_MIN_LENGTH) {
+    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters long.`;
+  }
+  if (!PASSWORD_HAS_LETTER.test(value) || !PASSWORD_HAS_NUMBER.test(value)) {
+    return "Password must contain at least one letter and one number.";
+  }
+  return null;
+}
+
 export default function CreateAccount() {
   const router = useRouter();
 
@@ -33,6 +52,19 @@ export default function CreateAccount() {
       return;
     }
 
+    if (!isValidEmail(email)) {
+      Alert.alert("Invalid email", "Please enter a valid email address (for example, name@example.com).");
+      return;
+    }
+
+    const passwordError = getPasswordError(password);
+    if (passwordError) {
+      Alert.alert("Invalid password", passwordError);
+      return;
+    }
+
+    const trimmedEmail = email.trim();
+
     try {
       setLoading(true);
 
@@ -47,7 +79,7 @@ export default function CreateAccount() {
         body: JSON.stringify({
           firstName,
           lastName,
-          email,
+          email: trimmedEmail,
           password,
         }),
       });
@@ -58,7 +90,24 @@ export default function CreateAccount() {
       setLoading(false);
 
       if (!response.ok) {
-        Alert.alert("Signup Failed", raw);
+        let message = raw;
+        try {
+          const parsed = JSON.parse(raw) as { message?: string; error?: string };
+          message = parsed.message || parsed.error || message;
+        } catch {
+          // keep raw as-is when it's not JSON
+        }
+
+        // Nicer copy for the most common validation failure
+        if (response.status === 400 && /invalid email/i.test(message)) {
+          message = "Invalid email format. Use an address like name@example.com.";
+        }
+        if (response.status === 400 && /invalid password|password/i.test(message)) {
+          message =
+            "Invalid password. It must be at least 8 characters long and contain at least one letter and one number.";
+        }
+
+        Alert.alert("Signup Failed", message);
         return;
       }
 

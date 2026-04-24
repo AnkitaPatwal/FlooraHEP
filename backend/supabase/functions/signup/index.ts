@@ -1,4 +1,5 @@
 // supabase/functions/signup/index.ts
+/// <reference path="../deno.d.ts" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 
@@ -15,14 +16,18 @@ function isValidEmail(email: string): boolean {
 }
 
 function isValidPassword(password: string): boolean {
-  return password && password.length >= 8;
+  if (typeof password !== "string" || password.length < 8) return false;
+  const hasLetter = /[A-Za-z]/.test(password);
+  const hasNumber = /\d/.test(password);
+  return hasLetter && hasNumber;
 }
 
 function isValidName(name: string): boolean {
-  return name && name.trim().length > 0 && name.trim().length <= 50;
+  const t = name.trim();
+  return t.length > 0 && t.length <= 50;
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -41,6 +46,29 @@ serve(async (req) => {
       );
     }
 
+    const trimmedEmail = String(email).trim();
+    if (!isValidEmail(trimmedEmail)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: "Invalid email format. Use an address like name@example.com.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const passwordStr = String(password);
+    if (!isValidPassword(passwordStr)) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message:
+            "Invalid password. It must be at least 8 characters long and contain at least one letter and one number.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
@@ -54,7 +82,7 @@ serve(async (req) => {
     const { data: existing } = await supabase
       .from("user")
       .select("user_id")
-      .eq("email", email.toLowerCase())
+      .eq("email", trimmedEmail.toLowerCase())
       .maybeSingle();
 
     if (existing) {
@@ -72,7 +100,7 @@ serve(async (req) => {
       .from("user")
       .insert([
         {
-          email: email.toLowerCase(),
+          email: trimmedEmail.toLowerCase(),
           password: password,
           fname: firstName,
           lname: lastName,
@@ -91,7 +119,7 @@ serve(async (req) => {
 
     // Create Supabase Auth user so they can sign in once approved
     const { error: authError } = await supabase.auth.admin.createUser({
-      email: email.toLowerCase(),
+      email: trimmedEmail.toLowerCase(),
       password,
       email_confirm: true,
     });
@@ -113,9 +141,10 @@ serve(async (req) => {
       { status: 201, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Internal error";
     return new Response(
-      JSON.stringify({ success: false, message: error.message }),
+      JSON.stringify({ success: false, message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
