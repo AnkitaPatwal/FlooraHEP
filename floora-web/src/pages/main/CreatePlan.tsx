@@ -358,6 +358,16 @@ export default function CreatePlan() {
                   />
                 </div>
                 <div className="input-group">
+                  <label htmlFor="plan-description-v2">Plan description</label>
+                  <textarea
+                    id="plan-description-v2"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe this plan…"
+                    rows={3}
+                  />
+                </div>
+                <div className="input-group">
                   <label htmlFor="plan-category-v2">Category</label>
                   <input
                     id="plan-category-v2"

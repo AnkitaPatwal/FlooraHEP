@@ -74,6 +74,7 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
 
   const hasLoadedOnce = useRef(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showPendingSuccessMessage = useCallback(() => {
     const pending =
@@ -85,7 +86,14 @@ export default function Profile() {
     (globalThis as any).profileSuccessMessage = "";
     setError(null);
     setSuccessMessage(message);
-    setTimeout(() => setSuccessMessage(null), 3000);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
   }, []);
 
   const fetchProfile = useCallback(async () => {
