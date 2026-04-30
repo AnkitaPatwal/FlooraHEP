@@ -44,7 +44,7 @@ app.use("/api/exercises", exercisesRoutes);
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
-export default app;
+module.exports = app; // for testing
 
 if (process.env.NODE_ENV !== "test") {
   app.listen(PORT, () => {
