@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../lib/auth";
 import { supabase } from "../../lib/supabase-client";
@@ -12,6 +13,7 @@ import {
   Dumbbell,
   UserPlus,
   UserCircle2,
+  MoreVertical,
   LogOut,
 } from "lucide-react";
 
@@ -48,15 +50,36 @@ const SideNav = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { isSuperAdmin, isAuthLoading } = useAuth();
+  const [footerMenuOpen, setFooterMenuOpen] = useState(false);
+  const footerMenuRef = useRef<HTMLDivElement>(null);
 
   const usersActive =
     location.pathname === "/users" ||
     location.pathname === "/user-approval";
 
   const handleLogout = async () => {
+    setFooterMenuOpen(false);
     await supabase.auth.signOut();
     navigate("/admin-login", { replace: true });
   };
+
+  useEffect(() => {
+    if (!footerMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!footerMenuRef.current?.contains(e.target as Node)) {
+        setFooterMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFooterMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [footerMenuOpen]);
 
   return (
     <div className="sidenav">
@@ -178,13 +201,33 @@ const SideNav = () => {
             </span>
           </div>
 
-          <button
-            onClick={handleLogout}
-            className="logout-btn"
-            title="Log out"
-          >
-            <LogOut />
-          </button>
+          <div className="footer-menu-wrap" ref={footerMenuRef}>
+            <button
+              type="button"
+              className="footer-menu-trigger"
+              aria-expanded={footerMenuOpen}
+              aria-haspopup="menu"
+              aria-label="Account menu"
+              onClick={() => setFooterMenuOpen((o) => !o)}
+            >
+              <MoreVertical className="footer-menu-icon" strokeWidth={2.2} />
+            </button>
+            {footerMenuOpen ? (
+              <div className="footer-menu-dropdown" role="menu">
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="footer-menu-item footer-menu-item-signout"
+                  onClick={() => {
+                    void handleLogout();
+                  }}
+                >
+                  <LogOut className="footer-menu-signout-icon" strokeWidth={2} aria-hidden />
+                  Sign out
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>

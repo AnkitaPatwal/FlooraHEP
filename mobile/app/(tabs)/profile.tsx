@@ -74,6 +74,27 @@ export default function Profile() {
   const [refreshing, setRefreshing] = useState(false);
 
   const hasLoadedOnce = useRef(false);
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showPendingSuccessMessage = useCallback(() => {
+    const pending =
+      (globalThis as any).profileSuccessMessage ?? (global as any).profileSuccessMessage;
+    if (typeof pending !== "string") return;
+    const message = pending.trim();
+    if (!message) return;
+    (global as any).profileSuccessMessage = "";
+    (globalThis as any).profileSuccessMessage = "";
+    setError(null);
+    setSuccessMessage(message);
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    successTimeoutRef.current = setTimeout(() => setSuccessMessage(null), 3000);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
 
   const fetchProfile = useCallback(async () => {
     const userId = session?.user?.id;
@@ -143,8 +164,9 @@ export default function Profile() {
 
   useFocusEffect(
     useCallback(() => {
+      showPendingSuccessMessage();
       void fetchProfile();
-    }, [fetchProfile])
+    }, [fetchProfile, showPendingSuccessMessage])
   );
 
   const onRefresh = useCallback(async () => {

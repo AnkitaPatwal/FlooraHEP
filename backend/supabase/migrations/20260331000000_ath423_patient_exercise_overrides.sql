@@ -8,7 +8,7 @@ create table if not exists public.user_assignment_exercise (
   user_assignment_exercise_id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   -- NOTE: In some envs user_packages.id is bigint (not uuid). This column must match that type.
-  assignment_id bigint not null references public.user_packages(id) on delete cascade,
+  assignment_id uuid not null references public.user_packages(id) on delete cascade,
   module_id bigint not null references public.module(module_id) on delete cascade,
 
   -- For template rows: points at module_exercise row. For added rows: NULL.

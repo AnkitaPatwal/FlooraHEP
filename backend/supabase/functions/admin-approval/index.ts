@@ -7,19 +7,42 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, content-type",
 };
 
-/** Send approval or denial email via Resend. Same `from` env order as forgot-password so one owner address can cover all mail. */
+const RESEND_FROM_FALLBACK = "Floora HEP <onboarding@resend.dev>";
+
+/** Same order as `forgot-password` so one verified-domain address in secrets covers all Resend mail. */
+function resolveResendFromAddress(): string {
+  const pick = (k: string) => {
+    const v = Deno.env.get(k)?.trim();
+    return v && v.length > 0 ? v : undefined;
+  };
+  return (
+    pick("RESET_FROM_EMAIL") ||
+    pick("RESEND_FROM_EMAIL") ||
+    pick("FROM_EMAIL") ||
+    RESEND_FROM_FALLBACK
+  );
+}
+
+/** Send approval or denial email via Resend. */
 async function sendStatusEmail(
   kind: "approve" | "deny",
   to: string,
   name: string
 ): Promise<void> {
-  const apiKey = Deno.env.get("RESEND_API_KEY");
-  if (!apiKey) return;
-  const from =
-    Deno.env.get("RESEND_FROM_EMAIL") ||
-    Deno.env.get("RESET_FROM_EMAIL") ||
-    Deno.env.get("FROM_EMAIL") ||
-    "Floora HEP <onboarding@resend.dev>";
+  const apiKey = Deno.env.get("RESEND_API_KEY")?.trim();
+  if (!apiKey) {
+    console.warn(
+      "RESEND_API_KEY not set; cannot send approve/deny email (user action still succeeds)."
+    );
+    return;
+  }
+
+  const from = resolveResendFromAddress();
+  if (from === RESEND_FROM_FALLBACK) {
+    console.warn(
+      "No RESET_FROM_EMAIL / RESEND_FROM_EMAIL / FROM_EMAIL set; using Resend test sender (domain-limited delivery)."
+    );
+  }
   const isApproved = kind === "approve";
   const subject = isApproved ? "Your Account Has Been Approved!" : "Account Request Denied";
   const html = isApproved

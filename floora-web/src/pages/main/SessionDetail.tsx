@@ -5,6 +5,7 @@ import { supabase } from "../../lib/supabase-client";
 import sessionImg from "../../assets/exercise.jpg";
 import "../../components/main/Session.css";
 import "./SessionDetail.css";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -89,7 +90,7 @@ export default function SessionDetail() {
   const sessionThumbnailUrl = orderedExercises[0]?.exercise?.thumbnail_url || sessionImg;
 
   const handleDelete = async () => {
-    if (!moduleId || !deleteConfirm) return;
+    if (!moduleId) return;
     try {
       setDeleting(true);
       setError(null);
@@ -100,7 +101,10 @@ export default function SessionDetail() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete session");
-      navigate("/sessions", { replace: true });
+      navigate("/sessions", {
+        replace: true,
+        state: { deletedSession: true },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to delete session");
     } finally {
@@ -142,46 +146,22 @@ export default function SessionDetail() {
             ← Back
           </button>
 
-          {!deleteConfirm ? (
-            <div className="detail-topbar-actions">
-              <button
-                type="button"
-                className="session-detail-edit-btn"
-                onClick={() => navigate(`/sessions/${session.module_id}/edit`)}
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                className="session-detail-delete-btn"
-                onClick={() => setDeleteConfirm(true)}
-              >
-                Delete
-              </button>
-            </div>
-          ) : (
-            <div className="session-detail-delete-confirm detail-topbar-confirm">
-              <span>Delete this session?</span>
-              <div className="session-detail-delete-buttons">
-                <button
-                  type="button"
-                  className="session-detail-delete-yes"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting ? "Deleting..." : "Confirm"}
-                </button>
-                <button
-                  type="button"
-                  className="session-detail-delete-no"
-                  onClick={() => setDeleteConfirm(false)}
-                  disabled={deleting}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
+          <div className="detail-topbar-actions">
+            <button
+              type="button"
+              className="session-detail-edit-btn"
+              onClick={() => navigate(`/sessions/${session.module_id}/edit`)}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              className="session-detail-delete-btn"
+              onClick={() => setDeleteConfirm(true)}
+            >
+              Delete
+            </button>
+          </div>
         </div>
 
         <div className="session-detail-main">
@@ -235,6 +215,17 @@ export default function SessionDetail() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Remove Session"
+        message="Are you sure you want to delete this session?"
+        confirmLabel="Delete"
+        variant="danger"
+        busy={deleting}
+        onCancel={() => setDeleteConfirm(false)}
+        onConfirm={() => void handleDelete()}
+      />
     </AppLayout>
   );
 }

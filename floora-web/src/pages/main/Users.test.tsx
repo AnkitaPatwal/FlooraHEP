@@ -82,9 +82,7 @@ describe("Users page (client management)", () => {
         screen.getByRole("textbox", { name: /search users/i })
       ).toBeInTheDocument();
     });
-    expect(
-      screen.getByPlaceholderText(/search users/i)
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/^search$/i)).toBeInTheDocument();
   });
 
   it("shows concise plan subtitle: first plan only when one plan", async () => {
@@ -152,7 +150,7 @@ describe("Users page (client management)", () => {
     });
   });
 
-  it("shows No plan assigned when plans empty", async () => {
+  it("shows No Plan when plans empty", async () => {
     const active: ActiveClient[] = [
       {
         user_id: 3,
@@ -167,7 +165,7 @@ describe("Users page (client management)", () => {
 
     renderUsers();
     await waitFor(() => {
-      expect(screen.getByText("No plan assigned")).toBeInTheDocument();
+      expect(screen.getByText("No Plan")).toBeInTheDocument();
     });
   });
 
@@ -215,7 +213,7 @@ describe("Users page (client management)", () => {
     );
   });
 
-  it("falls back to initials when avatar image fails to load", async () => {
+  it("falls back to placeholder avatar when image fails to load", async () => {
     const active: ActiveClient[] = [
       {
         user_id: 5,
@@ -239,7 +237,10 @@ describe("Users page (client management)", () => {
     await waitFor(() => {
       expect(container.querySelector("img.user-avatar-img")).not.toBeInTheDocument();
     });
-    expect(screen.getByText("BI")).toBeInTheDocument();
+    const fallback = container.querySelector(".user-avatar-fallback");
+    expect(fallback).toBeTruthy();
+    expect(fallback).toHaveAttribute("title", "BI");
+    expect(fallback?.querySelector(".user-avatar-placeholder-svg")).toBeTruthy();
   });
 
   it("navigates to user profile when an active user card is clicked", async () => {

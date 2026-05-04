@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AppLayout from "../components/layouts/AppLayout";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
+import UserAvatar from "../components/common/UserAvatar";
 import { deleteClient, type PendingClient } from "../lib/admin-api";
 import "../components/UserApproval.css";
 
@@ -57,22 +58,13 @@ export default function DeniedUserDetail() {
   }
 
   const name = [user.fname, user.lname].filter(Boolean).join(" ") || "—";
-  const initials = name
-    .split(" ")
-    .map((s) => s[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
 
   return (
     <AppLayout>
       <div className="ua-page">
         <div className="ua-panel">
           <header className="ua-header">
-            <div>
-              <h1 className="ua-title">Denied user</h1>
-              <p className="ua-subtitle">{name}</p>
-            </div>
+            <h1 className="ua-title">Denied user</h1>
             <button className="ua-back-btn" type="button" onClick={handleBack}>
               Back
             </button>
@@ -81,7 +73,10 @@ export default function DeniedUserDetail() {
           <div className="ua-body">
             <aside className="ua-left">
               <div className="ua-avatar-wrap">
-                <div className="ua-avatar ua-avatar-fallback">{initials}</div>
+                <UserAvatar
+                  name={name}
+                  url={user.avatar_url?.trim() || undefined}
+                />
               </div>
 
               <div className="ua-actions">

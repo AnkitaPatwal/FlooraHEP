@@ -8,7 +8,7 @@ create table if not exists public.user_assignment_session (
   user_assignment_session_id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
   -- In some envs user_packages.id is bigint.
-  assignment_id bigint not null references public.user_packages(id) on delete cascade,
+  assignment_id uuid not null references public.user_packages(id) on delete cascade,
   module_id bigint not null references public.module(module_id) on delete cascade,
 
   -- For template sessions: points at plan_module row. For added sessions: NULL.

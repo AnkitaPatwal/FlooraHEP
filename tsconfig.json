@@ -1,4 +1,13 @@
 {
   "compilerOptions": {},
-  "extends": "./mobile/node_modules/expo/tsconfig.base"
+  "extends": "./mobile/node_modules/expo/tsconfig.base",
+  "exclude": [
+    "${configDir}/node_modules",
+    "${configDir}/babel.config.js",
+    "${configDir}/metro.config.js",
+    "${configDir}/jest.config.js",
+    "${configDir}/android",
+    "${configDir}/ios",
+    "backend/supabase/functions"
+  ]
 }

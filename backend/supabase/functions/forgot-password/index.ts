@@ -153,11 +153,15 @@ Deno.serve(async (req) => {
 
     // SEND EMAIL via Resend (same stack as admin-approve/deny). From: env or Resend test sender until custom domain is verified.
     const resetBaseUrl = resolveResetBaseUrl(parsed, client);
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
+    const pickFrom = (k: string) => {
+      const v = Deno.env.get(k)?.trim();
+      return v && v.length > 0 ? v : undefined;
+    };
+    const resendApiKey = Deno.env.get("RESEND_API_KEY")?.trim();
     const fromEmail =
-      Deno.env.get("RESET_FROM_EMAIL") ||
-      Deno.env.get("RESEND_FROM_EMAIL") ||
-      Deno.env.get("FROM_EMAIL") ||
+      pickFrom("RESET_FROM_EMAIL") ||
+      pickFrom("RESEND_FROM_EMAIL") ||
+      pickFrom("FROM_EMAIL") ||
       RESEND_FROM_FALLBACK;
 
     if (!resetBaseUrl) {

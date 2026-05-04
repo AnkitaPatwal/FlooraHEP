@@ -56,6 +56,9 @@ interface PlanData {
 type PlansBanner =
   | { variant: "error"; message: string }
   | { variant: "success"; message: string };
+type PlanRouteState = {
+  deletedPlan?: boolean;
+};
 
 function clientsAssignedLabel(count: number): string {
   return count === 1 ? "1 client assigned" : `${count} clients assigned`;
@@ -82,6 +85,8 @@ export default function Plan() {
   const [banner, setBanner] = useState<PlansBanner | null>(null);
   const [busy, setBusy] = useState(false);
   const expectSuccessAfterLoadRef = useRef(false);
+  const pendingDeletedBannerRef = useRef(false);
+  const handledDeletedStateKeyRef = useRef<string | null>(null);
   const successDismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -147,6 +152,19 @@ export default function Plan() {
 
       setPlans((body as PlanData[]).map(mapDataToPlan));
 
+      if (pendingDeletedBannerRef.current) {
+        pendingDeletedBannerRef.current = false;
+        if (successDismissTimerRef.current) {
+          clearTimeout(successDismissTimerRef.current);
+        }
+        setBanner({ variant: "success", message: "Plan deleted successfully." });
+        successDismissTimerRef.current = setTimeout(() => {
+          setBanner(null);
+          successDismissTimerRef.current = null;
+        }, 4000);
+        return;
+      }
+
       if (expectSuccessAfterLoadRef.current) {
         expectSuccessAfterLoadRef.current = false;
         if (successDismissTimerRef.current) {
@@ -173,6 +191,17 @@ export default function Plan() {
     expectSuccessAfterLoadRef.current = true;
     void loadPlans();
   }, [loadPlans]);
+
+  useEffect(() => {
+    const routeState = (location.state as PlanRouteState | null) ?? null;
+    if (
+      routeState?.deletedPlan &&
+      handledDeletedStateKeyRef.current !== location.key
+    ) {
+      handledDeletedStateKeyRef.current = location.key;
+      pendingDeletedBannerRef.current = true;
+    }
+  }, [location.key, location.state]);
 
   useEffect(() => {
     void loadPlans();
@@ -226,7 +255,7 @@ export default function Plan() {
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   stroke="currentColor"
                   className="icon"
                 >
@@ -240,7 +269,7 @@ export default function Plan() {
               <input
                 type="text"
                 className="plan-search-bar"
-                placeholder="Search plans..."
+                placeholder="Search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />

@@ -1,0 +1,28 @@
+.user-avatar-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #ededed;
+  background: #ffffff;
+}
+
+/* Default avatar: light gray ring + silhouette; inner area transparent (SVG) */
+.user-avatar-fallback {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.user-avatar-placeholder-svg {
+  width: 88px;
+  height: 88px;
+  display: block;
+}

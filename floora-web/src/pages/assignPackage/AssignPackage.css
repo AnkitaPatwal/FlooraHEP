@@ -1,5 +1,23 @@
 /* === Assign Package (match main app styling) === */
 
+/* Session editor under Users (pencil from Edit User) — shell matches UserProfile `up-page` / `up-shell`. */
+.assign-package-session-page.up-page {
+  background: #ffffff;
+  min-height: 0;
+}
+
+.assign-package-session-page .up-shell {
+  padding-bottom: 28px;
+}
+
+.assign-session-section {
+  margin-bottom: 28px;
+}
+
+.assign-session-section:last-of-type {
+  margin-bottom: 0;
+}
+
 .assign-package-page {
   padding-bottom: 48px;
   box-sizing: border-box;
@@ -44,43 +62,54 @@
   margin: 0 0 24px 0;
 }
 
-/* === Per-user session editor (Users route alias) === */
+/* === Per-user session editor — cards match Exercises page (`Exercise.css` `.exercise-card`) === */
 .patient-session-exercises-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 28px;
+  min-width: 0;
 }
 
-/* Polaroid-style exercise tile (Exercise details): image on top, caption below — no “clients” row */
+/* Same shell as `.exercise-card` on /exercise-dashboard */
 .patient-session-exercise-card {
-  background: #f3f4f6;
-  border: none;
-  border-radius: 16px;
-  overflow: hidden;
-  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.06);
+  background-color: #f4f5f6;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #dcdcdc;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  padding: 12px;
+  padding-bottom: 14px;
+  gap: 12px;
+  overflow: visible;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .patient-session-exercise-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
 }
 
 .patient-session-exercise-card.is-expanded {
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .patient-session-exercise-card-inner {
-  padding: 10px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
 .patient-session-exercise-media {
-  border-radius: 12px;
-  background: #e5e7eb;
+  border-radius: 8px;
+  background-color: #e8e8ea;
   overflow: hidden;
   aspect-ratio: 4 / 3;
-  margin-bottom: 8px;
+  width: 100%;
 }
 
 .patient-session-exercise-thumb {
@@ -91,24 +120,28 @@
 }
 
 .patient-session-exercise-body {
-  padding: 0 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  min-width: 0;
 }
 
 .patient-session-exercise-title {
   margin: 0;
-  font-size: 13px;
-  font-weight: 800;
-  color: #111827;
-  line-height: 1.25;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
   letter-spacing: -0.01em;
 }
 
 .patient-session-exercise-subtitle {
-  margin: 4px 0 0;
-  font-size: 12px;
-  font-weight: 500;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
   color: #6b7280;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 .patient-session-exercise-editor {
@@ -138,21 +171,100 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 1280px) {
-  .patient-session-exercises-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
+/* === Add Exercise picker on session page — match Exercises dashboard cards === */
+.assign-package-session-page .create-session-exercise-grid {
+  gap: 28px;
 }
 
-@media (max-width: 1100px) {
-  .patient-session-exercises-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.assign-package-session-page .create-session-exercise-card {
+  background-color: #f4f5f6;
+  border-radius: 10px;
+  border: 1px solid #dcdcdc;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  padding-bottom: 14px;
+  gap: 12px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-@media (max-width: 640px) {
-  .patient-session-exercises-grid {
-    grid-template-columns: 1fr;
+.assign-package-session-page .create-session-exercise-card:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.04);
+}
+
+.assign-package-session-page .create-session-exercise-card.is-selected {
+  border-color: #5a8e93;
+  background: #eef5f6;
+  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.22);
+}
+
+.assign-package-session-page .create-session-exercise-card-img {
+  border-radius: 8px;
+  background-color: #e8e8ea;
+}
+
+.assign-package-session-page .create-session-exercise-card-body {
+  padding: 0;
+  gap: 6px;
+}
+
+.assign-package-session-page .create-session-exercise-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.assign-package-session-page .create-session-exercise-card-cat {
+  margin: 0;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.assign-package-session-page .create-session-exercise-card-tag {
+  background-color: #d8f0ed;
+  color: #0d9488;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.assign-package-session-page .create-session-category-heading {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 24px;
+}
+
+.assign-package-session-page .create-session-category-count {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999999;
+}
+
+/* Add-exercise toolbar: search matches Exercises page (`plan-search-*`, 340px field) */
+.assign-package-session-page .create-session-exercises-toolbar {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: flex-end;
+}
+
+.assign-package-session-page .create-session-exercises-toolbar .plan-search-wrapper {
+  justify-self: end;
+}
+
+@media (max-width: 560px) {
+  .assign-package-session-page .create-session-exercises-toolbar .plan-search-wrapper {
+    justify-self: stretch;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .assign-package-session-page .create-session-exercises-toolbar .plan-search-bar {
+    width: 100%;
+    max-width: none;
   }
 }
 
@@ -244,52 +356,11 @@
   text-decoration: underline;
 }
 
-/* Search (match Plan/Session/Users) */
-.assign-package-search-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
+/* Search: shared `PlanSearchField.css` (`.plan-search-*`) */
+
+.assign-package-header .plan-search-wrapper {
   width: 340px;
   max-width: 100%;
-}
-
-.assign-package-search-icon {
-  position: absolute;
-  left: 14px;
-  color: #9ca3af;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.assign-package-search-svg {
-  width: 18px;
-  height: 18px;
-}
-
-.assign-package-search-input {
-  border: 1px solid #d1d5db;
-  border-radius: 25px;
-  padding: 10px 14px 10px 44px;
-  width: 100%;
-  font-size: 15px;
-  color: #4b5563;
-  background-color: #ffffff;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05),
-    inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  transition: all 0.2s ease;
-  box-sizing: border-box;
-}
-
-.assign-package-search-input::placeholder {
-  color: #9ca3af;
-}
-
-.assign-package-search-input:focus {
-  outline: none;
-  border-color: #bcd1d1;
-  box-shadow: 0 0 0 2px rgba(90, 142, 147, 0.2);
 }
 
 .assign-package-grid {
