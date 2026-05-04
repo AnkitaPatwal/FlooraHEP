@@ -132,7 +132,6 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 - Added confirmation popups for new/edited exercises  
 - Muscle-group tags and filter options  
 - Exercise deletion and replacement options  
-
 ### **Milestone 9 — Plan Creation & Assignment (Sprint 8)**  
 - Create and assign personalized plans  
 - Customize sets/reps per client  
@@ -150,8 +149,119 @@ Testing procedures and unit test coverage will be developed in CSC 191.
 
 ---
 
-## 🚀 Deployment (To Be Completed in CSC 191)
-Deployment instructions and environment configurations will be completed in CSC 191.  
+## 🚀 Deployment 
+
+### Overview
+
+Floora uses a modern full-stack architecture with separate services for mobile, web, backend, and database.
+
+| Layer            | Service                             | Description                    |
+| ---------------- | ----------------------------------- | ------------------------------ |
+| Mobile           | Expo EAS                            | Builds and distributes iOS app |
+| Web              | Vercel                              | Hosts React frontend via CDN   |
+| Backend          | Vercel                              | Serverless Express API         |
+| Database         | Supabase                            | PostgreSQL + Authentication    |
+| iOS Distribution | Apple Developer + App Store Connect | App publishing                 |
+| Policy Hosting   | GitHub Pages                        | Privacy policy hosting         |
+
+---
+
+## ⚙️ Application Configuration
+
+Production values are defined in `app.json`:
+
+| Field                  | Value          |
+| ---------------------- | -------------- |
+| `name`                 | Floora         |
+| `slug`                 | floora         |
+| `scheme`               | floora         |
+| `ios.bundleIdentifier` | com.floora.app |
+| `android.package`      | com.floora.app |
+
+---
+
+## 🔐 Environment Variables
+
+Environment variables are not stored in the codebase and must be configured per platform.
+
+### Expo (Mobile)
+
+* `EXPO_PUBLIC_SUPABASE_URL`
+* `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+* `API_URL`
+
+### Vercel (Frontend)
+
+* `VITE_SUPABASE_URL`
+* `VITE_SUPABASE_ANON_KEY`
+* `VITE_API_URL`
+
+### Vercel (Backend)
+
+* `SUPABASE_URL`
+* `SUPABASE_SERVICE_ROLE_KEY`
+* `SUPABASE_ANON_KEY`
+* `SUPABASE_BUCKET`
+* `ADMIN_JWT_SECRET`
+* `DISABLE_ADMIN_GUARD`
+* `SMTP_PASS`
+* `PORT`
+
+---
+
+## 🏗️ Build Process
+
+### Frontend (`floora-web`)
+
+```bash
+npm install
+npm run build
+```
+
+Builds static assets via Vite into the `dist/` directory for CDN hosting.
+
+### Backend (`backend`)
+
+```bash
+npm install
+npm run build
+```
+
+Compiles TypeScript into `dist/server.js` for serverless execution.
+
+---
+
+## ☁️ Hosting Structure
+
+The project is deployed as separate services within a monorepo:
+
+| Service  | Directory     | Platform |
+| -------- | ------------- | -------- |
+| Frontend | `floora-web/` | Vercel   |
+| Backend  | `backend/`    | Vercel   |
+
+Backend routing and API handling are configured for serverless execution and CORS compatibility with the frontend.
+
+---
+
+## 📱 iOS Deployment Requirements
+
+* Apple Developer account (Team ID: `PYUT4JN2N7`)
+* Registered Bundle ID: `com.floora.app`
+* Expo account with EAS access
+
+EAS handles certificate and provisioning profile generation automatically.
+
+---
+
+## 🧩 Supabase Configuration
+
+Before production use:
+
+* Set **Site URL** to the frontend domain
+* Configure **Auth redirect URLs** to match frontend routes
+
+Supabase manages authentication, database, and storage services centrally.
 
 ---
 
