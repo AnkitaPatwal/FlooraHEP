@@ -1,5 +1,6 @@
 <!-- Floora Logo -->
 <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
+### A digital platform for delivering personalized pelvic health exercise programs.
 
 ## 🩺 Project Overview  
 Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
@@ -16,7 +17,7 @@ A secure and user-friendly digital solution is being developed to streamline exe
 ---
 
 ## 🎯 Objective  
-The objective of this project is to modernize Floora’s exercise management system by replacing the current manual, handwritten process with a digital, scalable solution.  
+The objective is to replace Floora’s manual exercise workflow with a scalable digital system.
 
 The system will:  
 - Improve efficiency, consistency, and personalization in delivering home exercise programs (HEP)  
@@ -29,7 +30,7 @@ The system will:
 The proposed solution is a custom-built digital platform consisting of:  
 
 - Mobile App for clients: secure access to personalized programs, videos, and progress tracking  
-- Admin Dashboardfor staff: manage accounts, curate and assign exercises, and track outcomes  
+- Admin Dashboard for staff: manage accounts, curate and assign exercises, and track outcomes  
 
 Together, these tools create an integrated, efficient ecosystem that supports Floora’s mission of empowering women with accessible, high-quality pelvic health care.
 
@@ -69,7 +70,7 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 
 ---
 
-## Demos  
+## 🎥 Demos 
 
 <p align="center">
   <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif" alt="Appdemo" width="200" />
@@ -88,81 +89,31 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 <p align="center">
   <img alt="ERD" src="https://github.com/user-attachments/assets/f6117ca5-6385-46b5-a4a2-dd2993496e4c" style="width:50%; height:auto;" />
 </p>
-
----
-
-## 🗓️ Project Milestones & Timeline  
-
-### **Milestone 1 — Project Setup (Week 1–2)**  
-- Set up GitHub repositories for web and mobile  
-- Set up Jira board, sprints, and epics  
-
-### **Milestone 2 — Design Phase (Week 2–3)**  
-- Created mockups and wireframes for web and mobile  
-- Designed main screens and user flow
-- Finalized layout structure before development  
-
-### **Milestone 3 — Frontend Development (Weeks 3–6)**  
-- Built core web pages and components
-- Built main mobile app screens
-- Added navigation, layout, and UI structure  
-
-### **Milestone 4 — Supabase Integration (Weeks 4–7)**  
-- Connected frontend to Supabase  
-- Created ERD and database schema  
-- Added tables for users, programs, and exercises  
-
-### **Milestone 5 — Backend Development (Current Sprint)**  
-- Implemented backend logic and API routes  
-- Added signup and admin approval endpoints  
-- Building additional backend functions  
-
-### **Milestone 6 — Client Dashboard Features (Sprint 5)**  
-- Automatic module release every 7 days  
-- Added exercise videos, sets/reps, and progress tracker  
-- Navigation for Profile, Home, and Roadmap screens  
-
-### **Milestone 7 — Admin Account Management (Sprint 5–6)**  
-- Admin view for pending client requests  
-- Approval/rejection workflow  
-- Client search and removal functionality  
-- Upload new exercises to the library  
-
-### **Milestone 8 — Exercise Library Enhancements (Sprint 6–7)**  
-- Added confirmation popups for new/edited exercises  
-- Muscle-group tags and filter options  
-- Exercise deletion and replacement options  
-### **Milestone 9 — Plan Creation & Assignment (Sprint 8)**  
-- Create and assign personalized plans  
-- Customize sets/reps per client  
-- Edit or remove plan items with confirmation popups  
-
-### **Milestone 10 — Assignment Tracking & Notifications (Sprint 9)**  
-- Confirmation before removals  
-- Admin view for assigned plans  
-- Notifications for successful assignments  
-
 ---
 
 ## 🧪 Testing (To Be Completed in CSC 191)
 Testing procedures and unit test coverage will be developed in CSC 191.  
 
 ---
+## 🌐 Live Application
 
-## 🚀 Deployment 
+- Frontend: https://floora-hep.vercel.app  
+- Backend API: https://floora-hep-322z.vercel.app
+---
+## 🚀 Deployment
 
 ### Overview
 
 Floora uses a modern full-stack architecture with separate services for mobile, web, backend, and database.
 
-| Layer            | Service                             | Description                    |
-| ---------------- | ----------------------------------- | ------------------------------ |
-| Mobile           | Expo EAS                            | Builds and distributes iOS app |
-| Web              | Vercel                              | Hosts React frontend via CDN   |
-| Backend          | Vercel                              | Serverless Express API         |
-| Database         | Supabase                            | PostgreSQL + Authentication    |
-| iOS Distribution | Apple Developer + App Store Connect | App publishing                 |
-| Policy Hosting   | GitHub Pages                        | Privacy policy hosting         |
+| Layer            | Service                             | Description                        |
+| ---------------- | ----------------------------------- | ---------------------------------- |
+| Mobile           | Expo EAS                            | Builds and distributes the iOS app |
+| Web              | Vercel                              | Hosts React frontend via CDN       |
+| Backend          | Vercel                              | Serverless Express API             |
+| Database         | Supabase                            | PostgreSQL and authentication      |
+| iOS Distribution | Apple Developer + App Store Connect | App publishing                     |
+| Policy Hosting   | GitHub Pages                        | Privacy policy                     |
 
 ---
 
@@ -218,7 +169,7 @@ npm install
 npm run build
 ```
 
-Builds static assets via Vite into the `dist/` directory for CDN hosting.
+Builds static assets into the `dist/` directory for deployment via CDN.
 
 ### Backend (`backend`)
 
@@ -240,7 +191,7 @@ The project is deployed as separate services within a monorepo:
 | Frontend | `floora-web/` | Vercel   |
 | Backend  | `backend/`    | Vercel   |
 
-Backend routing and API handling are configured for serverless execution and CORS compatibility with the frontend.
+Backend routing is configured for serverless execution and secure communication with the frontend.
 
 ---
 
@@ -261,7 +212,7 @@ Before production use:
 * Set **Site URL** to the frontend domain
 * Configure **Auth redirect URLs** to match frontend routes
 
-Supabase manages authentication, database, and storage services centrally.
+Supabase manages authentication, database, and storage services.
 
 ---
 
