@@ -1,6 +1,10 @@
-<!-- Floora Logo -->
-<img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
-## A digital platform for delivering personalized pelvic health exercise programs.
+<p align="center">
+  <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
+</p>
+
+<h2 align="center">
+  A digital platform for delivering personalized pelvic health exercise programs.
+</h2>
 
 ## 🩺 Project Overview  
 Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
