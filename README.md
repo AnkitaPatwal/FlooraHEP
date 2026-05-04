@@ -1,6 +1,6 @@
 <!-- Floora Logo -->
 <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
-### A digital platform for delivering personalized pelvic health exercise programs.
+## A digital platform for delivering personalized pelvic health exercise programs.
 
 ## 🩺 Project Overview  
 Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
@@ -89,6 +89,7 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 <p align="center">
   <img alt="ERD" src="https://github.com/user-attachments/assets/f6117ca5-6385-46b5-a4a2-dd2993496e4c" style="width:50%; height:auto;" />
 </p>
+
 ---
 
 ## 🧪 Testing (To Be Completed in CSC 191)
@@ -99,6 +100,7 @@ Testing procedures and unit test coverage will be developed in CSC 191.
 
 - Frontend: https://floora-hep.vercel.app  
 - Backend API: https://floora-hep-322z.vercel.app
+
 ---
 ## 🚀 Deployment
 
