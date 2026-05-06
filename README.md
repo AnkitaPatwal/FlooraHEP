@@ -96,8 +96,72 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 
 ---
 
-## 🧪 Testing (To Be Completed in CSC 191)
-Testing procedures and unit test coverage will be developed in CSC 191.  
+## 🧪 Testing
+
+### Basic user flows (client mobile app)
+
+This section outlines how to test core functionality from a patient’s perspective using the **Floora mobile app** (Expo / iOS or Android). Follow each flow in order when possible; use a test account that has already been **approved by an admin** if you are verifying post-login behavior.
+
+---
+
+#### 1. Account creation
+
+1. Open the Floora app.  
+2. On the sign-in screen, tap **Request Account**.  
+3. On **Create Account**, enter **First Name**, **Last Name**, **Email (Username)**, **Password**, and **Re-enter Password** (password must be at least 8 characters and include at least one letter and one number).  
+4. Tap **Create Account**.
+
+**Expected Result:**
+
+- A success message indicates the account was created and is **pending admin approval**.  
+- You return to the sign-in screen.  
+- You cannot use the main app (Home / Roadmap / Profile) until an administrator approves the account and you sign in.
+
+---
+
+#### 2. Login
+
+1. On the sign-in screen, enter **Email** and **Password**.  
+2. Tap **Sign In**.
+
+**Expected Result:**
+
+- You are signed in and land on the **Home** tab (main signed-in experience with bottom navigation).  
+- If the account is not approved or credentials are invalid, an error alert explains the issue instead of entering the app.
+
+---
+
+#### 3. Navigation
+
+1. After login, confirm you are on the **Home** tab.  
+2. Tap the **Roadmap** tab in the bottom navigation.  
+3. Tap the **Profile** tab in the bottom navigation.  
+4. Tap **Home** again.
+
+**Expected Result:**
+
+- **Home**, **Roadmap**, and **Profile** each load without errors.  
+- The active tab and screen content match the tab you selected.
+
+---
+
+#### 4. Viewing content (exercises and video)
+
+1. Go to the **Home** tab.  
+2. Open an assigned session (e.g. tap the **current session** card or another unlocked session).  
+3. On the session exercise list, tap an exercise to open its detail screen.  
+4. Start playback using the **native video controls** (play/pause, scrubbing as supported on your device).
+
+**Expected Result:**
+
+- The exercise detail screen loads (title, media, and instructions as applicable).  
+- The exercise video loads and plays correctly through to the end of playback when you let it run.
+
+---
+
+### Automated tests
+
+Unit and integration test coverage for the mobile app and web admin continues to expand in the repository (for example, under `mobile/app/**/__tests__/`). Run package-specific lint and test commands from each app’s directory as those scripts are added or updated.
 
 ---
 ## 🌐 Live Application
