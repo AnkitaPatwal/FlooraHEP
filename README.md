@@ -164,6 +164,24 @@ This section outlines how to test core functionality from a patient’s perspect
 Unit and integration test coverage for the mobile app and web admin continues to expand in the repository (for example, under `mobile/app/**/__tests__/`). Run package-specific lint and test commands from each app’s directory as those scripts are added or updated.
 
 ---
+
+### ** Admin & advanced features**  
+
+### **User flow — Admin login**  
+- Open the **Admin Portal** and sign in with a valid admin email and password.  
+- **Expected result:** The **admin dashboard** loads (session works; main navigation and content are available).  
+### **User flow — User approval**  
+- From the admin dashboard, open **pending client requests** (user approval).  
+- **Approve** one user and **reject** another using test accounts.  
+- **Expected result:** Each user’s **status** updates correctly in the admin view and matches what happens when that user tries to use the app (approved vs not approved).  
+### **User flow — Assign plan**  
+- Select a **client** from the admin user list.  
+- **Assign** an **exercise plan** (home exercise program) and save.  
+- **Expected result:** The client **receives** the assigned plan and can see it in their experience (mobile app or client-facing views), without duplicate manual steps.  
+### **User flow — Exercise management**  
+- **Create** a new exercise, then **edit** it, then **delete** it (or remove it, per product behavior).  
+- **Expected result:** Changes **reflect in the system**—the exercise appears after create, updates after edit, and is gone (or archived) after delete in the admin exercise library and anywhere clients consume that content.  
+---
 ## 🌐 Live Application
 
 - Frontend: https://floora-hep.vercel.app  
