@@ -164,24 +164,48 @@ This section outlines how to test core functionality from a patient’s perspect
 Unit and integration test coverage for the mobile app and web admin continues to expand in the repository (for example, under `mobile/app/**/__tests__/`). Run package-specific lint and test commands from each app’s directory as those scripts are added or updated.
 
 ---
+### Admin + core staff flows (web dashboard)
 
-### ** Admin & advanced features**  
+Use a known **admin** account and test data where needed.
 
-### **User flow — Admin login**  
-- Open the **Admin Portal** and sign in with a valid admin email and password.  
-- **Expected result:** The **admin dashboard** loads (session works; main navigation and content are available).  
-### **User flow — User approval**  
-- From the admin dashboard, open **pending client requests** (user approval).  
-- **Approve** one user and **reject** another using test accounts.  
-- **Expected result:** Each user’s **status** updates correctly in the admin view and matches what happens when that user tries to use the app (approved vs not approved).  
-### **User flow — Assign plan**  
-- Select a **client** from the admin user list.  
-- **Assign** an **exercise plan** (home exercise program) and save.  
-- **Expected result:** The client **receives** the assigned plan and can see it in their experience (mobile app or client-facing views), without duplicate manual steps.  
-### **User flow — Exercise management**  
-- **Create** a new exercise, then **edit** it, then **delete** it (or remove it, per product behavior).  
-- **Expected result:** Changes **reflect in the system**—the exercise appears after create, updates after edit, and is gone (or archived) after delete in the admin exercise library and anywhere clients consume that content.  
----
+#### Admin login
+
+1. Open the admin web app.  
+2. Enter admin email and password and sign in.
+
+**Expected result**
+
+- **Admin dashboard** loads.
+
+#### User approval
+
+1. Open **user approval** (pending users).  
+2. **Approve** or **reject** a user.
+
+**Expected result**
+
+- User status updates correctly (e.g. approved users can use the client app; rejected users cannot).
+
+#### Assign plan
+
+1. Select a **user**.  
+2. **Assign** an **exercise plan** and save.
+
+**Expected result**
+
+- Assignment succeeds; the user sees the plan in the client app or in the relevant admin/user view.
+
+#### Exercise management
+
+1. Open **exercises**.  
+2. **Create** an exercise and save.  
+3. **Edit** an exercise and save.  
+4. **Delete** or deactivate (per product behavior) and confirm.
+
+**Expected result**
+
+- New and updated exercises appear correctly; delete/deactivate is reflected everywhere it should be.
+
 ## 🌐 Live Application
 
 - Frontend: https://floora-hep.vercel.app  
