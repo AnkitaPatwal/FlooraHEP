@@ -105,46 +105,51 @@ function createFetchMock(overrides: {
 
   return jest.fn().mockImplementation((url: string) => {
     if (url.includes("upload-avatar")) {
+      const json = async () => {
+        const body = await uploadRes.json();
+        if (
+          uploadRes.ok &&
+          body &&
+          typeof body === "object" &&
+          "success" in body &&
+          (body as { success?: boolean }).success
+        ) {
+          const u =
+            (body as { avatar_url?: string; publicUrl?: string }).avatar_url ??
+            (body as { publicUrl?: string }).publicUrl;
+          if (typeof u === "string" && u.trim()) {
+            mockCurrentProfile = { ...mockCurrentProfile, avatar_url: u.trim() };
+          }
+        }
+        return body;
+      };
       return Promise.resolve({
         ok: uploadRes.ok,
-        json: async () => {
-          const body = await uploadRes.json();
-          if (
-            uploadRes.ok &&
-            body &&
-            typeof body === "object" &&
-            "success" in body &&
-            (body as { success?: boolean }).success
-          ) {
-            const u =
-              (body as { avatar_url?: string; publicUrl?: string }).avatar_url ??
-              (body as { publicUrl?: string }).publicUrl;
-            if (typeof u === "string" && u.trim()) {
-              mockCurrentProfile = { ...mockCurrentProfile, avatar_url: u.trim() };
-            }
-          }
-          return body;
-        },
+        json,
+        text: async () => JSON.stringify(await json()),
       });
     }
     if (url.includes("update-profile")) {
       const p = mockCurrentProfile;
+      const json = async () => ({
+        success: true,
+        profile: {
+          user_id: 1,
+          email: p.email,
+          fname: null,
+          lname: null,
+          name: p.display_name ?? null,
+          avatar_url: p.avatar_url ?? null,
+        },
+      });
       return Promise.resolve({
         ok: true,
-        json: async () => ({
-          success: true,
-          profile: {
-            user_id: 1,
-            email: p.email,
-            fname: null,
-            lname: null,
-            name: p.display_name ?? null,
-            avatar_url: p.avatar_url ?? null,
-          },
-        }),
+        json,
+        text: async () => JSON.stringify(await json()),
       });
     }
-    return Promise.resolve({ ok: true, json: async () => ({}) });
+    const json = async () => ({});
+    return Promise.resolve({ ok: true, json, text: async () => JSON.stringify(await json()) });
   });
 }
 
@@ -205,6 +210,35 @@ describe("Profile sign-out (ATH-386/ATH-392)", () => {
       expect(supabase.auth.signOut).toHaveBeenCalled();
     });
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("deletes account via edge function and signs out locally", async () => {
+    alertButtons = [];
+    const { supabase } = require("../../../lib/supabaseClient");
+    (global as any).fetch = createFetchMock();
+    const { getByTestId } = render(<Profile />);
+
+    await waitFor(() => {
+      expect(getByTestId("profile-delete-account")).toBeTruthy();
+    });
+
+    fireEvent.press(getByTestId("profile-delete-account"));
+    const deleteBtn = alertButtons.find((b) => b.text === "Delete account");
+    expect(deleteBtn?.onPress).toBeTruthy();
+    await deleteBtn!.onPress!();
+
+    await waitFor(() => {
+      const calls = (global as any).fetch.mock.calls as Array<[string, RequestInit]>;
+      const hitDeleteAccount = calls.some(
+        (c) =>
+          c[0]?.includes("delete-account") &&
+          c[1]?.method === "POST" &&
+          typeof c[1]?.headers === "object" &&
+          String((c[1].headers as any).Authorization ?? "").includes("Bearer test-token"),
+      );
+      expect(hitDeleteAccount).toBe(true);
+      expect(supabase.auth.signOut).toHaveBeenCalledWith({ scope: "local" });
+    });
   });
 });
 

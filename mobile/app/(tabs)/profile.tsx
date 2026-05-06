@@ -71,6 +71,7 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [accountDeleteLoading, setAccountDeleteLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const hasLoadedOnce = useRef(false);
@@ -179,11 +180,69 @@ export default function Profile() {
     await supabase.auth.signOut();
   };
 
+  const handleDeleteAccount = async () => {
+    const token = session?.access_token;
+    const base = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (!token || !base) {
+      setError("Unable to delete account right now.");
+      return;
+    }
+
+    setAccountDeleteLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    try {
+      const res = await fetch(`${base}/functions/v1/delete-account`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const raw = await res.text();
+      let body: { error?: string } = {};
+      try {
+        body = raw ? (JSON.parse(raw) as { error?: string }) : {};
+      } catch {
+        body = {};
+      }
+      if (!res.ok) {
+        const normalizedRaw = raw.trim().toLowerCase();
+        const isFunctionMissing =
+          res.status === 404 &&
+          (normalizedRaw.includes("function not found") ||
+            normalizedRaw.includes("not found"));
+        if (isFunctionMissing) {
+          setError("Delete account is not enabled yet (missing delete-account function deployment).");
+          return;
+        }
+        setError(body.error || raw.trim() || "Failed to delete account.");
+        return;
+      }
+      setSuccessMessage("Account deleted successfully");
+      Alert.alert("Account deleted", "Account deleted successfully.");
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete account.");
+    } finally {
+      setAccountDeleteLoading(false);
+    }
+  };
+
   const onSignOutPress = () => {
     Alert.alert("Sign out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       { text: "Sign out", style: "destructive", onPress: handleSignOut },
     ]);
+  };
+
+  const onDeleteAccountPress = () => {
+    if (accountDeleteLoading) return;
+    Alert.alert(
+      "Delete account",
+      "This will permanently remove your account and profile data. This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Delete account", style: "destructive", onPress: handleDeleteAccount },
+      ],
+    );
   };
 
   const name =
@@ -489,6 +548,17 @@ export default function Profile() {
             >
               <Text style={styles.signOutText}>Sign out</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              testID="profile-delete-account"
+              style={[styles.signOutButton, styles.deleteAccountButton]}
+              onPress={onDeleteAccountPress}
+              disabled={accountDeleteLoading}
+            >
+              <Text style={styles.signOutText}>
+                {accountDeleteLoading ? "Deleting account..." : "Delete account"}
+              </Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -616,6 +686,10 @@ const styles = StyleSheet.create({
     elevation: 4,
     minHeight: 44,
     justifyContent: "center",
+  },
+  deleteAccountButton: {
+    marginTop: 12,
+    backgroundColor: "#B91C1C",
   },
   signOutText: {
     fontFamily: FlooraFonts.medium,
