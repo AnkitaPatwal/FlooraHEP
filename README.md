@@ -1,5 +1,10 @@
-<!-- Floora Logo -->
-<img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
+<p align="center">
+  <img width="2542" height="726" alt="logo_floora" src="https://github.com/user-attachments/assets/f65d1b37-4b80-4059-8c8b-fed86b7e77bf" />
+</p>
+
+<h2 align="center">
+  A digital platform for delivering personalized pelvic health exercise programs.
+</h2>
 
 ## 🩺 Project Overview  
 Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
@@ -16,7 +21,7 @@ A secure and user-friendly digital solution is being developed to streamline exe
 ---
 
 ## 🎯 Objective  
-The objective of this project is to modernize Floora’s exercise management system by replacing the current manual, handwritten process with a digital, scalable solution.  
+The objective is to replace Floora’s manual exercise workflow with a scalable digital system.
 
 The system will:  
 - Improve efficiency, consistency, and personalization in delivering home exercise programs (HEP)  
@@ -29,7 +34,7 @@ The system will:
 The proposed solution is a custom-built digital platform consisting of:  
 
 - Mobile App for clients: secure access to personalized programs, videos, and progress tracking  
-- Admin Dashboardfor staff: manage accounts, curate and assign exercises, and track outcomes  
+- Admin Dashboard for staff: manage accounts, curate and assign exercises, and track outcomes  
 
 Together, these tools create an integrated, efficient ecosystem that supports Floora’s mission of empowering women with accessible, high-quality pelvic health care.
 
@@ -69,7 +74,7 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 
 ---
 
-## Demos  
+## 🎥 Demos 
 
 <p align="center">
   <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif" alt="Appdemo" width="200" />
@@ -91,67 +96,129 @@ Overall, this solution will strengthen Floora’s brand as a leader in evidence-
 
 ---
 
-## 🗓️ Project Milestones & Timeline  
-
-### **Milestone 1 — Project Setup (Week 1–2)**  
-- Set up GitHub repositories for web and mobile  
-- Set up Jira board, sprints, and epics  
-
-### **Milestone 2 — Design Phase (Week 2–3)**  
-- Created mockups and wireframes for web and mobile  
-- Designed main screens and user flow
-- Finalized layout structure before development  
-
-### **Milestone 3 — Frontend Development (Weeks 3–6)**  
-- Built core web pages and components
-- Built main mobile app screens
-- Added navigation, layout, and UI structure  
-
-### **Milestone 4 — Supabase Integration (Weeks 4–7)**  
-- Connected frontend to Supabase  
-- Created ERD and database schema  
-- Added tables for users, programs, and exercises  
-
-### **Milestone 5 — Backend Development (Current Sprint)**  
-- Implemented backend logic and API routes  
-- Added signup and admin approval endpoints  
-- Building additional backend functions  
-
-### **Milestone 6 — Client Dashboard Features (Sprint 5)**  
-- Automatic module release every 7 days  
-- Added exercise videos, sets/reps, and progress tracker  
-- Navigation for Profile, Home, and Roadmap screens  
-
-### **Milestone 7 — Admin Account Management (Sprint 5–6)**  
-- Admin view for pending client requests  
-- Approval/rejection workflow  
-- Client search and removal functionality  
-- Upload new exercises to the library  
-
-### **Milestone 8 — Exercise Library Enhancements (Sprint 6–7)**  
-- Added confirmation popups for new/edited exercises  
-- Muscle-group tags and filter options  
-- Exercise deletion and replacement options  
-
-### **Milestone 9 — Plan Creation & Assignment (Sprint 8)**  
-- Create and assign personalized plans  
-- Customize sets/reps per client  
-- Edit or remove plan items with confirmation popups  
-
-### **Milestone 10 — Assignment Tracking & Notifications (Sprint 9)**  
-- Confirmation before removals  
-- Admin view for assigned plans  
-- Notifications for successful assignments  
-
----
-
 ## 🧪 Testing (To Be Completed in CSC 191)
 Testing procedures and unit test coverage will be developed in CSC 191.  
 
 ---
+## 🌐 Live Application
 
-## 🚀 Deployment (To Be Completed in CSC 191)
-Deployment instructions and environment configurations will be completed in CSC 191.  
+- Frontend: https://floora-hep.vercel.app  
+- Backend API: https://floora-hep-322z.vercel.app
+
+---
+## 🚀 Deployment
+
+### Overview
+
+Floora uses a modern full-stack architecture with separate services for mobile, web, backend, and database.
+
+| Layer            | Service                             | Description                        |
+| ---------------- | ----------------------------------- | ---------------------------------- |
+| Mobile           | Expo EAS                            | Builds and distributes the iOS app |
+| Web              | Vercel                              | Hosts React frontend via CDN       |
+| Backend          | Vercel                              | Serverless Express API             |
+| Database         | Supabase                            | PostgreSQL and authentication      |
+| iOS Distribution | Apple Developer + App Store Connect | App publishing                     |
+| Policy Hosting   | GitHub Pages                        | Privacy policy                     |
+
+---
+
+## ⚙️ Application Configuration
+
+Production values are defined in `app.json`:
+
+| Field                  | Value          |
+| ---------------------- | -------------- |
+| `name`                 | Floora         |
+| `slug`                 | floora         |
+| `scheme`               | floora         |
+| `ios.bundleIdentifier` | com.floora.app |
+| `android.package`      | com.floora.app |
+
+---
+
+## 🔐 Environment Variables
+
+Environment variables are not stored in the codebase and must be configured per platform.
+
+### Expo (Mobile)
+
+* `EXPO_PUBLIC_SUPABASE_URL`
+* `EXPO_PUBLIC_SUPABASE_ANON_KEY`
+* `API_URL`
+
+### Vercel (Frontend)
+
+* `VITE_SUPABASE_URL`
+* `VITE_SUPABASE_ANON_KEY`
+* `VITE_API_URL`
+
+### Vercel (Backend)
+
+* `SUPABASE_URL`
+* `SUPABASE_SERVICE_ROLE_KEY`
+* `SUPABASE_ANON_KEY`
+* `SUPABASE_BUCKET`
+* `ADMIN_JWT_SECRET`
+* `DISABLE_ADMIN_GUARD`
+* `SMTP_PASS`
+* `PORT`
+
+---
+
+## 🏗️ Build Process
+
+### Frontend (`floora-web`)
+
+```bash
+npm install
+npm run build
+```
+
+Builds static assets into the `dist/` directory for deployment via CDN.
+
+### Backend (`backend`)
+
+```bash
+npm install
+npm run build
+```
+
+Compiles TypeScript into `dist/server.js` for serverless execution.
+
+---
+
+## ☁️ Hosting Structure
+
+The project is deployed as separate services within a monorepo:
+
+| Service  | Directory     | Platform |
+| -------- | ------------- | -------- |
+| Frontend | `floora-web/` | Vercel   |
+| Backend  | `backend/`    | Vercel   |
+
+Backend routing is configured for serverless execution and secure communication with the frontend.
+
+---
+
+## 📱 iOS Deployment Requirements
+
+* Apple Developer account (Team ID: `PYUT4JN2N7`)
+* Registered Bundle ID: `com.floora.app`
+* Expo account with EAS access
+
+EAS handles certificate and provisioning profile generation automatically.
+
+---
+
+## 🧩 Supabase Configuration
+
+Before production use:
+
+* Set **Site URL** to the frontend domain
+* Configure **Auth redirect URLs** to match frontend routes
+
+Supabase manages authentication, database, and storage services.
 
 ---
 
