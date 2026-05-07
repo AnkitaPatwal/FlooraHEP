@@ -328,8 +328,94 @@ Supabase manages authentication, database, and storage services.
 
 ---
 
-## 👩‍💻 Developer Instructions (To Be Completed in CSC 191)
-Developer setup documentation will be expanded during CSC 191.  
+  ## 👩‍💻 Developer Instructions
+
+# Setup / Installation
+
+## Clone Repository
+
+```bash
+git clone https://github.com/AnkitaPatwal/FlooraHEP.git
+cd FlooraHEP
+```
+
+---
+
+## Install Dependencies
+
+Install dependencies for all project folders.
+
+### Backend
+
+```bash
+cd backend
+npm install
+```
+
+### Frontend
+
+```bash
+cd ../floora-web
+npm install
+```
+
+### Mobile
+
+```bash
+cd ../mobile
+npm install
+```
+
+---
+
+# Run Project Locally
+
+## Run Backend
+
+```bash
+cd backend
+npm run dev
+```
+
+Backend runs on:
+
+```text
+http://localhost:3000
+```
+
+---
+
+## Run Frontend
+
+```bash
+cd floora-web
+npm run dev
+```
+
+Frontend runs on:
+
+```text
+http://localhost:5173
+```
+
+---
+
+## Run Mobile App
+
+```bash
+cd mobile
+npx expo start
+```
+
+Press:
+- `i` for iOS simulator
+- `a` for Android emulator
+
+---
+
+# Goal
+
+The goal is to allow developers to successfully clone, install, and run the FlooraHEP project locally.
 
 ---
 
