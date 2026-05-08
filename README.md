@@ -281,6 +281,111 @@ Press `i` for iOS simulator or `a` for Android emulator.
 
 ---
 
+## iOS Deployment (Apple App Store)
+
+**Status: Live on the App Store**
+
+**Prerequisites completed by Ankita:**
+- Bundle ID registered: `com.floora.app`
+- EAS Secrets configured (Supabase keys)
+- Production build generated via EAS
+
+**Actual deployment steps:**
+
+1. **Build uploaded to App Store Connect**
+   - Downloaded `.ipa` from expo.dev/artifacts
+   - Opened Transporter (Mac app) → signed in with Apple ID
+   - Dragged `.ipa` into Transporter → clicked Deliver
+   - Build appeared in App Store Connect within 10 minutes
+
+2. **App Store listing completed**
+   - App name: Floora
+   - Subtitle: Pelvic Health & Recovery
+   - Description, keywords, promotional text filled in
+   - 5 screenshots uploaded (1290×2796px, iPhone 15 Pro Max)
+   - iPad screenshot uploaded (2048×2732px)
+   - Category: Health & Fitness
+   - Price: Free
+   - Release: Manual
+
+3. **Privacy Policy hosted**
+   - Written and hosted at GitHub Pages:
+     `https://ankitapatwal.github.io/floora-privacy-policy`
+   - URL added to App Store Connect → App Privacy section
+
+4. **App Privacy questionnaire completed**
+   - Declared: Email Address, User ID, Health data, Product Interaction
+   - All data marked as App Functionality only
+   - No tracking, no advertising
+
+5. **App Review Information**
+   - Demo credentials provided for both user and admin accounts
+   - Reviewer notes explain invitation-only model
+   - Sign-in required: Yes
+
+6. **Submitted for review**
+   - Initial rejection: App crashed on launch → Fixed by adding Supabase env variables to EAS Secrets
+   - Second rejection: Explore tab had placeholder content → Fixed by removing default Expo tab
+   - Third rejection: No account deletion option → Fixed by adding Delete Account to Profile screen
+   - **Final status: Approved — Released May 2026**
+
+---
+
+## Android Deployment (Google Play Store)
+
+**Status: In Closed Testing**
+
+1. **Build generated**
+   ```bash
+   eas build --platform android --profile production
+   ```
+   Generates `.aab` (Android App Bundle)
+
+2. **Uploaded to Google Play Console**
+   - Go to play.google.com/console
+   - Select Floora → Testing → Closed Testing
+   - Upload `.aab` file directly (no extra tool needed)
+
+3. **Closed testing requirements**
+   - Google requires minimum 12 testers
+   - Testers must use Android devices
+   - Must run for minimum 14 days before production access
+   - Testers added via email invite through Play Console
+
+4. **Store listing** (in progress)
+   - App name: Floora
+   - Category: Health & Fitness
+   - Description, screenshots, content rating to be completed
+
+---
+
+## Domain & Hosting Setup
+
+| Asset | URL | Host |
+|---|---|---|
+| Privacy Policy | https://ankitapatwal.github.io/floora-privacy-policy | GitHub Pages |
+| API | https://floora-hep-322z.vercel.app/ | Vercel |
+| Client Website | https://floora-pt.com | Client managed |
+
+---
+
+## How to Verify Deployment Works
+
+**iOS:**
+1. Search "Floora" on the App Store → app appears
+2. Download and open → login screen loads without crashing
+3. Login with user account → Home, Roadmap, Profile visible
+4. Login with admin account → full dashboard accessible
+5. Visit privacy policy URL → page loads correctly
+
+**Android:**
+1. Go to Play Console → confirm build uploaded
+2. Install via closed testing link on Android device
+3. Open app → login screen loads
+4. Login with demo credentials → content visible
+
+---
+
 ## Testing
 
 ### Basic User Flows — Client Mobile App
