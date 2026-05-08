@@ -9,31 +9,23 @@
 ---
 
 ## Project Overview
+Floora is a digital health platform built for Dr. Loretta Barry's pelvic health practice, which specializes in supporting pregnant and postpartum women through evidence-based physical therapy. The platform consists of a client-facing mobile application (iOS & Android) and an admin dashboard, providing an integrated system for delivering personalized home exercise programs (HEPs), tracking client progress, and streamlining communication between practitioners and patients.
 
-Floora, founded by Dr. Loretta Barry, is a pelvic health practice dedicated to helping pregnant and postpartum women regain strength, confidence, and comfort through evidence-based physical therapy.
-
-To enhance the quality and consistency of client care, this project develops the **Floora HEP** digital platform — a client mobile application (iOS & Android) paired with an admin dashboard website. The platform provides an integrated system for managing exercises, tracking progress, and improving communication between clients and practitioners, reflecting Floora's premium standard of care.
 
 ---
 
 ## Problem Statement
-
-Floora currently relies on handwritten exercise instructions, leading to inefficiency, fragmented communication, and limited scalability. This manual approach does not reflect the practice's modern, high-quality service model.
-
-A secure and user-friendly digital solution is being developed to streamline exercise management, centralize client data, and enhance the overall client experience. The dedicated web and mobile platform aims to modernize operations, improve accessibility, and support Floora's mission to deliver professional, seamless pelvic health care.
+Floora currently delivers exercise instructions manually — relying on handwritten notes and fragmented communication. This approach is inefficient, difficult to scale, and inconsistent with the practice's high standard of care. There is no centralized system for managing client data, tracking progress, or delivering updates in real time.
 
 ---
 
 ## Objective
+Replace Floora's manual workflow with a scalable, secure digital platform that:
 
-The objective is to replace Floora's manual exercise workflow with a scalable digital system.
-
-The system will:
-
-- Improve efficiency, consistency, and personalization in delivering home exercise programs (HEP)
-- Enhance client experience with access to exercises, progress tracking, and communication
-- Empower Floora's staff to manage clients, update content, and monitor outcomes in real time
-
+- Delivers personalized home exercise programs with consistency and efficiency
+- Gives clients easy access to their programs, instructional videos, and progress tracking
+- Empowers Floora staff to manage client accounts, assign exercises, and monitor outcomes in real time
+- Reflects the practice's professional, patient-centered standard of care
 ---
 
 ## Proposed Solution
