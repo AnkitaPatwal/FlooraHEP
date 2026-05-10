@@ -78,9 +78,9 @@ Overall, this solution will strengthen Floora's brand as a leader in evidence-ba
 ## Demos
 
 <p align="center">
-  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExdGRkdHd4dmk3NXNsczZseHg3aGs3YnZnY2o3Z24wb2p1b29uNzBjZiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/1sosTG72VQeXW675ZL/giphy.gif" alt="Mobile App Demo" width="200" />
+  <img src="app_demo.gif" alt="Mobile App Demo" width="220"/>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExcjFwdHM2M3YyenpvcXYyZG9vcWNsMTZkbndzeHIwOG1xZzZrejJjaCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/cntDWPVfH61UKif0p3/giphy.gif" alt="Web Admin Demo" width="500" />
+  <img src="web_demo.gif" alt="Web Admin Demo" width="520"/>
 </p>
 
 ---
