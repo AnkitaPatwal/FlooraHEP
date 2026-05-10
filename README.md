@@ -385,6 +385,59 @@ Press `i` for iOS simulator or `a` for Android emulator.
 4. Login with demo credentials → content visible
 
 ---
+## Website Deployment
+
+**1. Deploy Frontend**
+1. Go to [vercel.com](https://vercel.com) → Add New Project
+2. Import `AnkitaPatwal/FlooraHEP` from GitHub
+3. Set **Root Directory** to `floora-web`
+4. Add environment variables in Vercel dashboard
+5. Click **Deploy**
+6. Frontend live at `https://floora-hep.vercel.app`
+
+**2. Deploy Backend**
+1. Vercel → Add New Project → same repo
+2. Set **Root Directory** to `backend`
+3. Set Application Preset to **Express**
+4. Add environment variables in Vercel dashboard
+5. Click **Deploy**
+6. Backend live at `https://floora-hep-322z.vercel.app`
+
+**3. Configure Supabase Auth**
+1. Supabase → Authentication → URL Configuration
+2. Set **Site URL**: `https://floora-hep.vercel.app`
+3. Add **Redirect URL**: `https://floora-hep.vercel.app/**`
+
+---
+
+## Domain Setup
+No custom domain configured. Vercel auto-provisions subdomains and
+SSL certificates for both services.
+
+| Service | Domain | SSL |
+|---------|--------|-----|
+| Frontend | `floora-hep.vercel.app` | Auto-provisioned |
+| Backend | `floora-hep-322z.vercel.app` | Auto-provisioned |
+
+---
+
+## Verifying Deployment
+
+| Check | How | Expected Result |
+|-------|-----|----------------|
+| Frontend loads | Visit https://floora-hep.vercel.app | Login page renders |
+| Admin login works | Log in with admin credentials | Dashboard loads with data |
+| Backend health | Visit https://floora-hep-322z.vercel.app/api/health | `{ "ok": true }` |
+| Vercel status | Vercel dashboard → Deployments tab | Status shows **Ready** |
+| No CORS errors | Browser DevTools → Network tab | All API calls return 200 |
+
+---
+
+## CI/CD
+Every push to `main` triggers an automatic redeployment on Vercel.
+To roll back: Vercel dashboard → Deployments → **Instant Rollback**
+
+---
 
 ## Testing
 
