@@ -200,32 +200,46 @@ Production values are defined in `app.json`:
 
 ---
 
+## Database Connection Setup
+
+This project uses Supabase as its database. The apps connect via the `@supabase/supabase-js` SDK using the project URL and the appropriate key.
+
+| App | Client file | URL variable | Key variable |
+|---|---|---|---|
+| Backend | `backend/lib/supabaseServer.ts` | `SUPABASE_URL` | `SUPABASE_SERVICE_ROLE_KEY` |
+| Frontend | `floora-web/src/lib/supabase.ts` | `VITE_SUPABASE_URL` | `VITE_SUPABASE_ANON_KEY` |
+| Mobile | `mobile/lib/supabaseClient.ts` | `EXPO_PUBLIC_SUPABASE_URL` | `EXPO_PUBLIC_SUPABASE_ANON_KEY` |
+
+**Before first run:** create a Supabase project, copy the project URL and keys (environment variables) from **Dashboard → Settings → API**, and paste them into the corresponding `.env` file.
+
+---
+
 ## Environment Variables
 
 Environment variables are not stored in the codebase and must be configured per platform.
 
 ### Expo (Mobile)
 
-- `EXPO_PUBLIC_SUPABASE_URL`
-- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
-- `API_URL`
+- `EXPO_PUBLIC_SUPABASE_URL` = https://<your-project-ref>.supabase.co
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY` = <supabase-anon-key>
+- `EXPO_PUBLIC_API_URL` = http://localhost:3000
+- `EXPO_PUBLIC_BACKEND_URL` = http://localhost:3000
 
 ### Vercel (Frontend)
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_ANON_KEY`
-- `VITE_API_URL`
+- `VITE_SUPABASE_URL` = https://<your-project-ref>.supabase.co
+- `VITE_SUPABASE_ANON_KEY` = <supabase-anon-key>
+- `VITE_API_URL` = https://<your-backend>.vercel.app
 
 ### Vercel (Backend)
 
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_BUCKET`
-- `ADMIN_JWT_SECRET`
-- `DISABLE_ADMIN_GUARD`
-- `SMTP_PASS`
-- `PORT`
+- `SUPABASE_URL` = https://<your-project-ref>.supabase.co
+- `SUPABASE_SERVICE_ROLE_KEY` = <supabase-service-role-key>
+- `SUPABASE_ANON_KEY` = <supabase-anon-key>
+- `SUPABASE_BUCKET` = exercise-videos
+- `ADMIN_JWT_SECRET` = <long-random-string>
+- `DISABLE_ADMIN_GUARD` = false
+- `PORT` = 3000
 
 ---
 
@@ -271,17 +285,6 @@ Backend routing is configured for serverless execution and secure communication 
 - Expo account with EAS access
 
 EAS handles certificate and provisioning profile generation automatically.
-
----
-
-## Supabase Configuration
-
-Before production use:
-
-- Set **Site URL** to the frontend domain
-- Configure **Auth redirect URLs** to match frontend routes
-
-Supabase manages authentication, database, and storage services.
 
 ---
 
