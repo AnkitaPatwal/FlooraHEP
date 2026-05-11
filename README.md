@@ -220,32 +220,32 @@ Environment variables are not stored in the codebase and must be configured per 
 
 ### Expo (Mobile)
 
-```bash
-EXPO_PUBLIC_SUPABASE_URL = https://<your-project-ref>.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY = <supabase-anon-key>
-EXPO_PUBLIC_API_URL = http://localhost:3000
-EXPO_PUBLIC_BACKEND_URL = http://localhost:3000
-```
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_SUPABASE_URL` | Supabase project URL used by the mobile app |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Public Supabase anon key for client requests |
+| `EXPO_PUBLIC_API_URL` | Base URL of the Floora backend API |
+| `EXPO_PUBLIC_BACKEND_URL` | Backend URL used by mobile screens |
 
 ### Vercel (Frontend)
 
-```bash
-VITE_SUPABASE_URL = https://<your-project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY = <supabase-anon-key>
-VITE_API_URL = https://<your-backend>.vercel.app
-```
+| Variable | Description |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL used by the web admin |
+| `VITE_SUPABASE_ANON_KEY` | Public Supabase anon key for the web admin |
+| `VITE_API_URL` | Backend API URL used by the web admin |
 
 ### Vercel (Backend)
 
-```bash
-SUPABASE_URL = https://<your-project-ref>.supabase.co
-SUPABASE_SERVICE_ROLE_KEY = <supabase-service-role-key>
-SUPABASE_ANON_KEY = <supabase-anon-key>
-SUPABASE_BUCKET = exercise-videos
-ADMIN_JWT_SECRET = <long-random-string>
-DISABLE_ADMIN_GUARD = false
-PORT = 3000
-```
+| Variable | Description |
+|---|---|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Privileged Supabase key for server-side operations |
+| `SUPABASE_ANON_KEY` | Public Supabase anon key (used for token verification) |
+| `SUPABASE_BUCKET` | Storage bucket name for exercise videos |
+| `ADMIN_JWT_SECRET` | Secret used to sign and verify admin JWT tokens |
+| `DISABLE_ADMIN_GUARD` | Dev-only flag to bypass admin auth checks |
+| `PORT` | Port the Express server listens on locally |
 
 ---
 
@@ -291,6 +291,17 @@ Backend routing is configured for serverless execution and secure communication 
 - Expo account with EAS access
 
 EAS handles certificate and provisioning profile generation automatically.
+
+---
+
+## Supabase Configuration
+
+Before production use:
+
+- Set **Site URL** to the frontend domain
+- Configure **Auth redirect URLs** to match frontend routes
+
+Supabase manages authentication, database, and storage services.
 
 ---
 
