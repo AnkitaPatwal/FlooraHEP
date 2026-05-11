@@ -221,30 +221,30 @@ Environment variables are not stored in the codebase and must be configured per 
 ### Expo (Mobile)
 
 ```bash
-- EXPO_PUBLIC_SUPABASE_URL = https://<your-project-ref>.supabase.co
-- EXPO_PUBLIC_SUPABASE_ANON_KEY = <supabase-anon-key>
-- EXPO_PUBLIC_API_URL = http://localhost:3000
-- EXPO_PUBLIC_BACKEND_URL = http://localhost:3000
+EXPO_PUBLIC_SUPABASE_URL = https://<your-project-ref>.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY = <supabase-anon-key>
+EXPO_PUBLIC_API_URL = http://localhost:3000
+EXPO_PUBLIC_BACKEND_URL = http://localhost:3000
 ```
 
 ### Vercel (Frontend)
 
 ```bash
-- VITE_SUPABASE_URL = https://<your-project-ref>.supabase.co
-- VITE_SUPABASE_ANON_KEY = <supabase-anon-key>
-- VITE_API_URL = https://<your-backend>.vercel.app
+VITE_SUPABASE_URL = https://<your-project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY = <supabase-anon-key>
+VITE_API_URL = https://<your-backend>.vercel.app
 ```
 
 ### Vercel (Backend)
 
 ```bash
-- SUPABASE_URL = https://<your-project-ref>.supabase.co
-- SUPABASE_SERVICE_ROLE_KEY = <supabase-service-role-key>
-- SUPABASE_ANON_KEY = <supabase-anon-key>
-- SUPABASE_BUCKET = exercise-videos
-- ADMIN_JWT_SECRET = <long-random-string>
-- DISABLE_ADMIN_GUARD = false
-- PORT = 3000
+SUPABASE_URL = https://<your-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY = <supabase-service-role-key>
+SUPABASE_ANON_KEY = <supabase-anon-key>
+SUPABASE_BUCKET = exercise-videos
+ADMIN_JWT_SECRET = <long-random-string>
+DISABLE_ADMIN_GUARD = false
+PORT = 3000
 ```
 
 ---
