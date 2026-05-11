@@ -77,11 +77,8 @@ Overall, this solution will strengthen Floora's brand as a leader in evidence-ba
 
 ## Demos
 
-<p align="center">
-  <img src="app_demo.gif" alt="Mobile App Demo" width="220"/>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="web_demo.gif" alt="Web Admin Demo" width="520"/>
-</p>
+<img width="400" height="225" alt="Floora HEP app" src="https://github.com/user-attachments/assets/4e69273e-e25a-46c9-aec9-8cc9858b8f63" />
+<img width="400" height="225" alt="FlooraHEP website" src="https://github.com/user-attachments/assets/405e5efc-810b-438f-b087-f379a413a99f" />
 
 ---
 
