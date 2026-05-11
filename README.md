@@ -81,19 +81,85 @@ Overall, this solution will strengthen Floora's brand as a leader in evidence-ba
 <img width="1152" height="648" alt="FlooraHEP website" src="https://github.com/user-attachments/assets/8fecf68b-e3a8-41c7-9327-2a0ec31569e2" />
 
 ---
+## 📱 Mobile App
 
-## Figma Wireframe
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/305e329f-ffc9-424d-9e20-0d29bd2e8dbd" width="220"/>
+  <img src="https://github.com/user-attachments/assets/5a412e58-fa54-4aff-a3f3-042597506634" width="220"/>
+  <img src="https://github.com/user-attachments/assets/6569d88a-ed97-4e01-899e-1f0b5fd832d4" width="220"/>
+</p>
 
-<img width="1252" height="625" alt="wireframe_floora" src="https://github.com/user-attachments/assets/ea9731de-6abf-4186-ad2e-cb5b0acb87b8" />
+<p align="center">
+  <sub>
+    <b>Login:</b> Client signs in or requests access to begin using the Floora platform. &nbsp;&nbsp;&nbsp;<br/>
+    <b>Home:</b> Client views their current recovery program and active session. &nbsp;&nbsp;&nbsp; <br/>
+    <b>Roadmap:</b> Client navigates their structured recovery plan with progressive session unlocks.<br/>
+  </sub>
+</p>
 
+<br/>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a2e023ea-3eb9-4614-b4fb-79d72d89d15a" width="220"/>
+  <img src="https://github.com/user-attachments/assets/1d667b6f-347c-4a46-b0d4-9d257548608f" width="220"/>
+</p>
+
+<p align="center">
+  <sub>
+    <b>Session:</b> Client views exercises within a session, including locked and available content. &nbsp;&nbsp;&nbsp;<br/>
+    <b>Exercise:</b> Client follows guided exercises with video, instructions, and assigned sets/reps.<br/>
+  </sub>
+</p>
+
+
+## 💻 Admin Dashboard
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/1d557ab6-6f33-4d24-a8d8-0a0792325753" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+  <img src="https://github.com/user-attachments/assets/23ba389d-41d7-41fa-a88f-467741e6270b" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+</p>
+
+<p align="center">
+  <sub>
+    <b>Login:</b> Admin signs in to access the dashboard.<br/>
+    <b>Dashboard:</b> Admin views platform metrics and recent activity.
+  </sub>
+</p>
+
+<br/>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3fb7079b-84e9-4b90-b47e-17cd252920e0" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+  <img src="https://github.com/user-attachments/assets/c47a0ae4-d98b-4a72-97cd-0216a90b84e6" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+</p>
+
+<p align="center">
+  <sub>
+    <b>Users:</b> Admin manages client accounts and approvals.<br/>
+    <b>Plans:</b> Admin views and organizes exercise plans.
+  </sub>
+</p>
+
+<br/>
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/11ffac4c-a883-4a66-96a4-f5d7b0b27560" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+  <img src="https://github.com/user-attachments/assets/43459dbe-45a6-4fb1-98a8-30aba68c3b7e" width="380" style="border:1px solid #000; border-radius:8px; margin:10px;"/>
+</p>
+
+<p align="center">
+  <sub>
+    <b>Sessions:</b> Admin structures sessions within plans.<br/>
+    <b>Exercises:</b> Admin manages the exercise library.
+  </sub>
+</p>
 ---
 
 ## Entity Relationship Diagram (ERD)
 
 <p align="center">
-  <img alt="ERD" src="https://github.com/user-attachments/assets/f6117ca5-6385-46b5-a4a2-dd2993496e4c" style="width:50%; height:auto;" />
+  <img src="https://github.com/user-attachments/assets/ae564784-779b-41fd-a840-334e72f8b876" width="800"/>
 </p>
-
 ---
 
 ## Live Application
