@@ -1,4 +1,5 @@
 // backend/routes/adminAuth.ts
+import { randomUUID } from "crypto";
 import express from "express";
 import { createClient } from "@supabase/supabase-js";
 
@@ -33,11 +34,36 @@ type AdminPayload = {
   role: string | null;
 };
 
+/** Selected `admin_users` row shape (not `typeof adminRow` — that narrows to `null` inside `if (!adminRow)`). */
+type AdminUsersRow = {
+  id: string;
+  email: string;
+  role: string | null;
+  is_active: boolean;
+};
+
+function mergeAdminRole(
+  dbRole: string | null | undefined,
+  metadataRole: string | null | undefined
+): string | null {
+  if (dbRole === "super_admin" || metadataRole === "super_admin") {
+    return "super_admin";
+  }
+  if (dbRole === "admin" || metadataRole === "admin") {
+    return "admin";
+  }
+  return dbRole ?? metadataRole ?? null;
+}
+
 /* -------------------- HELPERS -------------------- */
 
 /**
  * Extracts and verifies the Supabase Bearer token from the Authorization header.
  * Returns the admin payload if valid, null otherwise.
+ *
+ * `id` is always `public.admin_users.id` (UUID). That column is the FK target for
+ * `plan.created_by_admin_id` / `module.created_by_admin_id`. Invited admins get a row
+ * provisioned on first API call (id aligned with `auth.users.id`).
  */
 async function getAdminFromToken(
   req: express.Request
@@ -53,11 +79,85 @@ async function getAdminFromToken(
   if (error || !data?.user) return null;
 
   const user = data.user;
-  const role = user.user_metadata?.role ?? null;
+  const email = user.email?.toLowerCase().trim();
+  if (!email) return null;
+
+  const metadataRole =
+    typeof user.user_metadata?.role === "string"
+      ? user.user_metadata.role
+      : null;
+
+  const { data: row, error: rowError } = await supabaseAdmin
+    .from("admin_users")
+    .select("id, email, role, is_active")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (rowError) {
+    console.error("admin_users lookup in getAdminFromToken:", rowError);
+    return null;
+  }
+
+  let adminRow = row as AdminUsersRow | null;
+
+  if (!adminRow) {
+    const canProvision =
+      metadataRole === "admin" || metadataRole === "super_admin";
+    if (!canProvision) {
+      return null;
+    }
+
+    const insertRole = metadataRole === "super_admin" ? "super_admin" : "admin";
+
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("admin_users")
+      .insert({
+        id: user.id,
+        email,
+        password_hash: `temp-${randomUUID()}`,
+        role: insertRole,
+        is_active: true,
+      })
+      .select("id, email, role, is_active")
+      .maybeSingle();
+
+    if (insertError) {
+      const code = (insertError as { code?: string }).code;
+      if (code === "23505") {
+        const { data: again, error: againErr } = await supabaseAdmin
+          .from("admin_users")
+          .select("id, email, role, is_active")
+          .ilike("email", email)
+          .maybeSingle();
+        if (againErr || !again) {
+          console.error("admin_users re-fetch after duplicate:", againErr);
+          return null;
+        }
+        adminRow = again as AdminUsersRow;
+      } else {
+        console.error("admin_users insert in getAdminFromToken:", insertError);
+        return null;
+      }
+    } else if (!inserted) {
+      console.error("admin_users insert returned no row");
+      return null;
+    } else {
+      adminRow = inserted as AdminUsersRow;
+    }
+  }
+
+  if (!adminRow?.is_active) {
+    return null;
+  }
+
+  const role = mergeAdminRole(adminRow.role, metadataRole);
+  if (role !== "admin" && role !== "super_admin") {
+    return null;
+  }
 
   return {
-    id: user.id,
-    email: user.email ?? "",
+    id: adminRow.id,
+    email: adminRow.email ?? email,
     role,
   };
 }
